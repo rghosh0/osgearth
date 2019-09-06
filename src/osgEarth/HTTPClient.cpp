@@ -21,7 +21,10 @@
 #include <osgEarth/Metrics>
 #include <osgDB/ReadFile>
 #include <osgDB/FileNameUtils>
+
+#if defined(HAVE_CURL)
 #include <curl/curl.h>
+#endif
 
 // Whether to use WinInet instead of cURL - CMAKE option
 #ifdef OSGEARTH_USE_WININET_FOR_HTTP
@@ -147,6 +150,7 @@ namespace osgEarth
     TimeStamp
     getCurlFileTime(void* curl)
     {
+#if defined(HAVE_CURL)
         long filetime;
         if (CURLE_OK != curl_easy_getinfo(curl, CURLINFO_FILETIME, &filetime))
             return TimeStamp(0);
@@ -154,6 +158,9 @@ namespace osgEarth
             return TimeStamp(0);
         else
             return TimeStamp(filetime);
+#else
+        return TimeStamp(0);
+#endif
     }
 }
 
@@ -418,6 +425,7 @@ HTTPClient::initialize() const
 void
 HTTPClient::initializeImpl()
 {
+#if defined(HAVE_CURL)
     _previousHttpAuthentication = 0;
     _curl_handle = curl_easy_init();
 
@@ -490,12 +498,15 @@ HTTPClient::initializeImpl()
     curl_easy_setopt( _curl_handle, CURLOPT_CONNECTTIMEOUT, connectTimeout );
 
     _initialized = true;
+#endif // HAVE_CURL
 }
 
 HTTPClient::~HTTPClient()
 {
+#if defined(HAVE_CURL)
     if (_curl_handle) curl_easy_cleanup( _curl_handle );
     _curl_handle = 0;
+#endif
 }
 
 void
@@ -562,7 +573,9 @@ void HTTPClient::setCurlConfighandler(CurlConfigHandler* handler)
 void
 HTTPClient::globalInit()
 {
+#if defined(HAVE_CURL)
     curl_global_init(CURL_GLOBAL_ALL);
+#endif
 }
 
 void
@@ -984,6 +997,7 @@ HTTPClient::doGet(const HTTPRequest&    request,
                   const osgDB::Options* options,
                   ProgressCallback*     progress) const
 {
+#if defined(HAVE_CURL)
     METRIC_BEGIN("HTTPClient::doGet", 1,
                    "url", request.getURL().c_str());
 
@@ -1353,6 +1367,9 @@ HTTPClient::doGet(const HTTPRequest&    request,
                "canceled", toString<bool>(response.isCancelled()).c_str());
 
     return response;
+#else // HAVE_CURL
+    return HTTPResponse::NOT_FOUND;
+#endif // HAVE_CURL
 }
 
 #endif // USE_WININET

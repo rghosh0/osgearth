@@ -2596,7 +2596,8 @@ typedef FILE duk_file;
  * so refuse to compile.  Relax this if -ffast-math is tested to work.
  */
 #if defined(__FAST_MATH__)
-#error __FAST_MATH__ defined, refusing to compile
+//#error __FAST_MATH__ defined, refusing to compile
+// do nothing
 #endif
 
 /*
