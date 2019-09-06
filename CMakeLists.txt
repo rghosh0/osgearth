@@ -80,6 +80,17 @@ IF(OSGEARTH_BUILD_PLATFORM_IPHONE)
 
     SET(OSGEARTH_USE_GLES TRUE)
 
+    IF(DEFINED CMAKE_TOOLCHAIN_FILE)
+      SET (IPHONE_ENABLE_BITCODE ${ENABLE_BITCODE})
+      SET (IPHONE_SDKVER "${IOS_SDK_VERSION}")
+      SET (IPHONE_VERSION_MIN "${IOS_DEPLOYMENT_TARGET}")
+      SET (IPHONE_SDKROOT "${CMAKE_OSX_SYSROOT}")
+      SET (IPHONE_DEVROOT "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer")
+      SET (CMAKE_OSX_ARCHITECTURES "${IOS_ARCH}")
+      SET (CMAKE_XCODE_EFFECTIVE_PLATFORMS "-iphoneos;-iphonesimulator")
+      SET (CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "${IPHONE_VERSION_MIN}") 
+    ELSE()
+    
     # set sdk and min versions
     SET (IPHONE_SDKVER "10.2" CACHE STRING "IOS SDK-Version")
     SET (IPHONE_VERSION_MIN "7.0" CACHE STRING "IOS minimum os version, use 7.0 or greater to get 64bit support")
@@ -103,6 +114,7 @@ IF(OSGEARTH_BUILD_PLATFORM_IPHONE)
     # set the sdk path as our sysroot
     SET(CMAKE_OSX_SYSROOT "${IPHONE_SDKROOT}" CACHE STRING "System root for iOS" FORCE)
 
+    ENDIF()
 ENDIF ()
 
 
