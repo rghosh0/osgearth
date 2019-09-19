@@ -47,7 +47,8 @@ ModelNode::ModelNode(MapNode*              mapNode,
                      const osgDB::Options* readOptions ) :
 GeoPositionNode(),
 _style( style ),
-_readOptions( readOptions )
+_readOptions( readOptions ),
+_image( nullptr )
 {
     construct();
     setMapNode(mapNode);
@@ -98,6 +99,41 @@ ModelNode::compileModel()
                     node = uri.getNode( tempOptions.get() );
                 }
 
+                //try to load an image from the uri provided
+                if ( !node.valid() && ! _image.valid() )
+                {
+                    OE_DEBUG << LC << "try to load image " << uri.full() << std::endl;
+                    _image = uri.getImage();
+
+                    if( _image.valid() )
+                    {
+                        OE_DEBUG << LC << "creating image geometry " << std::endl;
+                        osg::ref_ptr<osg::Geode> geode = new osg::Geode();
+                        geode->setName( "Image Geode" );
+
+                        //try to create a geometry for this image (same geom as Placenode)
+                        osg::Vec2s offset(0.0,0.0);
+                        osg::Geometry* imageGeom = AnnotationUtils::createImageGeometry( _image.get(), offset, 0, 0.0, 1.0 );
+                        if ( imageGeom )
+                        {
+                            imageGeom->setName( "Image Geometry" );
+                            OE_DEBUG << LC << "adding image geometry to scenegraph " << uri.full() << std::endl;
+                            geode->addDrawable( imageGeom );
+
+                            node = geode;
+                        }
+                        else
+                        {
+                            OE_WARN << LC << "Could not create geometry for the image " << uri.full() << std::endl;
+                        }
+                    }
+                    else
+                    {
+                        OE_WARN << LC << "Could not load model as image " << uri.full() << std::endl;
+                    }
+
+                }
+
                 if ( !node.valid() )
                 {
                     OE_WARN << LC << "No model and failed to load data from " << uri.full() << std::endl;
@@ -144,9 +180,10 @@ ModelNode::compileModel()
                 // auto scaling?
                 if ( sym->autoScale() == true )
                 {
-                    this->setCullingActive(false);
-                    this->addCullCallback( new GeoPositionNodeAutoScaler( osg::Vec3d(1,1,1), sym->minAutoScale().value(), sym->maxAutoScale().value() ));
-                } 
+                    setCullingActive(false);
+                    _geoPosCallback = new GeoPositionNodeAutoScaler( osg::Vec3d(1,1,1), sym->minAutoScale().value(), sym->maxAutoScale().value() );
+                    addCullCallback( _geoPosCallback.get() );
+                }
 
                 // rotational offsets?
                 if (sym && (sym->heading().isSet() || sym->pitch().isSet() || sym->roll().isSet()) )
@@ -214,4 +251,99 @@ ModelNode::getConfig() const
         conf.set( "style", _style );
 
     return conf;
+}
+
+void
+ModelNode::replaceImage(const URI &uri)
+{
+    _image = uri.getImage();
+
+    if(getPositionAttitudeTransform()->getNumChildren()==0)
+    {
+        OE_WARN << LC << "replaceImage: PositionAttitudeTransform has no child " << std::endl;
+        return;
+    }
+    osg::ref_ptr<osg::Node> node = getPositionAttitudeTransform()->getChild(0);
+
+    if( _image.valid() )
+    {
+        if(node.valid())
+        {
+            OE_DEBUG << LC << "creating image geometry " << std::endl;
+            osg::ref_ptr<osg::Geode> geode = node->asGeode();
+            if ( geode.valid() )
+            {
+                geode->setName( "Image Geode" );
+
+                //try to create a geometry for this image (same geom as Placenode)
+                osg::Vec2s offset(0.0,0.0);
+                osg::ref_ptr<osg::Geometry> imageGeom = AnnotationUtils::createImageGeometry( _image.get(), offset, 0, 0.0, 1.0 );
+                if ( imageGeom.valid() )
+                {
+                    imageGeom->setName( "Image Geometry" );
+                    OE_DEBUG << LC << "adding image geometry to scenegraph " << uri.full() << std::endl;
+
+                    osg::ref_ptr<osg::Drawable> drawable = geode->getDrawable(0);
+                    if (drawable) {
+                        OE_DEBUG << LC << "drawable found, replacing it " << std::endl;
+                        bool ret = geode->replaceDrawable(drawable, imageGeom);
+                        OE_DEBUG << LC << "replacement success " << ret << std::endl;
+                    } else {
+                        geode->addDrawable( imageGeom.get() );
+                    }
+
+                    if ( node.valid() )
+                    {
+                        if ( Registry::capabilities().supportsGLSL() )
+                        {
+                            // generate shader code for the loaded model:
+                            Registry::shaderGenerator().run(
+                                node.get(),
+                                "osgEarth.ModelNode",
+                                Registry::stateSetCache() );
+                        }
+                    }
+
+                } else
+                {
+                    OE_WARN << LC << "replaceImage: Could not create geometry for the image " << uri.full() << std::endl;
+                }
+            } else
+            {
+                OE_WARN << LC << "replaceImage: Node is not a geode " << std::endl;
+            }
+        }
+        else
+        {
+            OE_WARN << LC << "replaceImage: No valid Node found " << std::endl;
+        }
+
+    }
+    else
+    {
+        OE_WARN << LC << "replaceImage: Could not load model as image " << uri.full() << std::endl;
+    }
+}
+
+void
+ModelNode::setAutoScale(bool autoScale, double minAutoScale, double maxAutoScale)
+{
+    OE_DEBUG << LC << "Setting autoScale " << (autoScale ? "true" : "false") << std::endl;
+    if (_geoPosCallback.valid())
+    {
+        OE_DEBUG << LC << "Removing existing cull callback " << std::endl;
+        removeCullCallback(_geoPosCallback.get());
+    }
+    // auto scaling?
+    if ( autoScale == true )
+    {
+        OE_DEBUG << LC << "Setting new GeoPositionNodeAutoScaler " << std::endl;
+        OE_DEBUG << LC << "minAutoScale: " << minAutoScale << std::endl;
+        OE_DEBUG << LC << "maxAutoScale: " << maxAutoScale << std::endl;
+        setCullingActive(false);
+        _geoPosCallback = new GeoPositionNodeAutoScaler( osg::Vec3d(1,1,1), minAutoScale, maxAutoScale );
+        addCullCallback(_geoPosCallback.get());
+    } else {
+        setCullingActive(true);
+    }
 }

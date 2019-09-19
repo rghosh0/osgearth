@@ -75,10 +75,16 @@ namespace osgEarth { namespace Annotation
 
         virtual Config getConfig() const;
 
+        void replaceImage(const URI &uri);
+
+        void setAutoScale(bool autoScale, double minAutoScale, double maxAutoScale);
+
     protected:
 
         Style _style;
-        osg::ref_ptr<const osgDB::Options> _readOptions;
+        osg::ref_ptr<const osgDB::Options>      _readOptions;
+        osg::ref_ptr<osg::Image>                _image;
+        osg::observer_ptr<osg::NodeCallback>    _geoPosCallback;
 
         void compileModel();
 
