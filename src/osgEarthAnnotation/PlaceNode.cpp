@@ -158,7 +158,7 @@ PlaceNode::compile()
     osg::Group* pat = getPositionAttitudeTransform();
     pat->removeChildren(0, pat->getNumChildren());
 
-    _geode = new osg::Group();
+    _geode = new osg::Geode();
     _geode->setCullingActive(false);
     _geode->setStateSet(_geodeStateSet.get());
 
@@ -297,7 +297,7 @@ PlaceNode::compile()
         {
             // todo: optimize this better:
             _imageDrawable->getOrCreateStateSet()->merge(*_imageStateSet.get());
-            _geode->addChild(_imageDrawable);
+            _geode->addDrawable(_imageDrawable);
             imageBox = _imageDrawable->getBoundingBox();
         }    
     }
@@ -318,12 +318,12 @@ PlaceNode::compile()
     if ( bboxsymbol && _textDrawable )
     {
         _bboxDrawable = new BboxDrawable( _textDrawable->getBoundingBox(), *bboxsymbol );
-        _geode->addChild(_bboxDrawable);
+        _geode->addDrawable(_bboxDrawable);
     }
 
     if ( _textDrawable )
     {
-        _geode->addChild( _textDrawable );
+        _geode->addDrawable( _textDrawable );
     }
 
 #if 0 // test a drop line

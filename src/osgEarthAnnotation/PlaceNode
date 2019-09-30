@@ -98,7 +98,7 @@ namespace osgEarth { namespace Annotation
         osg::ref_ptr<osg::Image>            _image;
         std::string                         _text;
         Style                               _style;
-        osg::Group*                         _geode;
+        osg::Geode*                         _geode;
         osg::Geometry*                      _imageDrawable;
         osg::Drawable*                      _bboxDrawable;
         osgText::Text*                      _textDrawable;
