@@ -107,7 +107,7 @@ ModelNode::compileModel()
 
                     if( _image.valid() )
                     {
-                        OE_DEBUG << LC << "creating image geometry " << std::endl;
+                        OE_DEBUG << LC << "creating single sided image geometry " << std::endl;
                         osg::ref_ptr<osg::Geode> geode = new osg::Geode();
                         geode->setName( "Image Geode" );
 
@@ -119,7 +119,7 @@ ModelNode::compileModel()
                             imageGeom->setName( "Image Geometry" );
                             OE_DEBUG << LC << "adding image geometry to scenegraph " << uri.full() << std::endl;
                             geode->addDrawable( imageGeom );
-
+                            geode->getOrCreateStateSet()->setMode( GL_CULL_FACE, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE );
                             node = geode;
                         }
                         else
