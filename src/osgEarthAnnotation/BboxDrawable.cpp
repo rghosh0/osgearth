@@ -31,21 +31,59 @@ using namespace osgEarth::Annotation;
 //------------------------------------------------------------------------
 
 BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol ) :
-osg::Geometry()
+                                                                                        osg::Geometry()
 {
     setUseVertexBufferObjects(true);
 
     float margin = bboxSymbol.margin().isSet() ? bboxSymbol.margin().value() : 2.f;
+    float shiftRight = 0.f;
     osg::Vec3Array* v = new osg::Vec3Array();
-    if ( bboxSymbol.geom().isSet() && bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED )
+
+    if ( bboxSymbol.geom().isSet() &&
+        ( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ROUNDED ))
     {
-        float h = box.yMax() - box.yMin() + 2.f * margin;
-        v->push_back( osg::Vec3(box.xMax()+margin+h/2.f, box.yMax()+margin-h/2.f, 0) );
+        osg::Vec3 dump;
+        float nbStep = 5.f;
+        int sizeBeforePush = 0;
+        float radius = ((box.yMax()-box.yMin())/2)+margin;
+        osg::Vec3 center (box.xMax(),(box.yMax()+box.yMin())/2,0);
+        v->push_back( osg::Vec3(box.xMax(), box.yMin()-margin, 0) );
+        for (float angle = (3*osg::PI/2.f)+(osg::PI/2.f)/nbStep; angle <2.f*osg::PI ; angle += (osg::PI/2.f)/nbStep)
+        {
+            v->push_back(center + osg::Vec3((cosf(angle)*radius),sinf(angle)*radius,0));
+        }
+        v->push_back(center + osg::Vec3((cosf(2.f*osg::PI)*radius),sinf(2.f*osg::PI)*radius,0));
+        sizeBeforePush = v->size();
+
+        for (int iterator = sizeBeforePush-2; iterator >= sizeBeforePush-nbStep-1; --iterator)
+        {
+            dump = v->at(iterator);
+            v->push_back(osg::Vec3(dump.x(), 2*center.y()-dump.y(), dump.z()));
+        }
+        sizeBeforePush = v->size();
+        for (int iterator = sizeBeforePush-1; iterator >= sizeBeforePush-nbStep*2-1; --iterator)
+        {
+            dump = v->at(iterator);
+            v->push_back(osg::Vec3(2*center.x()-dump.x()-(box.xMax()-box.xMin()), dump.y(), dump.z()));
+        }
+    } else {
+        if ( bboxSymbol.geom().isSet() && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM) )
+        {
+            float hMed = (box.yMax() - box.yMin() + 2.f * margin) / 2.f;
+            if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
+                shiftRight = - hMed;
+
+            v->push_back( osg::Vec3(box.xMax()+margin+hMed+shiftRight, box.yMax()+margin-hMed, 0) );
+
+            if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
+                shiftRight = shiftRight/2.0; // 22.5 angle instead of 45
+        }
+
+        v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMax()+margin, 0) );
+        v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0) );
+        v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0) );
+        v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMin()-margin, 0) );
     }
-    v->push_back( osg::Vec3(box.xMax()+margin, box.yMax()+margin, 0) );
-    v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0) );
-    v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0) );
-    v->push_back( osg::Vec3(box.xMax()+margin, box.yMin()-margin, 0) );
     setVertexArray(v);
     if ( v->getVertexBufferObject() )
         v->getVertexBufferObject()->setUsage(GL_STATIC_DRAW_ARB);

@@ -28,46 +28,53 @@ using namespace osgEarth::Symbology;
 OSGEARTH_REGISTER_SIMPLE_SYMBOL(text, TextSymbol);
 
 TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
-Symbol(rhs, copyop),
-_fill(rhs._fill),
-_halo(rhs._halo),
-_haloOffset(rhs._haloOffset),
-_haloBackdropType(rhs._haloBackdropType),
-_haloImplementation(rhs._haloImplementation),
-_font(rhs._font),
-_size(rhs._size),
-_content(rhs._content),
-_priority(rhs._priority),
-_pixelOffset(rhs._pixelOffset),
-_onScreenRotation(rhs._onScreenRotation),
-_geographicCourse(rhs._geographicCourse),
-_provider(rhs._provider),
-_encoding(rhs._encoding),
-_alignment(rhs._alignment),
-_layout(rhs._layout),
-_declutter(rhs._declutter),
-_occlusionCull(rhs._occlusionCull),
-_occlusionCullAltitude(rhs._occlusionCullAltitude)
+                                                                           Symbol(rhs, copyop),
+                                                                           _fill(rhs._fill),
+                                                                           _halo(rhs._halo),
+                                                                           _haloOffset(rhs._haloOffset),
+                                                                           _haloBackdropType(rhs._haloBackdropType),
+                                                                           _haloImplementation(rhs._haloImplementation),
+                                                                           _font(rhs._font),
+                                                                           _size(rhs._size),
+                                                                           _content(rhs._content),
+                                                                           _priority(rhs._priority),
+                                                                           _pixelOffset(rhs._pixelOffset),
+                                                                           _onScreenRotation(rhs._onScreenRotation),
+                                                                           _geographicCourse(rhs._geographicCourse),
+                                                                           _provider(rhs._provider),
+                                                                           _encoding(rhs._encoding),
+                                                                           _alignment(rhs._alignment),
+                                                                           _layout(rhs._layout),
+                                                                           _declutter(rhs._declutter),
+                                                                           _occlusionCull(rhs._occlusionCull),
+                                                                           _occlusionCullAltitude(rhs._occlusionCullAltitude),
+                                                                           _autoOffsetAlongLine(rhs._autoOffsetAlongLine),
+                                                                           _autoOffsetPreferedPosition(rhs._autoOffsetPreferedPosition),
+                                                                           _autoRotateAlongLine(rhs._autoRotateAlongLine),
+                                                                           _autoOffsetGeomWKT(rhs.autoOffsetGeomWKT())
 {
 }
 
 TextSymbol::TextSymbol( const Config& conf ) :
-Symbol                ( conf ),
-_fill                 ( Fill( 1, 1, 1, 1 ) ),
-_halo                 ( Stroke( 0.3, 0.3, 0.3, 1) ),
-_haloOffset           ( 0.0625f ),
-_haloBackdropType     ( osgText::Text::OUTLINE ),
-_haloImplementation   ( osgText::Text::DELAYED_DEPTH_WRITES ),
-_size                 ( 16.0f ),
-_alignment            ( ALIGN_BASE_LINE ),
-_layout               ( LAYOUT_LEFT_TO_RIGHT ),
-_provider             ( "annotation" ),
-_encoding             ( ENCODING_ASCII ),
-_declutter            ( true ),
-_occlusionCull        ( false ),
-_occlusionCullAltitude( 200000 ),
-_onScreenRotation     ( 0.0 ),
-_geographicCourse     ( 0.0 )
+                                             Symbol                ( conf ),
+                                             _fill                 ( Fill( 1, 1, 1, 1 ) ),
+                                             _halo                 ( Stroke( 0.3, 0.3, 0.3, 1) ),
+                                             _haloOffset           ( 0.0625f ),
+                                             _haloBackdropType     ( osgText::Text::OUTLINE ),
+                                             _haloImplementation   ( osgText::Text::DELAYED_DEPTH_WRITES ),
+                                             _size                 ( 16.0f ),
+                                             _alignment            ( ALIGN_BASE_LINE ),
+                                             _layout               ( LAYOUT_LEFT_TO_RIGHT ),
+                                             _provider             ( "annotation" ),
+                                             _encoding             ( ENCODING_ASCII ),
+                                             _declutter            ( true ),
+                                             _occlusionCull        ( false ),
+                                             _occlusionCullAltitude( 200000 ),
+                                             _onScreenRotation     ( 0.0 ),
+                                             _geographicCourse     ( 0.0 ),
+                                             _autoOffsetAlongLine  ( false ),
+                                             _autoOffsetPreferedPosition  ( CENTER ),
+                                             _autoRotateAlongLine  ( false )
 {
     mergeConfig(conf);
 }
@@ -140,6 +147,13 @@ TextSymbol::getConfig() const
     conf.set( "text-occlusion-cull", _occlusionCull );
     conf.set( "text-occlusion-cull-altitude", _occlusionCullAltitude );
 
+    conf.set( "auto-offset-alongline", _autoOffsetAlongLine);
+    conf.set( "auto-offset-position", "center",  _autoOffsetPreferedPosition, CENTER );
+    conf.set( "auto-offset-position", "right",  _autoOffsetPreferedPosition, RIGHT );
+    conf.set( "auto-offset-position", "left",  _autoOffsetPreferedPosition, LEFT );
+    conf.set( "auto-rotate-alongline", _autoRotateAlongLine);
+    conf.set( "auto-offset-support", _autoOffsetGeomWKT );
+
     return conf;
 }
 
@@ -208,6 +222,13 @@ TextSymbol::mergeConfig( const Config& conf )
 
     conf.get( "text-occlusion-cull", _occlusionCull );
     conf.get( "text-occlusion-cull-altitude", _occlusionCullAltitude );
+
+    conf.get( "auto-offset-alongline", _autoOffsetAlongLine );
+    conf.get( "auto-offset-position", "center",  _autoOffsetPreferedPosition, CENTER );
+    conf.get( "auto-offset-position", "right",  _autoOffsetPreferedPosition, RIGHT );
+    conf.get( "auto-offset-position", "left",  _autoOffsetPreferedPosition, LEFT );
+    conf.get( "auto-rotate-alongline", _autoRotateAlongLine );
+    conf.get( "auto-offset-support", _autoOffsetGeomWKT );
 }
 
 
@@ -354,5 +375,22 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "text-geographic-course") ) {
         style.getOrCreate<TextSymbol>()->geographicCourse() = NumericExpression( c.value() );
+    }
+    else if ( match(c.key(), "text-auto-offset-alongline") ) {
+        style.getOrCreate<TextSymbol>()->autoOffsetAlongLine() = as<bool>(c.value(), defaults.autoOffsetAlongLine().get() );
+    }
+    else if ( match(c.key(), "text-auto-offset-position") ) {
+        if ( match(c.value(), "center") )
+            style.getOrCreate<TextSymbol>()->autoOffsetPreferedPosition() = TextSymbol::CENTER;
+        else if ( match(c.value(), "right" ) )
+            style.getOrCreate<TextSymbol>()->autoOffsetPreferedPosition() = TextSymbol::RIGHT;
+        else if ( match(c.value(), "left" ) )
+            style.getOrCreate<TextSymbol>()->autoOffsetPreferedPosition() = TextSymbol::LEFT;
+    }
+    else if ( match(c.key(), "text-auto-rotate-alongline") ) {
+        style.getOrCreate<TextSymbol>()->autoRotateAlongLine() = as<bool>(c.value(), defaults.autoRotateAlongLine().get() );
+    }
+    else if ( match(c.key(), "text-auto-offset-support") ) {
+        style.getOrCreate<TextSymbol>()->autoOffsetGeomWKT() = StringExpression( c.value() );
     }
 }

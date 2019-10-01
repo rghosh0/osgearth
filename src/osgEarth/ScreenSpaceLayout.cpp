@@ -36,128 +36,128 @@ using namespace osgEarth;
 
 namespace
 {
-    // Sort wrapper to satisfy the template processor.
-    struct SortContainer
+// Sort wrapper to satisfy the template processor.
+struct SortContainer
+{
+    SortContainer( DeclutterSortFunctor& f ) : _f(f) { }
+    const DeclutterSortFunctor& _f;
+    bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
-        SortContainer( DeclutterSortFunctor& f ) : _f(f) { }
-        const DeclutterSortFunctor& _f;
-        bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
-        {
-            return _f(lhs, rhs);
-        }
-    };
+        return _f(lhs, rhs);
+    }
+};
 
-    // Custom sorting functor that sorts drawables front-to-back, and when drawables share the
-    // same parent Geode, sorts them in traversal order.
-    struct SortFrontToBackPreservingGeodeTraversalOrder
+// Custom sorting functor that sorts drawables front-to-back, and when drawables share the
+// same parent Geode, sorts them in traversal order.
+struct SortFrontToBackPreservingGeodeTraversalOrder
+{
+    bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
-        bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
+        if (lhs->getDrawable()->getNumParents() > 0 &&
+            rhs->getDrawable()->getNumParents() > 0 &&
+            rhs->getDrawable()->getParent(0) == lhs->getDrawable()->getParent(0))
         {
-            if (lhs->getDrawable()->getNumParents() > 0 &&
-                rhs->getDrawable()->getNumParents() > 0 &&
-                rhs->getDrawable()->getParent(0) == lhs->getDrawable()->getParent(0))
-            {
-                const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
-                return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
-            }
-            else
-            {
+            const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
+            return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
+        }
+        else
+        {
                 return ( lhs->_depth < rhs->_depth );
-            }
         }
-    };
+    }
+};
 
-    // Custom sorting functor that sorts drawables by Priority, and when drawables share the
-    // same parent Geode, sorts them in traversal order.
-    struct SortByPriorityPreservingGeodeTraversalOrder : public DeclutterSortFunctor
+// Custom sorting functor that sorts drawables by Priority, and when drawables share the
+// same parent Geode, sorts them in traversal order.
+struct SortByPriorityPreservingGeodeTraversalOrder : public DeclutterSortFunctor
+{
+    bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
-        bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
+        if (lhs->getDrawable()->getNumParents() > 0 &&
+            rhs->getDrawable()->getNumParents() > 0 &&
+            rhs->getDrawable()->getParent(0) == lhs->getDrawable()->getParent(0))
         {
-            if (lhs->getDrawable()->getNumParents() > 0 &&
-                rhs->getDrawable()->getNumParents() > 0 &&
-                rhs->getDrawable()->getParent(0) == lhs->getDrawable()->getParent(0))
-            {
-                const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
-                return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
-            }
+            const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
+            return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
+        }
 
-            else
-            {
-                const ScreenSpaceLayoutData* lhsdata = dynamic_cast<const ScreenSpaceLayoutData*>(lhs->getDrawable()->getUserData());
-                float lhsPriority = lhsdata ? lhsdata->_priority : 0.0f;
+        else
+        {
+            const ScreenSpaceLayoutData* lhsdata = dynamic_cast<const ScreenSpaceLayoutData*>(lhs->getDrawable()->getUserData());
+            float lhsPriority = lhsdata ? lhsdata->_priority : 0.0f;
 
-                const ScreenSpaceLayoutData* rhsdata = dynamic_cast<const ScreenSpaceLayoutData*>(rhs->getDrawable()->getUserData());
-                float rhsPriority = rhsdata ? rhsdata->_priority : 0.0f;
+            const ScreenSpaceLayoutData* rhsdata = dynamic_cast<const ScreenSpaceLayoutData*>(rhs->getDrawable()->getUserData());
+            float rhsPriority = rhsdata ? rhsdata->_priority : 0.0f;
 
-                float diff = lhsPriority - rhsPriority;
+            float diff = lhsPriority - rhsPriority;
 
-                if ( diff != 0.0f )
-                    return diff > 0.0f;
+            if ( diff != 0.0f )
+                return diff > 0.0f;
 
-                // first fallback on depth:
-                diff = lhs->_depth - rhs->_depth;
-                if ( diff != 0.0f )
-                    return diff < 0.0f;
+            // first fallback on depth:
+            diff = lhs->_depth - rhs->_depth;
+            if ( diff != 0.0f )
+                return diff < 0.0f;
 
                 // then fallback on traversal order.
 #if OSG_VERSION_GREATER_THAN(3,6,0)
-                diff = float(lhs->_traversalOrderNumber) - float(rhs->_traversalOrderNumber);
+            diff = float(lhs->_traversalOrderNumber) - float(rhs->_traversalOrderNumber);
 #else
-                diff = float(lhs->_traversalNumber) - float(rhs->_traversalNumber);
+            diff = float(lhs->_traversalNumber) - float(rhs->_traversalNumber);
 #endif
-                return diff < 0.0f;
-            }
+            return diff < 0.0f;
         }
-    };
+    }
+};
 
-    // Data structure shared across entire layout system.
-    struct ScreenSpaceLayoutContext : public osg::Referenced
-    {
-        ScreenSpaceLayoutOptions _options;
-    };
+// Data structure shared across entire layout system.
+struct ScreenSpaceLayoutContext : public osg::Referenced
+{
+    ScreenSpaceLayoutOptions _options;
+};
 
-    // records information about each drawable.
-    // TODO: a way to clear out this list when drawables go away
-    struct DrawableInfo
-    {
-        DrawableInfo() : _lastAlpha(1.0f), _lastScale(1.0f), _frame(0u), _visible(true) { }
-        float _lastAlpha, _lastScale;
-        unsigned _frame;
-        bool _visible;
-    };
+// records information about each drawable.
+// TODO: a way to clear out this list when drawables go away
+struct DrawableInfo
+{
+    DrawableInfo() : _lastAlpha(1.0f), _lastScale(1.0f), _frame(0u), _visible(true) { }
+    float _lastAlpha, _lastScale;
+    unsigned _frame;
+    bool _visible;
+};
 
-    typedef std::map<const osg::Drawable*, DrawableInfo> DrawableMemory;
+typedef std::map<const osg::Drawable*, DrawableInfo> DrawableMemory;
 
-    typedef std::pair<const osg::Node*, osg::BoundingBox> RenderLeafBox;
+typedef std::pair<const osg::Node*, osg::BoundingBox> RenderLeafBox;
 
-    // Data structure stored one-per-View.
-    struct PerCamInfo
-    {
-        PerCamInfo() : _lastTimeStamp(0), _firstFrame(true) { }
+// Data structure stored one-per-View.
+struct PerCamInfo
+{
+    PerCamInfo() : _lastTimeStamp(0), _firstFrame(true) { }
 
-        // remembers the state of each drawable from the previous pass
-        DrawableMemory _memory;
+    // remembers the state of each drawable from the previous pass
+    DrawableMemory _memory;
 
-        // re-usable structures (to avoid unnecessary re-allocation)
-        osgUtil::RenderBin::RenderLeafList _passed;
-        osgUtil::RenderBin::RenderLeafList _failed;
-        std::vector<RenderLeafBox>         _used;
+    // re-usable structures (to avoid unnecessary re-allocation)
+    osgUtil::RenderBin::RenderLeafList _passed;
+    osgUtil::RenderBin::RenderLeafList _failed;
+    std::vector<RenderLeafBox>         _used;
 
-        // time stamp of the previous pass, for calculating animation speed
-        osg::Timer_t _lastTimeStamp;
-        bool _firstFrame;
-        osg::Matrix _lastCamVPW;
-    };
+    // time stamp of the previous pass, for calculating animation speed
+    osg::Timer_t _lastTimeStamp;
+    bool _firstFrame;
+    osg::Matrix _lastCamVPW;
+};
 
-    static bool s_declutteringEnabledGlobally = true;
+static bool s_declutteringEnabledGlobally = true;
 
-    static const char* s_faderFS =
-        "#version " GLSL_VERSION_STR "\n"
-        GLSL_DEFAULT_PRECISION_FLOAT "\n"
-        "uniform float " FADE_UNIFORM_NAME ";\n"
-        "void oe_declutter_apply_fade(inout vec4 color) { \n"
-        "    color.a *= " FADE_UNIFORM_NAME ";\n"
-        "}\n";
+static const char* s_faderFS =
+    "#version " GLSL_VERSION_STR "\n"
+    GLSL_DEFAULT_PRECISION_FLOAT "\n"
+    "uniform float " FADE_UNIFORM_NAME ";\n"
+    "void oe_declutter_apply_fade(inout vec4 color) { \n"
+    "    color.a *= " FADE_UNIFORM_NAME ";\n"
+    "}\n";
 }
 
 //----------------------------------------------------------------------------
@@ -252,6 +252,141 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         //nop
     }
 
+    // Update the offset so that the drawable is always visible and constraint on a line
+    void updateOffsetForAutoLabelOnLine(const osg::BoundingBox& box, const osg::Viewport* vp,
+                                        const osg::Vec3d& loc, const ScreenSpaceLayoutData* layoutData,
+                                        const osg::Matrix& camVPW, osg::Vec3f& offset, const osg::Vec3d& to) {
+        // impossible to work when z greater then 1
+        // TODO improve
+        if (/*loc.z() < -1 ||*/ loc.z() > 1)
+            return;
+
+        //        OE_WARN << "------------------------------------------\n";
+        //        OE_WARN << "loc " << loc.x() << " " << loc.y() << "\n";
+        //        OE_WARN << "to " << to.x() << " " << to.y() << "\n";
+
+        // inits
+        const ScreenSpaceLayoutOptions& options = _context->_options;
+        float leftMin = *options.leftMargin()  + vp->x() - box.xMin() + offset.x();
+        float rightMax = -*options.rightMargin() + vp->x() + vp->width() - box.xMax() + offset.x();
+        float bottomMin = *options.bottomMargin() + vp->y() - box.yMin() + offset.y();
+        float topMax = -*options.topMargin() + vp->y() + vp->height() - box.yMax() + offset.y();
+        bool isResolved = false;
+        bool maxPointIsDef = false;
+        osg::Vec3d linePt;
+        bool toIsDef = to.x() != 0. && to.y() != 0. && to.z() != 0.;
+
+        // must go to the right
+        if (loc.x() < leftMin) {
+            if (toIsDef) {
+                linePt = to;
+            } else {
+                linePt = layoutData->getLineEndPoint() * camVPW;
+                if (linePt.x() < loc.x() || linePt.z() < -1 || linePt.z() > 1)
+                    linePt = layoutData->getLineStartPoint() * camVPW;
+            }
+            maxPointIsDef = true;
+
+            if (linePt.x() >= (leftMin - (box.xMax() - box.xMin()))) {
+                float ratio = (leftMin - loc.x()) / (linePt.x() - loc.x());
+                if (ratio < 1)
+                    offset.set(leftMin - loc.x(), ratio * (linePt.y() - loc.y()), 0.f);
+                else
+                    offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                isResolved =
+                    ratio >= 1.f || (loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax;
+            } else {
+                // out of screen : used closest point
+                offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                isResolved = true;
+            }
+        }
+
+        // must go up
+        if (!isResolved && loc.y() < bottomMin) {
+            if (!maxPointIsDef) {
+                if (toIsDef) {
+                    linePt = to;
+                } else {
+                    linePt = layoutData->getLineEndPoint() * camVPW;
+                    if (linePt.y() < loc.y() || linePt.z() < -1 || linePt.z() > 1)
+                        linePt = layoutData->getLineStartPoint() * camVPW;
+                }
+                maxPointIsDef = true;
+            }
+
+            if (linePt.y() >= (bottomMin - (box.yMax() - box.yMin()))) {
+                float ratio = (bottomMin - loc.y()) / (linePt.y() - loc.y());
+                if (ratio < 1)
+                    offset.set(ratio * (linePt.x() - loc.x()), bottomMin - loc.y(), 0.f);
+                else
+                    offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                isResolved =
+                    ratio >= 1.f || (loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax;
+            } else {
+                // out of screen : used closest point
+                offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                isResolved = true;
+            }
+        }
+
+        // must go to the left
+        if (!isResolved && loc.x() > rightMax) {
+            if (!maxPointIsDef) {
+                if (toIsDef) {
+                    linePt = to;
+                } else {
+                    linePt = layoutData->getLineEndPoint() * camVPW;
+                    if (linePt.x() > loc.x() || linePt.z() < -1 || linePt.z() > 1)
+                        linePt = layoutData->getLineStartPoint() * camVPW;
+                }
+                maxPointIsDef = true;
+            }
+
+            if (linePt.x() <= (rightMax + (box.xMax() - box.xMin()))) {
+                float ratio = (rightMax - loc.x()) / (linePt.x() - loc.x());
+                if (ratio < 1)
+                    offset.set(rightMax - loc.x(), ratio * (linePt.y() - loc.y()), 0.f);
+                else
+                    offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                isResolved =
+                    ratio >= 1.f || (loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax;
+            } else {
+                // out of screen : used closest point
+                offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                isResolved = true;
+            }
+        }
+
+        // must go down
+        if (!isResolved && loc.y() > topMax) {
+            if (!maxPointIsDef) {
+                if (toIsDef) {
+                    linePt = to;
+                } else {
+                    linePt = layoutData->getLineEndPoint() * camVPW;
+                    if (linePt.y() > loc.y() || linePt.z() < -1 || linePt.z() > 1)
+                        linePt = layoutData->getLineStartPoint() * camVPW;
+                }
+                maxPointIsDef = true;
+            }
+
+            if (linePt.y() <= (topMax + (box.yMax() - box.yMin()))) {
+                float ratio = (topMax - loc.y()) / (linePt.y() - loc.y());
+                if (ratio < 1)
+                    offset.set(ratio * (linePt.x() - loc.x()), topMax - loc.y(), 0.f);
+                else
+                    offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                isResolved =
+                    ratio >= 1.f || (loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax;
+            } else {
+                // out of screen : used closest point
+                offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                isResolved = true;
+            }
+        }
+    }
+
     // override.
     // Sorts the bin. This runs in the CULL thread after the CULL traversal has completed.
     void sortImplementation(osgUtil::RenderBin* bin)
@@ -317,6 +452,8 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         osg::Vec3f  refCamScale(1.0f, 1.0f, 1.0f);
         osg::Matrix refCamScaleMat;
         osg::Matrix refWindowMatrix = windowMatrix;
+        const osg::Viewport* refVP = vp;
+        osg::Vec3d eye, center, up, look;
 
         // If the camera is actually an RTT slave camera, it's our picker, and we need to
         // adjust the scale to match it.
@@ -324,14 +461,20 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
             cam->getView() &&
             cam->getView()->getCamera() &&
             cam->getView()->getCamera() != cam)
-            //cam->getView()->findSlaveIndexForCamera(cam) < cam->getView()->getNumSlaves())
+        //cam->getView()->findSlaveIndexForCamera(cam) < cam->getView()->getNumSlaves())
         {
             osg::Camera* parentCam = cam->getView()->getCamera();
-            const osg::Viewport* refVP = parentCam->getViewport();
+            refVP = parentCam->getViewport();
             refCamScale.set( vp->width() / refVP->width(), vp->height() / refVP->height(), 1.0 );
             refCamScaleMat.makeScale( refCamScale );
             refWindowMatrix = refVP->computeWindowMatrix();
+            parentCam->getViewMatrixAsLookAt(eye, center, up);
+        } else {
+            cam->getViewMatrixAsLookAt(eye, center, up);
         }
+
+        look = center - eye;
+        look.normalize();
 
         // Track the parent nodes of drawables that are obscured (and culled). Drawables
         // with the same parent node (typically a Geode) are considered to be grouped and
@@ -354,8 +497,8 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         // Go through each leaf and test for visibility.
         // Enforce the "max objects" limit along the way.
         for(osgUtil::RenderBin::RenderLeafList::iterator i = leaves.begin();
-            i != leaves.end() && local._passed.size() < limit;
-            ++i )
+             i != leaves.end() && local._passed.size() < limit;
+             ++i )
         {
             bool visible = true;
 
@@ -366,7 +509,11 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
             const ScreenSpaceLayoutData* layoutData = dynamic_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
 
             // transform the bounding box of the drawable into window-space.
-            osg::BoundingBox box = drawable->getBoundingBox();
+            // (use parent bbox for line following algorithm)
+            osg::BoundingBox box = layoutData != 0L && layoutData->isAutoFollowLine() && drawableParent != 0L
+                    && drawableParent->asGeode() != 0L
+                ? drawableParent->asGeode()->getBoundingBox()
+                : drawable->getBoundingBox();
 
             osg::Vec3f offset;
             osg::Quat rot;
@@ -375,22 +522,70 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
             {
                 // local transformation data
                 // and management of the label orientation (must be always readable)
+                float angle = 0;
+                osg::Vec3d loc = layoutData->getAnchorPoint() * camVPW;
+                osg::Vec3d to;
 
                 bool isText = dynamic_cast<const osgText::Text*>(drawable) != 0L;
 
-                osg::Vec3d loc = layoutData->getAnchorPoint() * camVPW;
-                osg::Vec3d proj = layoutData->getProjPoint() * camVPW;
-                proj -= loc;
+                if (layoutData->isAutoRotate()) {
+                    osg::Vec3d anchorLoc = layoutData->getAnchorPoint();
+                    osg::Vec3d anchorTo = layoutData->getLineEndPoint();
 
-                float angle = atan2(proj.y(), proj.x());
+                    osg::Vec3d camToAnchorLoc = anchorLoc - eye;
+                    osg::Vec3d camToAnchorTo = anchorTo - eye;
+
+                    bool anchorLocIsBehindCam = camToAnchorLoc * look < 0.;
+                    bool originalLocIsBehindCamera = anchorLocIsBehindCam;
+                    bool anchorToIsBehindCam = camToAnchorTo * look < 0.;
+                    bool invertAngle = false;
+
+                    // check wether one side of the line has a better placement
+                    if (anchorLocIsBehindCam && anchorToIsBehindCam) {
+                        if (layoutData->isAutoFollowLine()) {
+                            anchorTo = layoutData->getLineStartPoint();
+                            camToAnchorTo = anchorTo - eye;
+                            anchorToIsBehindCam = camToAnchorTo * look < 0.;
+                            if (!anchorToIsBehindCam)
+                                invertAngle = true;
+                        }
+                    }
+
+                    // Go closer to Anchor To
+                    if (anchorLocIsBehindCam && !anchorToIsBehindCam)
+                        anchorLoc = anchorLoc + (anchorTo - anchorLoc) * 0.95;
+                    // Go closer to Anchor From
+                    else if (!anchorLocIsBehindCam && anchorToIsBehindCam)
+                        anchorTo = anchorTo + (anchorLoc - anchorTo) * 0.95;
+
+                    // projection on screen for computing the angle
+                    osg::Vec3d anchorFromProj = anchorLoc * camVPW;
+                    osg::Vec3d anchorToProj = anchorTo * camVPW;
+                    to = anchorToProj;
+                    anchorToProj -= anchorFromProj;
+                    if (invertAngle)
+                        anchorToProj = -anchorToProj;
+                    angle = atan2(anchorToProj.y(), anchorToProj.x());
+
+                    //
+                    if (originalLocIsBehindCamera) {
+                        anchorToProj.normalize();
+                        anchorToProj *= 10000.;
+                        loc = to - anchorToProj;
+                    } else if (anchorToIsBehindCam) {
+                        anchorToProj.normalize();
+                        anchorToProj *= 10000.;
+                        to = anchorFromProj + anchorToProj;
+                    }
+                }
 
                 if ( isText && (angle < -osg::PI_2 || angle > osg::PI_2) )
                 {
                     // avoid the label characters to be inverted:
                     // use a symetric translation and adapt the rotation to be in the desired angles
                     offset.set( -layoutData->_pixelOffset.x() - box.xMax() - box.xMin(),
-                                -layoutData->_pixelOffset.y() - box.yMax() - box.yMin(),
-                                0.f );
+                               -layoutData->_pixelOffset.y() - box.yMax() - box.yMin(),
+                               0.f );
                     angle += angle < -osg::PI_2? osg::PI : -osg::PI; // JD #1029
                 }
                 else
@@ -408,13 +603,16 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                     osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
                     if ( angle > - osg::PI / 2. && angle < osg::PI / 2.)
                         box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
-                            osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
+                                osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
                     else
-                        box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(lu.y(), ru.y()), 0,
-                            osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0 );
+                        box.set(osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
+                                osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0);
                 }
 
-                offset = refCamScaleMat * offset;
+
+                // adapt the offset for auto sliding label
+                if (layoutData->isAutoFollowLine())
+                    updateOffsetForAutoLabelOnLine(box, refVP, loc, layoutData, camVPW, offset, to);
 
                 // handle the local translation
                 box.xMin() += offset.x();
@@ -457,6 +655,14 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 // Adding 0.5 will cause the GPU to sample the glyph texels exactly on center.
                 winPos.x() = floor(winPos.x()) + 0.5;
                 winPos.y() = floor(winPos.y()) + 0.5;
+            }
+
+            // fully out of viewport
+            bool isViewCulled = false;
+            if (box.xMax() < refVP->x() || box.xMin() > refVP->x() + refVP->width() ||
+                box.yMax() < refVP->y() || box.yMin() > refVP->y() + refVP->height()) {
+                visible = false;
+                isViewCulled = true;
             }
 
             if ( s_declutteringEnabledGlobally )
@@ -517,29 +723,30 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 if (drawableParent)
                     culledParents.insert(drawableParent);
 
-                local._failed.push_back( leaf );
+                    local._failed.push_back( leaf );
             }
 
             // modify the leaf's modelview matrix to correctly position it in the 2D ortho
             // projection when it's drawn later. We'll also preserve the scale.
-            osg::Matrix newModelView;
-            if ( rot.zeroRotation() )
-            {
-                newModelView.makeTranslate( osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0) );
-                newModelView.preMultScale( leaf->_modelview->getScale() * refCamScaleMat );
-            }
-            else
-            {
-                offset = rot * offset;
-                newModelView.makeTranslate( osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0) );
-                newModelView.preMultScale( leaf->_modelview->getScale() * refCamScaleMat );
-                newModelView.preMultRotate( rot );
-            }
+            if (!isViewCulled) {
+                offset = refCamScaleMat * offset;
+                osg::Matrix newModelView;
+                if (rot.zeroRotation()) {
+                    newModelView.makeTranslate(
+                        osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
+                    newModelView.preMultScale(leaf->_modelview->getScale() * refCamScaleMat);
+                } else {
+                    newModelView.makeTranslate(
+                        osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
+                    newModelView.preMultScale(leaf->_modelview->getScale() * refCamScaleMat);
+                    newModelView.preMultRotate(rot);
+                }
 
-            // Leaf modelview matrixes are shared (by objects in the traversal stack) so we
-            // cannot just replace it unfortunately. Have to make a new one. Perhaps a nice
-            // allocation pool is in order here
-            leaf->_modelview = new osg::RefMatrix( newModelView );
+                // Leaf modelview matrixes are shared (by objects in the traversal stack) so we
+                // cannot just replace it unfortunately. Have to make a new one. Perhaps a nice
+                // allocation pool is in order here
+                leaf->_modelview = new osg::RefMatrix(newModelView);
+            }
         }
 
         // copy the final draw list back into the bin, rejecting any leaves whose parents
@@ -653,150 +860,150 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
 namespace
 {
-    /**
+/**
      * Custom draw routine for our declutter render bin.
      */
-    struct DeclutterDraw : public osgUtil::RenderBin::DrawCallback
-    {
-        ScreenSpaceLayoutContext*                  _context;
-        PerThread< osg::ref_ptr<osg::RefMatrix> > _ortho2D;
-        osg::ref_ptr<osg::Uniform>                _fade;
+struct DeclutterDraw : public osgUtil::RenderBin::DrawCallback
+{
+    ScreenSpaceLayoutContext*                  _context;
+    PerThread< osg::ref_ptr<osg::RefMatrix> > _ortho2D;
+    osg::ref_ptr<osg::Uniform>                _fade;
 
-        /**
+    /**
          * Constructs the decluttering draw callback.
          * @param context A shared context among all decluttering objects.
          */
-        DeclutterDraw( ScreenSpaceLayoutContext* context )
-            : _context( context )
-        {
-            // create the fade uniform.
-            _fade = new osg::Uniform( osg::Uniform::FLOAT, FADE_UNIFORM_NAME );
-            _fade->set( 1.0f );
-        }
+    DeclutterDraw( ScreenSpaceLayoutContext* context )
+        : _context( context )
+    {
+        // create the fade uniform.
+        _fade = new osg::Uniform( osg::Uniform::FLOAT, FADE_UNIFORM_NAME );
+        _fade->set( 1.0f );
+    }
 
-        /**
+    /**
          * Draws a bin. Most of this code is copied from osgUtil::RenderBin::drawImplementation.
          * The modifications are (a) skipping code to render child bins, (b) setting a bin-global
          * projection matrix in orthographic space, and (c) calling our custom "renderLeaf()" method
          * instead of RenderLeaf::render()
          */
-        void drawImplementation( osgUtil::RenderBin* bin, osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous )
+    void drawImplementation( osgUtil::RenderBin* bin, osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous )
+    {
+        osg::State& state = *renderInfo.getState();
+
+        unsigned int numToPop = (previous ? osgUtil::StateGraph::numToPop(previous->_parent) : 0);
+        if (numToPop>1) --numToPop;
+        unsigned int insertStateSetPosition = state.getStateSetStackSize() - numToPop;
+
+        if (bin->getStateSet())
         {
-            osg::State& state = *renderInfo.getState();
-
-            unsigned int numToPop = (previous ? osgUtil::StateGraph::numToPop(previous->_parent) : 0);
-            if (numToPop>1) --numToPop;
-            unsigned int insertStateSetPosition = state.getStateSetStackSize() - numToPop;
-
-            if (bin->getStateSet())
-            {
-                state.insertStateSet(insertStateSetPosition, bin->getStateSet());
-            }
-
-            // apply a window-space projection matrix.
-            const osg::Viewport* vp = renderInfo.getCurrentCamera()->getViewport();
-            if ( vp )
-            {
-                //TODO see which is faster
-
-                osg::ref_ptr<osg::RefMatrix>& m = _ortho2D.get();
-                if ( !m.valid() )
-                    m = new osg::RefMatrix();
-
-                //m->makeOrtho2D( vp->x(), vp->x()+vp->width()-1, vp->y(), vp->y()+vp->height()-1 );
-                m->makeOrtho( vp->x(), vp->x()+vp->width()-1, vp->y(), vp->y()+vp->height()-1, -1000, 1000);
-                state.applyProjectionMatrix( m.get() );
-            }
-
-            // render the list
-            osgUtil::RenderBin::RenderLeafList& leaves = bin->getRenderLeafList();
-
-            for(osgUtil::RenderBin::RenderLeafList::reverse_iterator rlitr = leaves.rbegin();
-                rlitr!= leaves.rend();
-                ++rlitr)
-            {
-                osgUtil::RenderLeaf* rl = *rlitr;
-                renderLeaf( rl, renderInfo, previous );
-                previous = rl;
-            }
-
-            if ( bin->getStateSet() )
-            {
-                state.removeStateSet(insertStateSetPosition);
-            }
+            state.insertStateSet(insertStateSetPosition, bin->getStateSet());
         }
 
-        /**
+        // apply a window-space projection matrix.
+        const osg::Viewport* vp = renderInfo.getCurrentCamera()->getViewport();
+        if ( vp )
+        {
+            //TODO see which is faster
+
+            osg::ref_ptr<osg::RefMatrix>& m = _ortho2D.get();
+            if ( !m.valid() )
+                m = new osg::RefMatrix();
+
+            //m->makeOrtho2D( vp->x(), vp->x()+vp->width()-1, vp->y(), vp->y()+vp->height()-1 );
+            m->makeOrtho( vp->x(), vp->x()+vp->width()-1, vp->y(), vp->y()+vp->height()-1, -1000, 1000);
+            state.applyProjectionMatrix( m.get() );
+        }
+
+        // render the list
+        osgUtil::RenderBin::RenderLeafList& leaves = bin->getRenderLeafList();
+
+        for(osgUtil::RenderBin::RenderLeafList::reverse_iterator rlitr = leaves.rbegin();
+             rlitr!= leaves.rend();
+             ++rlitr)
+        {
+            osgUtil::RenderLeaf* rl = *rlitr;
+            renderLeaf( rl, renderInfo, previous );
+            previous = rl;
+        }
+
+        if ( bin->getStateSet() )
+        {
+            state.removeStateSet(insertStateSetPosition);
+        }
+    }
+
+    /**
          * Renders a single leaf. We already applied the projection matrix, so here we only
          * need to apply a modelview matrix that specifies the ortho offset of the drawable.
          *
          * Most of this code is copied from RenderLeaf::draw() -- but I removed all the code
          * dealing with nested bins, since decluttering does not support them.
          */
-        void renderLeaf( osgUtil::RenderLeaf* leaf, osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous )
+    void renderLeaf( osgUtil::RenderLeaf* leaf, osg::RenderInfo& renderInfo, osgUtil::RenderLeaf*& previous )
+    {
+        osg::State& state = *renderInfo.getState();
+
+        // don't draw this leaf if the abort rendering flag has been set.
+        if (state.getAbortRendering())
         {
-            osg::State& state = *renderInfo.getState();
+            //cout << "early abort"<<endl;
+            return;
+        }
 
-            // don't draw this leaf if the abort rendering flag has been set.
-            if (state.getAbortRendering())
+        state.applyModelViewMatrix( leaf->_modelview.get() );
+
+        if (previous)
+        {
+            // apply state if required.
+            osgUtil::StateGraph* prev_rg = previous->_parent;
+            osgUtil::StateGraph* prev_rg_parent = prev_rg->_parent;
+            osgUtil::StateGraph* rg = leaf->_parent;
+            if (prev_rg_parent!=rg->_parent)
             {
-                //cout << "early abort"<<endl;
-                return;
+                osgUtil::StateGraph::moveStateGraph(state,prev_rg_parent,rg->_parent);
+
+                // send state changes and matrix changes to OpenGL.
+                state.apply(rg->getStateSet());
+
             }
-
-            state.applyModelViewMatrix( leaf->_modelview.get() );
-
-            if (previous)
+            else if (rg!=prev_rg)
             {
-                // apply state if required.
-                osgUtil::StateGraph* prev_rg = previous->_parent;
-                osgUtil::StateGraph* prev_rg_parent = prev_rg->_parent;
-                osgUtil::StateGraph* rg = leaf->_parent;
-                if (prev_rg_parent!=rg->_parent)
-                {
-                    osgUtil::StateGraph::moveStateGraph(state,prev_rg_parent,rg->_parent);
-
-                    // send state changes and matrix changes to OpenGL.
-                    state.apply(rg->getStateSet());
-
-                }
-                else if (rg!=prev_rg)
-                {
-                    // send state changes and matrix changes to OpenGL.
-                    state.apply(rg->getStateSet());
-                }
-            }
-            else
-            {
-                // apply state if required.
-                osgUtil::StateGraph::moveStateGraph(state,NULL,leaf->_parent->_parent);
-
-                state.apply(leaf->_parent->getStateSet());
-            }
-
-            // if we are using osg::Program which requires OSG's generated uniforms to track
-            // modelview and projection matrices then apply them now.
-            if (state.getUseModelViewAndProjectionUniforms())
-                state.applyModelViewAndProjectionUniformsIfRequired();
-
-            // apply the fading uniform
-            const osg::Program::PerContextProgram* pcp = state.getLastAppliedProgramObject();
-            if ( pcp )
-            {
-                // todo: find a way to optimize this..?
-                _fade->set( s_declutteringEnabledGlobally ? leaf->_depth : 1.0f );
-                pcp->apply( *_fade.get() );
-            }
-
-            // draw the drawable
-            leaf->_drawable->draw(renderInfo);
-
-            if (leaf->_dynamic)
-            {
-                state.decrementDynamicObjectCount();
+                // send state changes and matrix changes to OpenGL.
+                state.apply(rg->getStateSet());
             }
         }
-    };
+        else
+        {
+            // apply state if required.
+            osgUtil::StateGraph::moveStateGraph(state,NULL,leaf->_parent->_parent);
+
+            state.apply(leaf->_parent->getStateSet());
+        }
+
+        // if we are using osg::Program which requires OSG's generated uniforms to track
+        // modelview and projection matrices then apply them now.
+        if (state.getUseModelViewAndProjectionUniforms())
+            state.applyModelViewAndProjectionUniformsIfRequired();
+
+        // apply the fading uniform
+        const osg::Program::PerContextProgram* pcp = state.getLastAppliedProgramObject();
+        if ( pcp )
+        {
+            // todo: find a way to optimize this..?
+            _fade->set( s_declutteringEnabledGlobally ? leaf->_depth : 1.0f );
+            pcp->apply( *_fade.get() );
+        }
+
+        // draw the drawable
+        leaf->_drawable->draw(renderInfo);
+
+        if (leaf->_dynamic)
+        {
+            state.decrementDynamicObjectCount();
+        }
+    }
+};
 }
 
 //----------------------------------------------------------------------------
@@ -828,8 +1035,8 @@ public:
 
     osgEarthScreenSpaceLayoutRenderBin(const osgEarthScreenSpaceLayoutRenderBin& rhs, const osg::CopyOp& copy)
         : osgUtil::RenderBin(rhs, copy),
-        _f(rhs._f.get()),
-        _context(rhs._context.get())
+          _f(rhs._f.get()),
+          _context(rhs._context.get())
     {
         // Set up a VP to do fading. Do it here so it doesn't happen until the first time
         // we clone the render bin. This play nicely with static initialization.
@@ -886,7 +1093,7 @@ ScreenSpaceLayout::activate(osg::StateSet* stateSet) //, int binNum)
             binNum,
             OSGEARTH_SCREEN_SPACE_LAYOUT_BIN,
             osg::StateSet::OVERRIDE_PROTECTED_RENDERBIN_DETAILS);
-        
+
         // Force a single shared layout bin per render stage
         stateSet->setNestRenderBins( false );
 
@@ -948,7 +1155,7 @@ ScreenSpaceLayout::setOptions( const ScreenSpaceLayoutOptions& options )
     {
         // activate priority-sorting through the options.
         if ( options.sortByPriority().isSetTo( true ) &&
-             bin->_context->_options.sortByPriority() == false )
+            bin->_context->_options.sortByPriority() == false )
         {
             ScreenSpaceLayout::setSortFunctor(new SortByPriorityPreservingGeodeTraversalOrder());
         }
@@ -989,24 +1196,24 @@ static osgEarthRegisterRenderBinProxy<osgEarthScreenSpaceLayoutRenderBin> s_regb
 // Extension for configuring the decluterring/SSL options from an Earth file.
 namespace osgEarth
 {
-    class ScreenSpaceLayoutExtension : public Extension,
-                                       public ScreenSpaceLayoutOptions
+class ScreenSpaceLayoutExtension : public Extension,
+                                   public ScreenSpaceLayoutOptions
+{
+public:
+    META_OE_Extension(osgEarth, ScreenSpaceLayoutExtension, screen_space_layout);
+
+    ScreenSpaceLayoutExtension() { }
+
+    ScreenSpaceLayoutExtension(const ConfigOptions& co) : ScreenSpaceLayoutOptions(co)
     {
-    public:
-        META_OE_Extension(osgEarth, ScreenSpaceLayoutExtension, screen_space_layout);
+        // sets the global default options.
+        ScreenSpaceLayout::setOptions(*this);
+    }
 
-        ScreenSpaceLayoutExtension() { }
+    const ConfigOptions& getConfigOptions() const { return *this; }
+};
 
-        ScreenSpaceLayoutExtension(const ConfigOptions& co) : ScreenSpaceLayoutOptions(co)
-        {
-            // sets the global default options.
-            ScreenSpaceLayout::setOptions(*this);
-        }
-
-        const ConfigOptions& getConfigOptions() const { return *this; }
-    };
-
-    REGISTER_OSGEARTH_EXTENSION(osgearth_screen_space_layout, ScreenSpaceLayoutExtension);
-    REGISTER_OSGEARTH_EXTENSION(osgearth_decluttering,        ScreenSpaceLayoutExtension);
+REGISTER_OSGEARTH_EXTENSION(osgearth_screen_space_layout, ScreenSpaceLayoutExtension);
+REGISTER_OSGEARTH_EXTENSION(osgearth_decluttering,        ScreenSpaceLayoutExtension);
 }
 

@@ -50,7 +50,7 @@ using namespace osgEarth::Symbology;
 osg::observer_ptr<osg::StateSet> LabelNode::s_geodeStateSet;
 
 LabelNode::LabelNode() :
-GeoPositionNode()
+                         GeoPositionNode()
 {
     construct();
     compile();
@@ -58,7 +58,7 @@ GeoPositionNode()
 
 LabelNode::LabelNode(const std::string& text,
                      const Style& style) :
-GeoPositionNode()
+                                           GeoPositionNode()
 {
     construct();
 
@@ -71,7 +71,7 @@ GeoPositionNode()
 LabelNode::LabelNode(const GeoPoint& position,
                      const std::string& text,
                      const Style& style) :
-GeoPositionNode()
+                                           GeoPositionNode()
 {
     construct();
 
@@ -106,7 +106,7 @@ LabelNode::construct()
             ScreenSpaceLayout::activate(geodeStateSet.get());
 
             // completely disable depth buffer
-            geodeStateSet->setAttributeAndModes( new osg::Depth(osg::Depth::ALWAYS, 0, 1, false), 1 ); 
+            geodeStateSet->setAttributeAndModes( new osg::Depth(osg::Depth::ALWAYS, 0, 1, false), 1 );
 
             // Disable lighting for place label bbox
             geodeStateSet->setDefine(OE_LIGHTING_DEFINE, osg::StateAttribute::OFF | osg::StateAttribute::PROTECTED);
@@ -249,45 +249,47 @@ LabelNode::updateLayoutData()
     {
         _geode->getChild(i)->setUserData(_dataLayout.get());
     }
-    
+
     _dataLayout->setPriority(getPriority());
-    
+
     GeoPoint location = getPosition();
     location.makeGeographic();
-    double latRad;
-    double longRad;
-    GeoMath::destination(osg::DegreesToRadians(location.y()),
-        osg::DegreesToRadians(location.x()),
-        _labelRotationRad,
-        2500.,
-        latRad,
-        longRad);
-
-    _geoPointProj.set(osgEarth::SpatialReference::get("wgs84"),
-        osg::RadiansToDegrees(longRad),
-        osg::RadiansToDegrees(latRad),
-        0,
-        osgEarth::ALTMODE_ABSOLUTE);
 
     _geoPointLoc.set(osgEarth::SpatialReference::get("wgs84"),
-        //location.getSRS(),
-        location.x(),
-        location.y(),
-        0,
-        osgEarth::ALTMODE_ABSOLUTE);
+                     //location.getSRS(),
+                     location.x(),
+                     location.y(),
+                     0,
+                     osgEarth::ALTMODE_ABSOLUTE);
 
     const TextSymbol* ts = getStyle().get<TextSymbol>();
     if (ts)
     {
         _dataLayout->setPixelOffset(ts->pixelOffset().get());
-        
+
         if (_followFixedCourse)
         {
+            double latRad;
+            double longRad;
+            GeoMath::destination(osg::DegreesToRadians(location.y()),
+                                 osg::DegreesToRadians(location.x()),
+                                 _labelRotationRad,
+                                 2500.,
+                                 latRad,
+                                 longRad);
+
+            _geoPointProj.set(osgEarth::SpatialReference::get("wgs84"),
+                              osg::RadiansToDegrees(longRad),
+                              osg::RadiansToDegrees(latRad),
+                              0,
+                              osgEarth::ALTMODE_ABSOLUTE);
+
             osg::Vec3d p0, p1;
             _geoPointLoc.toWorld(p0);
             _geoPointProj.toWorld(p1);
             _dataLayout->setAnchorPoint(p0);
-            _dataLayout->setProjPoint(p1);
+            _dataLayout->setLineEndPoint(p1);
+            _dataLayout->setAutoRotate(true);
         }
     }
 }
@@ -317,7 +319,7 @@ OSGEARTH_REGISTER_ANNOTATION( label, osgEarth::Annotation::LabelNode );
 
 LabelNode::LabelNode(const Config&         conf,
                      const osgDB::Options* dbOptions ) :
-GeoPositionNode( conf, dbOptions )
+                                                        GeoPositionNode( conf, dbOptions )
 {
     construct();
 
