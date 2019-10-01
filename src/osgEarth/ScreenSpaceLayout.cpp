@@ -254,8 +254,8 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
     // Update the offset so that the drawable is always visible and constraint on a line
     void updateOffsetForAutoLabelOnLine(const osg::BoundingBox& box, const osg::Viewport* vp,
-                                        const osg::Vec3d& loc, const ScreenSpaceLayoutData* layoutData,
-                                        const osg::Matrix& camVPW, osg::Vec3f& offset, const osg::Vec3d& to) {
+                                        const osg::Vec3f& loc, const ScreenSpaceLayoutData* layoutData,
+                                        const osg::Matrix& camVPW, osg::Vec3f& offset, const osg::Vec3f& to) {
         // impossible to work when z greater then 1
         // TODO improve
         if (/*loc.z() < -1 ||*/ loc.z() > 1)
@@ -265,16 +265,20 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         //        OE_WARN << "loc " << loc.x() << " " << loc.y() << "\n";
         //        OE_WARN << "to " << to.x() << " " << to.y() << "\n";
 
+        float vpX = static_cast<float>(vp->x());
+        float vpY = static_cast<float>(vp->y());
+        float vpWidth = static_cast<float>(vp->width());
+        float vpHeight = static_cast<float>(vp->height());
+
         // inits
-        const ScreenSpaceLayoutOptions& options = _context->_options;
-        float leftMin = *options.leftMargin()  + vp->x() - box.xMin() + offset.x();
-        float rightMax = -*options.rightMargin() + vp->x() + vp->width() - box.xMax() + offset.x();
-        float bottomMin = *options.bottomMargin() + vp->y() - box.yMin() + offset.y();
-        float topMax = -*options.topMargin() + vp->y() + vp->height() - box.yMax() + offset.y();
+        float leftMin = vpX - box.xMin() + offset.x();
+        float rightMax = vpX + vpWidth - box.xMax() + offset.x();
+        float bottomMin = vpY - box.yMin() + offset.y();
+        float topMax = vpY + vpHeight - box.yMax() + offset.y();
         bool isResolved = false;
         bool maxPointIsDef = false;
-        osg::Vec3d linePt;
-        bool toIsDef = to.x() != 0. && to.y() != 0. && to.z() != 0.;
+        osg::Vec3f linePt;
+        bool toIsDef = to.x() != 0.f && to.y() != 0.f && to.z() != 0.f;
 
         // must go to the right
         if (loc.x() < leftMin) {
@@ -289,12 +293,14 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
             if (linePt.x() >= (leftMin - (box.xMax() - box.xMin()))) {
                 float ratio = (leftMin - loc.x()) / (linePt.x() - loc.x());
-                if (ratio < 1)
+                if (ratio < 1) {
                     offset.set(leftMin - loc.x(), ratio * (linePt.y() - loc.y()), 0.f);
-                else
+                }
+                else {
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+                }
                 isResolved =
-                    ratio >= 1.f || (loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax;
+                    ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
             } else {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -322,7 +328,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
-                    ratio >= 1.f || (loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax;
+                    ratio >= 1.f || ((loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax);
             } else {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -350,7 +356,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
-                    ratio >= 1.f || (loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax;
+                    ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
             } else {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -378,7 +384,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
-                    ratio >= 1.f || (loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax;
+                    ratio >= 1.f || ((loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax);
             } else {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -434,7 +440,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
         // calculate the elapsed time since the previous pass; we'll use this for
         // the animations
-        float elapsedSeconds = osg::Timer::instance()->delta_s(local._lastTimeStamp, now);
+        double elapsedSeconds = osg::Timer::instance()->delta_s(local._lastTimeStamp, now);
         local._lastTimeStamp = now;
 
         // Reset the local re-usable containers
@@ -522,7 +528,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
             {
                 // local transformation data
                 // and management of the label orientation (must be always readable)
-                float angle = 0;
+                double angle = 0;
                 osg::Vec3d loc = layoutData->getAnchorPoint() * camVPW;
                 osg::Vec3d to;
 
@@ -594,7 +600,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 }
 
                 // handle the local rotation
-                if ( angle != 0.f )
+                if ( angle != 0. )
                 {
                     rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
                     osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
@@ -653,14 +659,18 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 // Quanitize the window draw coordinates to mitigate text rendering filtering anomalies.
                 // Drawing text glyphs on pixel boundaries mitigates aliasing.
                 // Adding 0.5 will cause the GPU to sample the glyph texels exactly on center.
-                winPos.x() = floor(winPos.x()) + 0.5;
-                winPos.y() = floor(winPos.y()) + 0.5;
+                winPos.x() = floor(winPos.x()) + 0.5f;
+                winPos.y() = floor(winPos.y()) + 0.5f;
             }
 
             // fully out of viewport
             bool isViewCulled = false;
-            if (box.xMax() < refVP->x() || box.xMin() > refVP->x() + refVP->width() ||
-                box.yMax() < refVP->y() || box.yMin() > refVP->y() + refVP->height()) {
+            float vpX = static_cast<float>(refVP->x());
+            float vpY = static_cast<float>(refVP->y());
+            float vpWidth = static_cast<float>(refVP->width());
+            float vpHeight = static_cast<float>(refVP->height());
+            if (box.xMax() < vpX || box.xMin() > vpX + vpWidth ||
+                box.yMax() < vpY || box.yMin() > vpY + vpHeight) {
                 visible = false;
                 isViewCulled = true;
             }
@@ -670,7 +680,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 // A max priority => never occlude.
                 float priority = layoutData ? layoutData->_priority : 0.0f;
 
-                if ( priority == FLT_MAX )
+                if ( priority >= FLT_MAX )
                 {
                     visible = true;
                 }
@@ -740,6 +750,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                         osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
                     newModelView.preMultScale(leaf->_modelview->getScale() * refCamScaleMat);
                     newModelView.preMultRotate(rot);
+
                 }
 
                 // Leaf modelview matrixes are shared (by objects in the traversal stack) so we

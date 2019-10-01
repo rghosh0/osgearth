@@ -49,7 +49,6 @@ TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _occlusionCull(rhs._occlusionCull),
                                                                            _occlusionCullAltitude(rhs._occlusionCullAltitude),
                                                                            _autoOffsetAlongLine(rhs._autoOffsetAlongLine),
-                                                                           _autoOffsetPreferedPosition(rhs._autoOffsetPreferedPosition),
                                                                            _autoRotateAlongLine(rhs._autoRotateAlongLine),
                                                                            _autoOffsetGeomWKT(rhs.autoOffsetGeomWKT())
 {
@@ -73,7 +72,6 @@ TextSymbol::TextSymbol( const Config& conf ) :
                                              _onScreenRotation     ( 0.0 ),
                                              _geographicCourse     ( 0.0 ),
                                              _autoOffsetAlongLine  ( false ),
-                                             _autoOffsetPreferedPosition  ( CENTER ),
                                              _autoRotateAlongLine  ( false )
 {
     mergeConfig(conf);
@@ -148,9 +146,6 @@ TextSymbol::getConfig() const
     conf.set( "text-occlusion-cull-altitude", _occlusionCullAltitude );
 
     conf.set( "auto-offset-alongline", _autoOffsetAlongLine);
-    conf.set( "auto-offset-position", "center",  _autoOffsetPreferedPosition, CENTER );
-    conf.set( "auto-offset-position", "right",  _autoOffsetPreferedPosition, RIGHT );
-    conf.set( "auto-offset-position", "left",  _autoOffsetPreferedPosition, LEFT );
     conf.set( "auto-rotate-alongline", _autoRotateAlongLine);
     conf.set( "auto-offset-support", _autoOffsetGeomWKT );
 
@@ -224,9 +219,6 @@ TextSymbol::mergeConfig( const Config& conf )
     conf.get( "text-occlusion-cull-altitude", _occlusionCullAltitude );
 
     conf.get( "auto-offset-alongline", _autoOffsetAlongLine );
-    conf.get( "auto-offset-position", "center",  _autoOffsetPreferedPosition, CENTER );
-    conf.get( "auto-offset-position", "right",  _autoOffsetPreferedPosition, RIGHT );
-    conf.get( "auto-offset-position", "left",  _autoOffsetPreferedPosition, LEFT );
     conf.get( "auto-rotate-alongline", _autoRotateAlongLine );
     conf.get( "auto-offset-support", _autoOffsetGeomWKT );
 }
@@ -378,14 +370,6 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "text-auto-offset-alongline") ) {
         style.getOrCreate<TextSymbol>()->autoOffsetAlongLine() = as<bool>(c.value(), defaults.autoOffsetAlongLine().get() );
-    }
-    else if ( match(c.key(), "text-auto-offset-position") ) {
-        if ( match(c.value(), "center") )
-            style.getOrCreate<TextSymbol>()->autoOffsetPreferedPosition() = TextSymbol::CENTER;
-        else if ( match(c.value(), "right" ) )
-            style.getOrCreate<TextSymbol>()->autoOffsetPreferedPosition() = TextSymbol::RIGHT;
-        else if ( match(c.value(), "left" ) )
-            style.getOrCreate<TextSymbol>()->autoOffsetPreferedPosition() = TextSymbol::LEFT;
     }
     else if ( match(c.key(), "text-auto-rotate-alongline") ) {
         style.getOrCreate<TextSymbol>()->autoRotateAlongLine() = as<bool>(c.value(), defaults.autoRotateAlongLine().get() );

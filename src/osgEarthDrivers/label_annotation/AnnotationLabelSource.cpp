@@ -217,25 +217,13 @@ public:
                     node->setPosition(geoCenter);
                     // Direction to the longest distance
                     if( (geoStart.vec3d() - geoCenter.vec3d()).length2() > (geoEnd.vec3d() - geoCenter.vec3d()).length2() )
+                    {
                         node->setLineCoords(geoEnd, geoStart);
+                    }
                     else
+                    {
                         node->setLineCoords(geoStart, geoEnd);
-                }
-                else if( style.getSymbol<TextSymbol>()->autoOffsetPreferedPosition().isSet()
-                         && style.getSymbol<TextSymbol>()->autoOffsetPreferedPosition() == TextSymbol::LEFT )
-                {
-                    node = new PlaceNode();
-                    node->setStyle(style, context.getDBOptions());
-                    node->setPosition(geoStart);
-                    node->setLineCoords(geoStart, geoEnd);
-                }
-                else if( style.getSymbol<TextSymbol>()->autoOffsetPreferedPosition().isSet()
-                         && style.getSymbol<TextSymbol>()->autoOffsetPreferedPosition() == TextSymbol::RIGHT )
-                {
-                    node = new PlaceNode();
-                    node->setStyle(style, context.getDBOptions());
-                    node->setPosition(geoEnd);
-                    node->setLineCoords(geoEnd, geoStart);
+                    }
                 }
                 else
                 {
@@ -276,7 +264,6 @@ public:
 
         return GeoPoint( srs, point.x(), point.y(), point.z(), mode );
     }
-
 };
 
 //------------------------------------------------------------------------
