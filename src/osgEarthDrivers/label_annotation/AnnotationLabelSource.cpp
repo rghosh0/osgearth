@@ -18,6 +18,7 @@
  */
 #include <osgEarthFeatures/LabelSource>
 #include <osgEarthFeatures/FeatureSourceIndexNode>
+#include <osgEarthFeatures/GeometryUtils>
 #include <osgEarthFeatures/FilterContext>
 #include <osgEarthAnnotation/LabelNode>
 #include <osgEarthAnnotation/PlaceNode>
@@ -60,12 +61,13 @@ public:
         AltitudeSymbol* alt = styleCopy.get<AltitudeSymbol>();
 
         osg::Group* group = new osg::Group();
-        
+
         StringExpression  textContentExpr ( text ? *text->content()  : StringExpression() );
         NumericExpression textPriorityExpr( text ? *text->priority() : NumericExpression() );
         NumericExpression textSizeExpr    ( text ? *text->size()     : NumericExpression() );
         NumericExpression textRotationExpr( text ? *text->onScreenRotation() : NumericExpression() );
         NumericExpression textCourseExpr  ( text ? *text->geographicCourse() : NumericExpression() );
+        StringExpression  textOffsetSupportExpr ( text ? *text->autoOffsetGeomWKT()  : StringExpression() );
         StringExpression  iconUrlExpr     ( icon ? *icon->url()      : StringExpression() );
         NumericExpression iconScaleExpr   ( icon ? *icon->scale()    : NumericExpression() );
         NumericExpression iconHeadingExpr ( icon ? *icon->heading()  : NumericExpression() );
@@ -76,14 +78,14 @@ public:
             Feature* feature = i->get();
             if ( !feature )
                 continue;
-            
+
             // run a symbol script if present.
             if ( text && text->script().isSet() )
             {
                 StringExpression temp( text->script().get() );
                 feature->eval( temp, &context );
             }
-            
+
             // run a symbol script if present.
             if ( icon && icon->script().isSet() )
             {
@@ -114,6 +116,9 @@ public:
 
                 if ( text->geographicCourse().isSet() )
                     tempStyle.get<TextSymbol>()->geographicCourse()->setLiteral( feature->eval(textCourseExpr, &context) );
+
+                if ( text->autoOffsetGeomWKT().isSet() )
+                    tempStyle.get<TextSymbol>()->autoOffsetGeomWKT()->setLiteral( feature->eval( textOffsetSupportExpr, &context ) );
             }
 
             if ( icon )
@@ -127,11 +132,14 @@ public:
                 if ( icon->heading().isSet() )
                     tempStyle.get<IconSymbol>()->heading()->setLiteral( feature->eval(iconHeadingExpr, &context) );
             }
-            
+
             PlaceNode* node = makePlaceNode(
                 context,
                 feature,
-                tempStyle);
+                tempStyle,
+                textPriorityExpr,
+                text &&
+                    ( text->autoOffsetAlongLine() == true || text->autoRotateAlongLine() == true || text->autoOffsetGeomWKT().isSet() ) );
 
             if ( node )
             {
@@ -162,49 +170,100 @@ public:
 
 
     PlaceNode* makePlaceNode(FilterContext&     context,
-                             Feature*           feature, 
-                             const Style&       style )
+                             Feature*           feature,
+                             const Style&       style,
+                             NumericExpression& priorityExpr,
+                             bool autoLineFollowing = false)
     {
-        osg::Vec3d center = feature->getGeometry()->getBounds().center();
+        const osg::Vec3d center = feature->getGeometry()->getBounds().center();
+        GeoPoint geoCenter = buildGeoPoint(center, style.getSymbol<AltitudeSymbol>(), feature->getSRS());
+        PlaceNode* node = 0L;
 
-        AltitudeMode mode = ALTMODE_ABSOLUTE;        
-        osg::Vec3d localOffset;
-
-        GeoPoint point;
-
-        const AltitudeSymbol* alt = style.get<AltitudeSymbol>();
-
-        // If the symbol asks for map-clamping, disable any auto-scene-clamping on the annotation:
-        if (alt != NULL &&
-            alt->clamping() != alt->CLAMP_NONE &&
-            alt->technique().isSetTo(alt->TECHNIQUE_MAP))
+        if ( autoLineFollowing )
         {
-            point.set(feature->getSRS(), center.x(), center.y(), center.z(), ALTMODE_ABSOLUTE);
+            const Geometry* geom = feature->getGeometry();
+            if( style.getSymbol<TextSymbol>()->autoOffsetGeomWKT().isSet() )
+            {
+                StringExpression autoOffset = *(style.getSymbol<TextSymbol>()->autoOffsetGeomWKT());
+                std::string lineSupport = feature->eval(autoOffset, &context);
+                if (! lineSupport.empty() )
+                    geom = osgEarth::Features::GeometryUtils::geometryFromWKT(lineSupport);
+            }
+
+            const LineString* geomLineString = 0L;
+            if( geom && geom->getComponentType() == Geometry::TYPE_LINESTRING )
+            {
+                if( geom->getType() == Geometry::TYPE_LINESTRING)
+                {
+                    geomLineString = dynamic_cast<const LineString*>( geom );
+                }
+                else
+                {
+                    const MultiGeometry* geomMulti = dynamic_cast<const MultiGeometry*>(geom);
+                    if( geomMulti )
+                        geomLineString = dynamic_cast<const LineString*>( geomMulti->getComponents().front().get() );
+                }
+            }
+
+            if( geomLineString )
+            {
+                GeoPoint geoStart = buildGeoPoint(geomLineString->front(), style.getSymbol<AltitudeSymbol>(), feature->getSRS(), true);
+                GeoPoint geoEnd = buildGeoPoint(geomLineString->back(), style.getSymbol<AltitudeSymbol>(), feature->getSRS(), true);
+
+                if( style.getSymbol<TextSymbol>()->autoOffsetGeomWKT().isSet() )
+                {
+                    node = new PlaceNode();
+                    node->setStyle(style, context.getDBOptions());
+                    node->setPosition(geoCenter);
+                    // Direction to the longest distance
+                    if( (geoStart.vec3d() - geoCenter.vec3d()).length2() > (geoEnd.vec3d() - geoCenter.vec3d()).length2() )
+                    {
+                        node->setLineCoords(geoEnd, geoStart);
+                    }
+                    else
+                    {
+                        node->setLineCoords(geoStart, geoEnd);
+                    }
+                }
+                else
+                {
+                    node = new PlaceNode();
+                    node->setStyle(style, context.getDBOptions());
+                    node->setPosition(geoCenter);
+                    node->setLineCoords(geoStart, geoEnd);
+                }
+            }
         }
 
-        // If the symbol says clamp to terrain (but not using the map), zero out the 
-        // Z value and dynamically clamp to the surface:
-        else if (
-            alt != NULL &&
-            alt->clamping() == alt->CLAMP_TO_TERRAIN &&
-            !alt->technique().isSetTo(alt->TECHNIQUE_MAP))
-        {
-            point.set(feature->getSRS(), center.x(), center.y(), 0.0, ALTMODE_RELATIVE);
-        }
-
-        // By default, use terrain-relative scene clamping Zm above the terrain.
         else
         {
-            point.set(feature->getSRS(), center.x(), center.y(), center.z(), ALTMODE_RELATIVE);
+            node = new PlaceNode();
+            node->setStyle(style, context.getDBOptions());
+            node->setPosition(geoCenter);
         }
 
-        PlaceNode* node = new PlaceNode();
-        node->setStyle(style, context.getDBOptions());
-        node->setPosition(point);
+        if ( !priorityExpr.empty() && node != 0L )
+        {
+            float val = feature->eval(priorityExpr, &context);
+            node->setPriority( val >= 0.0f ? val : FLT_MAX );
+        }
 
         return node;
     }
 
+    const GeoPoint buildGeoPoint( const osg::Vec3d& point, const AltitudeSymbol* altSym, const SpatialReference* srs, bool forceAbsolute = false )
+    {
+        AltitudeMode mode = ALTMODE_ABSOLUTE;
+
+        if (! forceAbsolute && altSym &&
+            (altSym->clamping() == AltitudeSymbol::CLAMP_TO_TERRAIN || altSym->clamping() == AltitudeSymbol::CLAMP_RELATIVE_TO_TERRAIN) &&
+            altSym->technique() == AltitudeSymbol::TECHNIQUE_SCENE)
+        {
+            mode = ALTMODE_RELATIVE;
+        }
+
+        return GeoPoint( srs, point.x(), point.y(), point.z(), mode );
+    }
 };
 
 //------------------------------------------------------------------------

@@ -36,16 +36,24 @@ osg::Geometry()
     setUseVertexBufferObjects(true);
 
     float margin = bboxSymbol.margin().isSet() ? bboxSymbol.margin().value() : 2.f;
+    float shiftRight = 0.f;
     osg::Vec3Array* v = new osg::Vec3Array();
-    if ( bboxSymbol.geom().isSet() && bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED )
+    if ( bboxSymbol.geom().isSet() && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM) )
     {
-        float h = box.yMax() - box.yMin() + 2.f * margin;
-        v->push_back( osg::Vec3(box.xMax()+margin+h/2.f, box.yMax()+margin-h/2.f, 0) );
+        float hMed = (box.yMax()-box.yMin()+2.f*margin) * 0.5f;
+        if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
+            shiftRight = - hMed;
+
+        v->push_back( osg::Vec3(box.xMax()+margin+hMed+shiftRight, box.yMax()+margin-hMed, 0) );
+
+        if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
+            shiftRight *= 0.5f; // 22.5 angle instead of 45
     }
-    v->push_back( osg::Vec3(box.xMax()+margin, box.yMax()+margin, 0) );
+
+    v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMax()+margin, 0) );
     v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0) );
     v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0) );
-    v->push_back( osg::Vec3(box.xMax()+margin, box.yMin()-margin, 0) );
+    v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMin()-margin, 0) );
     setVertexArray(v);
     if ( v->getVertexBufferObject() )
         v->getVertexBufferObject()->setUsage(GL_STATIC_DRAW_ARB);
@@ -68,7 +76,7 @@ osg::Geometry()
         c->push_back( bboxSymbol.border()->color() );
         if ( bboxSymbol.border()->width().isSet() )
             getOrCreateStateSet()->setAttribute( new osg::LineWidth( bboxSymbol.border()->width().value() ));
-        addPrimitiveSet( new osg::DrawArrays(GL_LINE_LOOP, 0, v->getNumElements()) );
+        addPrimitiveSet( new osg::DrawArrays(GL_LINE_LOOP, 0, static_cast<int>(v->getNumElements())) );
     }
 
     setColorArray( c );

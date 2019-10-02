@@ -36,11 +36,12 @@ namespace osgEarth { namespace Symbology
 
         enum BboxGeom {
             GEOM_BOX,
-            GEOM_BOX_ORIENTED
+            GEOM_BOX_ORIENTED,
+            GEOM_BOX_ORIENTED_SYM
         };
 
         META_Object(osgEarthSymbology, BBoxSymbol);
-    	
+
         BBoxSymbol(const BBoxSymbol& rhs,const osg::CopyOp& copyop=osg::CopyOp::SHALLOW_COPY);
         BBoxSymbol( const Config& conf =Config() );
 
