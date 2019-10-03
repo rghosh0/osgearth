@@ -249,7 +249,7 @@ namespace osgEarth
 
         virtual void traverse(osg::NodeVisitor &nv) override
         {
-            Q_UNUSED(nv);
+            (void) (nv);
             osg::Geode::traverse(nv);
         }
 
