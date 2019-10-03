@@ -240,7 +240,18 @@ namespace osgEarth
         void optimize();
 
         //! Get child i as a LineDrawable
-        LineDrawable* getLineDrawable(unsigned i);
+        LineDrawable *getLineDrawable(unsigned i);
+
+        virtual osg::BoundingSphere computeBound() const override
+        {
+            return osg::Geode::computeBound();
+        }
+
+        virtual void traverse(osg::NodeVisitor &nv) override
+        {
+            Q_UNUSED(nv);
+            osg::Geode::traverse(nv);
+        }
 
     protected:
         //! destructor
