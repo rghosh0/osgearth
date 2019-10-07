@@ -1586,8 +1586,6 @@ EarthManipulator::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapt
     
     if ( ea.getEventType() == osgGA::GUIEventAdapter::FRAME )
     {
-        view->getCamera()->setUserValue("range", _distance);
-
         if ( _node.valid() )
         {
             // Update the mapnode reference frame. This is the transformation
