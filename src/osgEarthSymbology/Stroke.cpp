@@ -65,6 +65,7 @@ Stroke::init()
     _stipplePattern.init( 0xFFFF );
     _stippleFactor.init ( 1u );
     _smooth.init        ( false );
+    _gpu.init            ( true );
 }
 
 Config 
@@ -84,6 +85,7 @@ Stroke::getConfig() const {
         conf.set( "width_units", _widthUnits->getAbbr() );
     conf.set("min_pixels", _minPixels );
     conf.set("smooth", _smooth);
+    conf.set("gpu", _gpu);
     return conf;
 }
 
@@ -105,4 +107,5 @@ Stroke::mergeConfig( const Config& conf ) {
         Units::parse( conf.value("width_units"), _widthUnits.mutable_value() );
     conf.get("min_pixels", _minPixels );
     conf.get("smooth", _smooth);
+    conf.get("gpu", _gpu);
 }

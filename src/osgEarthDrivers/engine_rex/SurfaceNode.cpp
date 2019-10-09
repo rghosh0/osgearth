@@ -60,7 +60,7 @@ namespace
                 4,5, 5,7, 7,6, 6,4
             };
 
-            LineDrawable* lines = new LineDrawable(GL_LINES);            
+            LineDrawable* lines = new LineDrawable(static_cast<GLenum>(GL_LINES));
             for(int i=0; i<24; i+=2)
             {
                 lines->pushVertex(bbox.corner(index[i]));

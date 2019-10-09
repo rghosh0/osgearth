@@ -149,7 +149,7 @@ namespace
         {
             if (mode == GL_LINES || mode == GL_LINE_STRIP || mode == GL_LINE_LOOP)
             {
-                _drawable = new LineDrawable(GL_LINES);
+                _drawable = new LineDrawable(static_cast<GLenum>(GL_LINES));
                 ImportLinesFunctorBase::drawArrays(mode, first, count);
                 emit();
             }
@@ -159,7 +159,7 @@ namespace
         {
             if (mode == GL_LINES || mode == GL_LINE_STRIP || mode == GL_LINE_LOOP)
             {
-                _drawable = new LineDrawable(GL_LINES);
+                _drawable = new LineDrawable(static_cast<GLenum>(GL_LINES));
                 ImportLinesFunctorBase::drawElements(mode, count, indices);
                 emit();
             }
@@ -169,7 +169,7 @@ namespace
         {
             if (mode == GL_LINES || mode == GL_LINE_STRIP || mode == GL_LINE_LOOP)
             {
-                _drawable = new LineDrawable(GL_LINES);
+                _drawable = new LineDrawable(static_cast<GLenum>(GL_LINES));
                 ImportLinesFunctorBase::drawElements(mode, count, indices);
                 emit();
             }
@@ -179,7 +179,7 @@ namespace
         {
             if (mode == GL_LINES || mode == GL_LINE_STRIP || mode == GL_LINE_LOOP)
             {
-                _drawable = new LineDrawable(GL_LINES);
+                _drawable = new LineDrawable(static_cast<GLenum>(GL_LINES));
                 ImportLinesFunctorBase::drawElements(mode, count, indices);
                 emit();
             }
@@ -327,10 +327,9 @@ namespace osgEarth { namespace Serializers { namespace LineDrawable
 int LineDrawable::PreviousVertexAttrLocation = 9;
 int LineDrawable::NextVertexAttrLocation = 10;
 
-LineDrawable::LineDrawable() :
+LineDrawable::LineDrawable(bool gpu) :
 osg::Geometry(),
 _mode(GL_LINE_STRIP),
-_gpu(false),
 _factor(1),
 _pattern(0xFFFF),
 _color(1, 1, 1, 1),
@@ -343,16 +342,15 @@ _previous(NULL),
 _next(NULL),
 _colors(NULL)
 {
-#ifdef USE_GPU
-    _gpu = Registry::capabilities().supportsGLSL();
-    setupShaders();
-#endif
+    _gpu = gpu && Registry::capabilities().supportsGLSL();
+    if (_gpu) {
+        setupShaders();
+    }
 }
 
-LineDrawable::LineDrawable(GLenum mode) :
+LineDrawable::LineDrawable(GLenum mode, bool gpu) :
 osg::Geometry(),
 _mode(mode),
-_gpu(false),
 _factor(1),
 _pattern(0xFFFF),
 _color(1,1,1,1),
@@ -365,13 +363,10 @@ _previous(NULL),
 _next(NULL),
 _colors(NULL)
 {
-#ifdef USE_GPU
-    _gpu = 
-        Registry::capabilities().supportsGLSL() &&
-        (_mode == GL_LINES || _mode == GL_LINE_STRIP || _mode == GL_LINE_LOOP);
-
-    setupShaders();
-#endif
+    _gpu = gpu && Registry::capabilities().supportsGLSL();
+    if (_gpu) {
+        setupShaders();
+    }
 }
 
 LineDrawable::LineDrawable(const LineDrawable& rhs, const osg::CopyOp& copy) :

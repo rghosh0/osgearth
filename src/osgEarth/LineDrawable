@@ -46,11 +46,11 @@ namespace osgEarth
     public:
 
         //! Create new LineDrawable in GL_LINE_STRIP mode
-        LineDrawable();
+        explicit LineDrawable(bool gpu = true);
 
         //! Create a new LineDrawable.
         //! @param[in ] mode GL line mode: GL_LINE_STRIP or GL_LINE_LOOP
-        LineDrawable(GLenum mode);
+        explicit LineDrawable(GLenum mode, bool gpu = true);
 
         //! Copy constructor
         LineDrawable(const LineDrawable& rhs, const osg::CopyOp& copy);

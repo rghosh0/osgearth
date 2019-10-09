@@ -815,9 +815,11 @@ ExtrudeGeometryFilter::buildOutlineGeometry(const Structure& structure)
     // minimum angle between adjacent faces for which to draw a post.
     const float cosMinAngle = cos(osg::DegreesToRadians(_outlineSymbol->creaseAngle().get()));
 
-    osg::ref_ptr<LineDrawable> lines = new LineDrawable(GL_LINES);
-    
     const optional<Stroke>& stroke = _outlineSymbol->stroke();
+
+    bool gpu = !stroke.isSet() || stroke->gpu().get();
+    osg::ref_ptr<LineDrawable> lines = new LineDrawable(static_cast<GLenum>(GL_LINES), gpu);
+    
     if (stroke.isSet())
     {
         lines->setColor(stroke->color());

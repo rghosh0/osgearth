@@ -507,8 +507,9 @@ BuildGeometryFilter::processLines(FeatureList& features, FilterContext& context)
             osg::ref_ptr< osg::Vec3Array > allPoints = new osg::Vec3Array();
             transformAndLocalize( part->asVector(), featureSRS, allPoints.get(), outputSRS, _world2local, makeECEF );
 
+            bool gpu = !line->stroke().isSet() || line->stroke()->gpu().get();
             // construct a drawable for the lines
-            LineDrawable* drawable = new LineDrawable(isRing? GL_LINE_LOOP : GL_LINE_STRIP);
+            LineDrawable* drawable = new LineDrawable(static_cast<GLenum>((isRing? GL_LINE_LOOP : GL_LINE_STRIP)), gpu);
 
             drawable->importVertexArray(allPoints.get());
 

@@ -148,4 +148,7 @@ LineSymbol::parseSLD(const Config& c, Style& style)
     else if (match(c.key(), "stroke-smooth")) {
         style.getOrCreate<LineSymbol>()->stroke()->smooth() = as<bool>(c.value(), false);
     }
+    else if (match(c.key(), "stroke-gpu")) {
+        style.getOrCreate<LineSymbol>()->stroke()->gpu() = as<bool>(c.value(), true);
+    }
 }

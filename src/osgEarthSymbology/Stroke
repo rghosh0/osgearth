@@ -108,6 +108,10 @@ namespace osgEarth { namespace Symbology
         optional<float>& roundingRatio() { return _roundingRatio; }
         const optional<float>& roundingRatio() const { return _roundingRatio; }
 
+        /** If set to true, will draw lines using GLSL path  instead of simple OpenGL ones*/
+        optional<bool>& gpu() { return _gpu; }
+        const optional<bool>& gpu() const { return _gpu; }
+
     public:
         virtual Config getConfig() const;
         virtual void mergeConfig( const Config& conf );
@@ -123,6 +127,7 @@ namespace osgEarth { namespace Symbology
         optional<float>          _roundingRatio;
         optional<float>          _minPixels;
         optional<bool>           _smooth;
+        optional<bool>          _gpu;
 
         void init();
     };
