@@ -19,6 +19,7 @@
 #ifndef AGGLITE_H
 #define AGGLITE_H
 
+#include <cmath>
 #include <memory.h>
 
 namespace agg
@@ -783,7 +784,25 @@ namespace agg
         scanline       m_scanline;
         filling_rule_e m_filling_rule;
         int8u          m_gamma[256];
-        static const int8u s_default_gamma[256];     
+        const int8u s_default_gamma[256] =
+        {
+              0,  0,  1,  1,  2,  2,  3,  4,  4,  5,  5,  6,  7,  7,  8,  8,
+              9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 18,
+             19, 19, 20, 21, 21, 22, 22, 23, 24, 24, 25, 25, 26, 27, 27, 28,
+             29, 29, 30, 30, 31, 32, 32, 33, 34, 34, 35, 36, 36, 37, 37, 38,
+             39, 39, 40, 41, 41, 42, 43, 43, 44, 45, 45, 46, 47, 47, 48, 49,
+             49, 50, 51, 51, 52, 53, 53, 54, 55, 55, 56, 57, 57, 58, 59, 60,
+             60, 61, 62, 62, 63, 64, 65, 65, 66, 67, 68, 68, 69, 70, 71, 71,
+             72, 73, 74, 74, 75, 76, 77, 78, 78, 79, 80, 81, 82, 83, 83, 84,
+             85, 86, 87, 88, 89, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
+            100,101,101,102,103,104,105,106,107,108,109,110,111,112,114,115,
+            116,117,118,119,120,121,122,123,124,126,127,128,129,130,131,132,
+            134,135,136,137,139,140,141,142,144,145,146,147,149,150,151,153,
+            154,155,157,158,159,161,162,164,165,166,168,169,171,172,174,175,
+            177,178,180,181,183,184,186,188,189,191,192,194,195,197,199,200,
+            202,204,205,207,209,210,212,214,215,217,219,220,222,224,225,227,
+            229,230,232,234,236,237,239,241,242,244,246,248,249,251,253,255
+        };
     };
 
 
@@ -1269,14 +1288,14 @@ namespace agg
     //========================================================================
 
     //------------------------------------------------------------------------
-    rendering_buffer::~rendering_buffer()
+    inline rendering_buffer::~rendering_buffer()
     {
         delete [] m_rows;
     }
 
 
     //------------------------------------------------------------------------
-    rendering_buffer::rendering_buffer(unsigned char* buf,
+    inline rendering_buffer::rendering_buffer(unsigned char* buf,
                                        unsigned width, 
                                        unsigned height,
                                        int      stride) :
@@ -1292,7 +1311,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void rendering_buffer::attach(unsigned char* buf,
+    inline void rendering_buffer::attach(unsigned char* buf,
                                   unsigned width, 
                                   unsigned height,
                                   int      stride)
@@ -1327,7 +1346,7 @@ namespace agg
     //========================================================================
 
     //------------------------------------------------------------------------
-    scanline::~scanline()
+    inline scanline::~scanline()
     {
         if ( m_counts ) delete [] m_counts;
         if ( m_start_ptrs ) delete [] m_start_ptrs;
@@ -1336,7 +1355,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    scanline::scanline()
+    inline scanline::scanline()
         : m_min_x(0),
           m_max_len(0),
           m_dx(0),
@@ -1354,7 +1373,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void scanline::reset(int min_x, int max_x, int dx, int dy)
+    inline void scanline::reset(int min_x, int max_x, int dx, int dy)
     {
         unsigned max_len = max_x - min_x + 2;
         if(max_len > m_max_len)
@@ -1379,7 +1398,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void scanline::add_span(int x, int y, unsigned num, unsigned cover)
+    inline void scanline::add_span(int x, int y, unsigned num, unsigned cover)
     {
         x -= m_min_x;
 
@@ -1397,33 +1416,6 @@ namespace agg
         m_last_x = x + num - 1;
         m_last_y = y;
     }
-
-
-
-    //========================================================================
-
-    //------------------------------------------------------------------------
-    const int8u rasterizer::s_default_gamma[] = 
-    {
-          0,  0,  1,  1,  2,  2,  3,  4,  4,  5,  5,  6,  7,  7,  8,  8,
-          9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 18,
-         19, 19, 20, 21, 21, 22, 22, 23, 24, 24, 25, 25, 26, 27, 27, 28,
-         29, 29, 30, 30, 31, 32, 32, 33, 34, 34, 35, 36, 36, 37, 37, 38,
-         39, 39, 40, 41, 41, 42, 43, 43, 44, 45, 45, 46, 47, 47, 48, 49,
-         49, 50, 51, 51, 52, 53, 53, 54, 55, 55, 56, 57, 57, 58, 59, 60,
-         60, 61, 62, 62, 63, 64, 65, 65, 66, 67, 68, 68, 69, 70, 71, 71,
-         72, 73, 74, 74, 75, 76, 77, 78, 78, 79, 80, 81, 82, 83, 83, 84,
-         85, 86, 87, 88, 89, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
-        100,101,101,102,103,104,105,106,107,108,109,110,111,112,114,115,
-        116,117,118,119,120,121,122,123,124,126,127,128,129,130,131,132,
-        134,135,136,137,139,140,141,142,144,145,146,147,149,150,151,153,
-        154,155,157,158,159,161,162,164,165,166,168,169,171,172,174,175,
-        177,178,180,181,183,184,186,188,189,191,192,194,195,197,199,200,
-        202,204,205,207,209,210,212,214,215,217,219,220,222,224,225,227,
-        229,230,232,234,236,237,239,241,242,244,246,248,249,251,253,255
-    };
-
-
 
 
 
@@ -1467,7 +1459,7 @@ namespace agg
     }
 
     //------------------------------------------------------------------------
-    outline::~outline()
+    inline outline::~outline()
     {
         delete [] m_sorted_cells;
         if(m_num_blocks)
@@ -1484,7 +1476,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    outline::outline() :
+    inline outline::outline() :
         m_num_blocks(0),
         m_max_blocks(0),
         m_cur_block(0),
@@ -1508,7 +1500,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void outline::reset()
+    inline void outline::reset()
     { 
         m_num_cells = 0; 
         m_cur_block = 0;
@@ -1524,7 +1516,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void outline::allocate_block()
+    inline void outline::allocate_block()
     {
         if(m_cur_block >= m_num_blocks)
         {
@@ -1671,7 +1663,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void outline::render_line(int x1, int y1, int x2, int y2)
+    inline void outline::render_line(int x1, int y1, int x2, int y2)
     {
         int ey1 = y1 >> poly_base_shift;
         int ey2 = y2 >> poly_base_shift;
@@ -1801,7 +1793,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void outline::move_to(int x, int y)
+    inline void outline::move_to(int x, int y)
     {
         if((m_flags & sort_required) == 0) reset();
         if(m_flags & not_closed) line_to(m_close_x, m_close_y);
@@ -1813,7 +1805,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void outline::line_to(int x, int y)
+    inline void outline::line_to(int x, int y)
     {
         if((m_flags & sort_required) && ((m_cur_x ^ x) | (m_cur_y ^ y)))
         {
@@ -1860,7 +1852,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void outline::qsort_cells(cell** start, unsigned num)
+    inline void outline::qsort_cells(cell** start, unsigned num)
     {
         cell**  stack[80];
         cell*** top; 
@@ -1970,7 +1962,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void outline::sort_cells()
+    inline void outline::sort_cells()
     {
         if(m_num_cells == 0) return;
         if(m_num_cells > m_sorted_size)
@@ -2011,7 +2003,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    const cell* const* outline::cells()
+    inline const cell* const* outline::cells()
     {
         if(m_flags & not_closed)
         {
@@ -2033,7 +2025,7 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void rasterizer::gamma(double g)
+    inline void rasterizer::gamma(double g)
     {
         unsigned i;
         for(i = 0; i < 256; i++)
@@ -2044,14 +2036,14 @@ namespace agg
 
 
     //------------------------------------------------------------------------
-    void rasterizer::gamma(const int8u* g)
+    inline void rasterizer::gamma(const int8u* g)
     {
         memcpy(m_gamma, g, sizeof(m_gamma));
     }
 
 
     //------------------------------------------------------------------------
-    bool rasterizer::hit_test(int tx, int ty)
+    inline bool rasterizer::hit_test(int tx, int ty)
     {
         const cell* const* cells = m_outline.cells();
         if(m_outline.num_cells() == 0) return false;
