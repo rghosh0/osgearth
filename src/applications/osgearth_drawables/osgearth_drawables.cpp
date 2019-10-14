@@ -66,7 +66,7 @@ void addLotsOfVerts(LineDrawable* line)
 
 LineDrawable* makeStar(double x, double y, double r)
 {
-    LineDrawable* star = new LineDrawable(GL_LINES);
+    LineDrawable* star = new LineDrawable(static_cast<GLenum>(GL_LINES));
     for(float i=0.0f; i<osg::PI*2.0; i += osg::PI/16.0)
     {
         float c = cos(i), s = sin(i);
@@ -142,21 +142,21 @@ osg::Node* createDrawables()
     float x = 10;
     float y = 10;
 
-    LineDrawable* strip = new LineDrawable(GL_LINE_STRIP);
+    LineDrawable* strip = new LineDrawable(static_cast<GLenum>(GL_LINE_STRIP));
     strip->setLineWidth(8);
     strip->setColor(osg::Vec4(1,1,1,1));
     addVerts(strip, x, y);
     group->addChild(strip);
 
     x += 20;
-    LineDrawable* loop = new LineDrawable(GL_LINE_LOOP);
+    LineDrawable* loop = new LineDrawable(static_cast<GLenum>(GL_LINE_LOOP));
     loop->setLineWidth(1);
     loop->setColor(osg::Vec4(1,1,0,1));
     addVerts(loop, x, y);
     group->addChild(loop);
 
     x += 20;
-    LineDrawable* stippled = new LineDrawable(GL_LINE_STRIP);
+    LineDrawable* stippled = new LineDrawable(static_cast<GLenum>(GL_LINE_STRIP));
     stippled->setLineWidth(4);
     stippled->setStipplePattern(0xff00);
     stippled->setColor(osg::Vec4(0,1,0,1));
@@ -164,14 +164,14 @@ osg::Node* createDrawables()
     group->addChild(stippled);
     
     x += 20;
-    LineDrawable* segments = new LineDrawable(GL_LINES);
+    LineDrawable* segments = new LineDrawable(static_cast<GLenum>(GL_LINES));
     segments->setLineWidth(3);
     segments->setColor(osg::Vec4(0,1,1,1));
     addVerts(segments, x, y);
     group->addChild(segments);
 
     x += 20;
-    LineDrawable* firstCount = new LineDrawable(GL_LINE_STRIP);
+    LineDrawable* firstCount = new LineDrawable(static_cast<GLenum>(GL_LINE_STRIP));
     firstCount->setLineWidth(5);
     firstCount->setColor(osg::Vec4(1,0,1,1));
     addVerts(firstCount, x, y);
@@ -185,7 +185,7 @@ osg::Node* createDrawables()
     group->addChild(lines);
 
     x += 20;
-    LineDrawable* points = new LineDrawable(GL_POINTS);
+    LineDrawable* points = new LineDrawable(static_cast<GLenum>(GL_POINTS));
     addVerts(points, x, y);
     group->addChild(points);
 
@@ -193,7 +193,7 @@ osg::Node* createDrawables()
     y -= 20;
     for(unsigned i=0; i<10; ++i)
     {
-        LineDrawable* across = new LineDrawable(GL_LINES);
+        LineDrawable* across = new LineDrawable(static_cast<GLenum>(GL_LINES));
         across->pushVertex(osg::Vec3(x, 0, y));
         across->pushVertex(osg::Vec3(x+100, 0, y));
         across->setLineWidth((float)(i+1));
