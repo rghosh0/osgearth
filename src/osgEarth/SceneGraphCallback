@@ -57,7 +57,7 @@ public:
     onRemoveNode(node);
   }
 };
-typedef std::vector<osg::ref_ptr<SceneGraphCallback>> SceneGraphCallbackVector;
+typedef std::vector<osg::ref_ptr<SceneGraphCallback> > SceneGraphCallbackVector;
 
 /**
  * Cotnainer for scene graph callbacks. Typically an object that

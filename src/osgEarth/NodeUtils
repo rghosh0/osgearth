@@ -39,7 +39,7 @@ struct NodeOperation : public osg::Referenced {
   virtual void operator()(osg::Node *node) = 0;
 };
 
-typedef std::vector<osg::ref_ptr<NodeOperation>> NodeOperationVector;
+typedef std::vector<osg::ref_ptr<NodeOperation> > NodeOperationVector;
 
 struct RefNodeOperationVector : public osg::Referenced,
                                 public NodeOperationVector {
