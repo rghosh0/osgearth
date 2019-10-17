@@ -38,23 +38,58 @@ osg::Geometry()
     float margin = bboxSymbol.margin().isSet() ? bboxSymbol.margin().value() : 2.f;
     float shiftRight = 0.f;
     osg::Vec3Array* v = new osg::Vec3Array();
-    if ( bboxSymbol.geom().isSet() && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM) )
+
+    if ( bboxSymbol.geom().isSet() &&
+         ( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ROUNDED ))
     {
-        float hMed = (box.yMax()-box.yMin()+2.f*margin) * 0.5f;
-        if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
-            shiftRight = - hMed;
+        osg::Vec3 dump;
+        float nbStep = 5.f;
+        int sizeBeforePush = 0;
+        float radius = ((box.yMax()-box.yMin())/2)+margin;
+        osg::Vec3 center (box.xMax(),(box.yMax()+box.yMin())/2,0);
+        v->push_back( osg::Vec3(box.xMax(), box.yMin()-margin, 0) );
+        for (float angle = (3*osg::PI/2.f)+(osg::PI/2.f)/nbStep; angle <2.f*osg::PI ; angle += (osg::PI/2.f)/nbStep)
+        {
+            v->push_back(center + osg::Vec3((cosf(angle)*radius),sinf(angle)*radius,0));
+        }
+        v->push_back(center + osg::Vec3((cosf(2.f*osg::PI)*radius),sinf(2.f*osg::PI)*radius,0));
+        sizeBeforePush = v->size();
 
-        v->push_back( osg::Vec3(box.xMax()+margin+hMed+shiftRight, box.yMax()+margin-hMed, 0) );
+        for (int iterator = sizeBeforePush-2; iterator >= sizeBeforePush-nbStep-1; --iterator)
+        {
+            dump = v->at(iterator);
+            v->push_back(osg::Vec3(dump.x(), 2*center.y()-dump.y(), dump.z()));
+        }
+        sizeBeforePush = v->size();
 
-        if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
-            shiftRight *= 0.5f; // 22.5 angle instead of 45
+        for (int iterator = sizeBeforePush-1; iterator >= sizeBeforePush-nbStep*2-1; --iterator)
+        {
+            dump = v->at(iterator);
+            v->push_back(osg::Vec3(2*center.x()-dump.x()-(box.xMax()-box.xMin()), dump.y(), dump.z()));
+        }
+    }
+    else  {
+
+        if ( bboxSymbol.geom().isSet() && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM) )
+        {
+            float hMed = (box.yMax()-box.yMin()+2.f*margin) * 0.5f;
+            if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
+                shiftRight = - hMed;
+
+            v->push_back( osg::Vec3(box.xMax()+margin+hMed+shiftRight, box.yMax()+margin-hMed, 0) );
+
+            if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
+                shiftRight *= 0.5f; // 22.5 angle instead of 45
+        }
+
+        v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMax()+margin, 0) );
+        v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0) );
+        v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0) );
+        v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMin()-margin, 0) );
     }
 
-    v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMax()+margin, 0) );
-    v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0) );
-    v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0) );
-    v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMin()-margin, 0) );
     setVertexArray(v);
+
     if ( v->getVertexBufferObject() )
         v->getVertexBufferObject()->setUsage(GL_STATIC_DRAW_ARB);
 
@@ -63,12 +98,31 @@ osg::Geometry()
     {
         c->push_back( bboxSymbol.fill()->color() );
         osg::DrawElements* de = new osg::DrawElementsUByte(GL_TRIANGLE_STRIP);
-        de->addElement(0);
-        de->addElement(1);
-        de->addElement(3);
-        de->addElement(2);
+        if ( v->size() == 4 )
+        {
+            de->addElement(0);
+            de->addElement(1);
+            de->addElement(3);
+            de->addElement(2);
+        }
+        else
+        {
+            de->addElement(0);
+            int prevIndex = 0;
+            int nextIndex = v->size() - 1;
+            bool up = true;
+            int step = 0;
+            while ( abs(nextIndex - prevIndex) >= 1)
+            {
+                de->addElement(nextIndex);
+                prevIndex = nextIndex;
+                up = !up;
+                if( ! up )
+                    step += 1;
+                nextIndex = up ? v->size() - 1 - step : step;
+            }
+        }
         addPrimitiveSet(de);
-        //addPrimitiveSet( new osg::DrawArrays(GL_POLYGON, 0, v->getNumElements()) );
     }
 
     if ( bboxSymbol.border().isSet() )

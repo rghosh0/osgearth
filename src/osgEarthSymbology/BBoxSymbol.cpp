@@ -56,6 +56,7 @@ BBoxSymbol::getConfig() const
     conf.set( "geom", "box", _bboxGeom, GEOM_BOX );
     conf.set( "geom", "box_oriented", _bboxGeom, GEOM_BOX_ORIENTED );
     conf.set( "geom", "box_oriented_symetric", _bboxGeom, GEOM_BOX_ORIENTED_SYM );
+    conf.set( "geom", "box_rounded", _bboxGeom, GEOM_BOX_ROUNDED );
     
     return conf;
 }
@@ -70,6 +71,7 @@ BBoxSymbol::mergeConfig( const Config& conf )
     conf.get( "geom", "box", _bboxGeom, GEOM_BOX );
     conf.get( "geom", "box_oriented", _bboxGeom, GEOM_BOX_ORIENTED );
     conf.get( "geom", "box_oriented_symetric", _bboxGeom, GEOM_BOX_ORIENTED_SYM );
+    conf.get( "geom", "box_rounded", _bboxGeom, GEOM_BOX_ROUNDED );
 }
 
 void
@@ -88,12 +90,17 @@ BBoxSymbol::parseSLD(const Config& c, Style& style)
         style.getOrCreate<BBoxSymbol>()->margin() = as<float>(c.value(), 3.0f);
     }
     else if ( match(c.key(), "text-bbox-geom") ) {
-        if      ( match(c.value(), "box") )
+        if      ( match(c.value(), "box") ) {
             style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX;
-        else if ( match(c.value(), "box_oriented") )
+        }
+        else if ( match(c.value(), "box_oriented") ) {
             style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ORIENTED;
-    }
-    else if ( match(c.value(), "box_oriented_symetric") ) {
-        style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ORIENTED_SYM;
+        }
+        else if ( match(c.value(), "box_oriented_symetric") ) {
+            style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ORIENTED_SYM;
+        }
+        else if ( match(c.value(), "box_rounded") ) {
+            style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ROUNDED;
+        }
     }
 }
