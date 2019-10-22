@@ -241,6 +241,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
     PerObjectFastMap<osg::Camera*, PerCamInfo> _perCam;
 
+    bool _warnActive = false;
     /**
      * Constructs the new sorter.
      * @param f Custom declutter sorting predicate. Pass NULL to use the
@@ -261,9 +262,11 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         if (/*loc.z() < -1 ||*/ loc.z() > 1)
             return;
 
-        //        OE_WARN << "------------------------------------------\n";
-        //        OE_WARN << "loc " << loc.x() << " " << loc.y() << "\n";
-        //        OE_WARN << "to " << to.x() << " " << to.y() << "\n";
+        if (_warnActive) {
+                OE_WARN << "------------------------------------------\n";
+                OE_WARN << "loc " << loc.x() << " " << loc.y() << "\n";
+                OE_WARN << "to " << to.x() << " " << to.y() << "\n";
+        }
 
         float vpX = static_cast<float>(vp->x());
         float vpY = static_cast<float>(vp->y());
@@ -275,13 +278,48 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         float rightMax = vpX + vpWidth - box.xMax() + offset.x();
         float bottomMin = vpY - box.yMin() + offset.y();
         float topMax = vpY + vpHeight - box.yMax() + offset.y();
+
+
+
+
+
         bool isResolved = false;
         bool maxPointIsDef = false;
         osg::Vec3f linePt;
         bool toIsDef = to.x() != 0.f && to.y() != 0.f && to.z() != 0.f;
 
+
+        // OUT OF SCOPE
+        bool locXOut = loc.x() < leftMin || loc.x() > rightMax;
+        bool locYOut = loc.y() < bottomMin || loc.y() > topMax;
+        bool toXOut = to.x() < leftMin || to.x() > rightMax;
+        bool toYOut = to.y() < bottomMin || to.y() > topMax;
+        if (_warnActive) {
+            OE_WARN << "leftMin " << leftMin << " rightMax " << rightMax << " bottomMin " << bottomMin << " topMax " << topMax << "\n";
+            OE_WARN << "isResolved " << isResolved << " maxPointIsDef " << maxPointIsDef << " toIsDef " << toIsDef << "\n";
+            OE_WARN << "offset x " << offset.x() << " y " << offset.y() << " z " << offset.z() << "\n";
+            OE_WARN << "locXOut " << locXOut << " locYOut " << locYOut << "\n";
+            OE_WARN << "toXOut " << toXOut << " toYOut " << toYOut << "\n";
+            OE_WARN << "loc.z() " << loc.z() << " to.z() " << to.z() << "\n";
+        }
+
+        if ((locXOut || locYOut) && toXOut && toYOut) {
+            if (_warnActive)
+                OE_WARN << "Fuck the system\n";
+
+            linePt = layoutData->getLineStartPoint() * camVPW;
+            offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
+            _warnActive = false;
+            return;
+
+        }
+
+
         // must go to the right
         if (loc.x() < leftMin) {
+
+            if (_warnActive)
+            OE_WARN << "must go to the right \n";
             if (toIsDef) {
                 linePt = to;
             } else {
@@ -293,7 +331,11 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
             if (linePt.x() >= (leftMin - (box.xMax() - box.xMin()))) {
                 float ratio = (leftMin - loc.x()) / (linePt.x() - loc.x());
-                if (ratio < 1) {
+
+                if (_warnActive)
+                OE_WARN << "ratio " << ratio << "\n";
+
+                if (ratio < 1.f) {
                     offset.set(leftMin - loc.x(), ratio * (linePt.y() - loc.y()), 0.f);
                 }
                 else {
@@ -310,6 +352,9 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
         // must go up
         if (!isResolved && loc.y() < bottomMin) {
+
+            if (_warnActive)
+            OE_WARN << "must go up  \n";
             if (!maxPointIsDef) {
                 if (toIsDef) {
                     linePt = to;
@@ -323,7 +368,12 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
             if (linePt.y() >= (bottomMin - (box.yMax() - box.yMin()))) {
                 float ratio = (bottomMin - loc.y()) / (linePt.y() - loc.y());
-                if (ratio < 1)
+
+
+                if (_warnActive)
+                OE_WARN << "ratio " << ratio << "\n";
+
+                if (ratio < 1.f)
                     offset.set(ratio * (linePt.x() - loc.x()), bottomMin - loc.y(), 0.f);
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -338,6 +388,9 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
         // must go to the left
         if (!isResolved && loc.x() > rightMax) {
+
+            if (_warnActive)
+            OE_WARN << "must go to the left  \n";
             if (!maxPointIsDef) {
                 if (toIsDef) {
                     linePt = to;
@@ -351,7 +404,10 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
             if (linePt.x() <= (rightMax + (box.xMax() - box.xMin()))) {
                 float ratio = (rightMax - loc.x()) / (linePt.x() - loc.x());
-                if (ratio < 1)
+
+                if (_warnActive)
+                OE_WARN << "ratio " << ratio << "\n";
+                if (ratio < 1.f)
                     offset.set(rightMax - loc.x(), ratio * (linePt.y() - loc.y()), 0.f);
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -366,6 +422,9 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
         // must go down
         if (!isResolved && loc.y() > topMax) {
+
+            if (_warnActive)
+            OE_WARN << "must go down  \n";
             if (!maxPointIsDef) {
                 if (toIsDef) {
                     linePt = to;
@@ -379,7 +438,11 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
 
             if (linePt.y() <= (topMax + (box.yMax() - box.yMin()))) {
                 float ratio = (topMax - loc.y()) / (linePt.y() - loc.y());
-                if (ratio < 1)
+
+                if (_warnActive)
+                OE_WARN << "ratio " << ratio << "\n";
+
+                if (ratio < 1.f)
                     offset.set(ratio * (linePt.x() - loc.x()), topMax - loc.y(), 0.f);
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -391,6 +454,16 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 isResolved = true;
             }
         }
+        if (_warnActive)
+            OE_WARN << "isResolved " << isResolved << "\n";
+
+        if (_warnActive) {
+                OE_WARN << "------------------------------------------\n";
+                OE_WARN << "loc " << loc.x() << " " << loc.y() << "\n";
+                OE_WARN << "to " << to.x() << " " << to.y() << "\n";
+        }
+
+        _warnActive = false;
     }
 
     // override.
@@ -497,18 +570,25 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         camVPW.postMult(refWindowMatrix);
 
         // has the camera moved?
-        bool camChanged = camVPW != local._lastCamVPW;
+        bool camChanged = false; //camVPW != local._lastCamVPW;
         local._lastCamVPW = camVPW;
 
         // Go through each leaf and test for visibility.
         // Enforce the "max objects" limit along the way.
+
         for(osgUtil::RenderBin::RenderLeafList::iterator i = leaves.begin();
              i != leaves.end() && local._passed.size() < limit;
              ++i )
         {
             bool visible = true;
 
+
             osgUtil::RenderLeaf* leaf = *i;
+            osg::ref_ptr<osgText::Text> textDraw = dynamic_cast<osgText::Text*>(leaf->_drawable.get());
+            if(textDraw.get() && textDraw.get()->getText().createUTF8EncodedString() == "32L") {
+                OE_WARN << "DRAW A TEXT \"" << textDraw.get()->getText().createUTF8EncodedString() << "\"\n";
+                _warnActive = true;
+            }
             const osg::Drawable* drawable = leaf->getDrawable();
             const osg::Node*     drawableParent = drawable->getNumParents()? drawable->getParent(0) : 0L;
 
@@ -934,6 +1014,14 @@ struct DeclutterDraw : public osgUtil::RenderBin::DrawCallback
              ++rlitr)
         {
             osgUtil::RenderLeaf* rl = *rlitr;
+
+           /* osg::ref_ptr<osgEarth::Annotation::BboxDrawable> bboxDraw = dynamic_cast<osgEarth::Annotation::BboxDrawable*>(rl->_drawable.get());
+            osg::ref_ptr<osgText::Text> textDraw = dynamic_cast<osgText::Text*>(rl->_drawable.get());
+            if(bboxDraw.get())
+                OE_WARN << "DRAW A BBOX\n";
+            if(textDraw.get())
+                OE_WARN << "DRAW A TEXT \"" << textDraw.get()->getText().createUTF8EncodedString() << " \"\n";
+*/
             renderLeaf( rl, renderInfo, previous );
             previous = rl;
         }
