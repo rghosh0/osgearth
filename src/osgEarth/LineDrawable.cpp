@@ -45,9 +45,6 @@ using namespace osgEarth;
 
 #define LC "[LineGroup] "
 
-// Comment this out to test the non-GLSL path
-#define USE_GPU
-
 namespace osgEarth { namespace Serializers { namespace LineGroup
 {
     REGISTER_OBJECT_WRAPPER(
@@ -363,7 +360,8 @@ _previous(NULL),
 _next(NULL),
 _colors(NULL)
 {
-    _gpu = gpu && Registry::capabilities().supportsGLSL();
+    _gpu = gpu && Registry::capabilities().supportsGLSL() &&
+            (_mode == GL_LINES || _mode == GL_LINE_STRIP || _mode == GL_LINE_LOOP);
     if (_gpu) {
         setupShaders();
     }
