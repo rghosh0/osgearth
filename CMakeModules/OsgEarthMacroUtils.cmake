@@ -481,10 +481,14 @@ macro(configure_shaders templateFile autoGenCppFile)
 	set(TEMPLATE_FILE   ${templateFile} )
 	set(GLSL_FILES      ${ARGN} )
 	set(OUTPUT_CPP_FILE ${autoGenCppFile})
+	set(CURRENT_SOURCE_DIR ${CMAKE_SOURCE_DIR})
+	if (OSGEARTH_SOURCE_DIR)
+		set(CURRENT_SOURCE_DIR ${OSGEARTH_SOURCE_DIR})
+	endif (OSGEARTH_SOURCE_DIR)
 	
 	# generate the build-time script that will create out cpp file with inline shaders:
 	configure_file(
-		"${CMAKE_SOURCE_DIR}/osgearth/CMakeModules/ConfigureShaders.cmake.in"
+		"${CURRENT_SOURCE_DIR}/CMakeModules/ConfigureShaders.cmake.in"
 		"${CMAKE_CURRENT_BINARY_DIR}/ConfigureShaders.cmake"
 		@ONLY)
 	
@@ -497,7 +501,7 @@ macro(configure_shaders templateFile autoGenCppFile)
 		DEPENDS
 			${GLSL_FILES}
 			"${TEMPLATE_FILE}"
-			"${CMAKE_SOURCE_DIR}/osgearth/CMakeModules/ConfigureShaders.cmake.in" )
+			"${CURRENT_SOURCE_DIR}/CMakeModules/ConfigureShaders.cmake.in" )
 	
 endmacro(configure_shaders)
 
