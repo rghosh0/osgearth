@@ -151,4 +151,10 @@ LineSymbol::parseSLD(const Config& c, Style& style)
     else if (match(c.key(), "stroke-gpu")) {
         style.getOrCreate<LineSymbol>()->stroke()->gpu() = as<bool>(c.value(), true);
     }
+    else if (match(c.key(), "stroke-mp-pattern-alpha")) {
+        style.getOrCreate<LineSymbol>()->stroke()->mpPatternAlpha() = as<float>(c.value(), true);
+    }
+    else if (match(c.key(), "stroke-mp-pattern-threshold")) {
+        style.getOrCreate<LineSymbol>()->stroke()->mpPatternThreshold() = as<float>(c.value(), true);
+    }
 }

@@ -102,6 +102,14 @@ namespace osgEarth { namespace Symbology
         optional<bool>& smooth() { return _smooth; }
         const optional<bool>& smooth() const { return _smooth; }
 
+        /** MissionPlus pattern parameter, sets the alpha value of the blurred part (between 0 and 1) */
+        optional<float>& mpPatternAlpha() { return _mpPatternAlpha; }
+        const optional<float>& mpPatternAlpha() const { return _mpPatternAlpha; }
+
+        /** MissionPlus pattern parameter, sets the % of plain line vs blurred line (between 0 and 1) */
+        optional<float>& mpPatternThreshold() { return _mpPatternThreshold; }
+        const optional<float>& mpPatternThreshold() const { return _mpPatternThreshold; }
+
         /** Rounding ratio - when rounding corners/caps, this is the ratio
             of rounded-segment length to width(). The smaller this value,
             the more detailed the rounding will be. (Default is 0.4) */
@@ -127,6 +135,8 @@ namespace osgEarth { namespace Symbology
         optional<float>          _roundingRatio;
         optional<float>          _minPixels;
         optional<bool>           _smooth;
+        optional<float>          _mpPatternAlpha;
+        optional<float>          _mpPatternThreshold;
         optional<bool>          _gpu;
 
         void init();

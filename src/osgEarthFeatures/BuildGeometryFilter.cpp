@@ -526,6 +526,9 @@ BuildGeometryFilter::processLines(FeatureList& features, FilterContext& context)
 
                 if (line->stroke()->smooth().isSet())
                     drawable->setLineSmooth(line->stroke()->smooth().get());
+
+                if (line->stroke()->mpPatternAlpha().isSet() && line->stroke()->mpPatternThreshold().isSet())
+                    drawable->setMPPatternParams(line->stroke()->mpPatternAlpha().get(), line->stroke()->mpPatternThreshold().get());
             }
 
             // For GPU clamping, we need an attribute array with Heights above Terrain in it.

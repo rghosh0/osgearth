@@ -65,7 +65,8 @@ Stroke::init()
     _stipplePattern.init( 0xFFFF );
     _stippleFactor.init ( 1u );
     _smooth.init        ( false );
-    _gpu.init            ( true );
+    _gpu.init           ( true );
+    _mpPatternAlpha.init( 1.f );
 }
 
 Config 
@@ -86,6 +87,8 @@ Stroke::getConfig() const {
     conf.set("min_pixels", _minPixels );
     conf.set("smooth", _smooth);
     conf.set("gpu", _gpu);
+    conf.set("mp_pattern_alpha", _mpPatternAlpha);
+    conf.set("mp_pattern_threshold", _mpPatternThreshold);
     return conf;
 }
 
@@ -108,4 +111,6 @@ Stroke::mergeConfig( const Config& conf ) {
     conf.get("min_pixels", _minPixels );
     conf.get("smooth", _smooth);
     conf.get("gpu", _gpu);
+    conf.get("mp_pattern_alpha", _mpPatternAlpha);
+    conf.get("mp_pattern_threshold", _mpPatternThreshold);
 }

@@ -68,6 +68,7 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 #pragma vp_entryPoint oe_LineDrawable_VS_CLIP
 #pragma vp_location vertex_clip
 #pragma import_defines(OE_LINE_SMOOTH)
+#pragma import_defines(MP_PATTERN)
 
 // Set by the InstallViewportUniform callback
 uniform vec2 oe_ViewportSize;
@@ -87,7 +88,7 @@ flat out vec2 oe_LineDrawable_rv;
 vec4 oe_LineDrawable_prevView;
 vec4 oe_LineDrawable_nextView;
 
-#ifdef OE_LINE_SMOOTH
+#if defined OE_LINE_SMOOTH || defined MP_PATTERN
 out float oe_LineDrawable_lateral;
 #else
 float oe_LineDrawable_lateral;
@@ -125,7 +126,7 @@ void oe_LineDrawable_VS_CLIP(inout vec4 currClip)
     // We will use this to calculate stippling data:
     vec2 stippleDir;
 
-    // The following vertex comparisons must be done in model 
+    // The following vertex comparisons must be done in model
     // space because the equivalency gets mashed after projection.
 
     // starting point uses (next - current)
@@ -134,7 +135,7 @@ void oe_LineDrawable_VS_CLIP(inout vec4 currClip)
         dir = normalize(nextPixel - currPixel);
         stippleDir = dir;
     }
-    
+
     // ending point uses (current - previous)
     else if (gl_Vertex.xyz == oe_LineDrawable_next)
     {
@@ -177,7 +178,7 @@ void oe_LineDrawable_VS_CLIP(inout vec4 currClip)
 
     // and convert to unit space:
     vec2 extrudeUnit = extrudePixel / oe_ViewportSize;
-        
+
     // calculate the offset in clip space and apply it.
     vec2 offset = extrudeUnit * oe_LineDrawable_lateral * currClip.w;
     currClip.xy += offset;
@@ -186,10 +187,10 @@ void oe_LineDrawable_VS_CLIP(inout vec4 currClip)
     if (oe_GL_LineStipplePattern != 0xffff)
     {
         // Line creation is done. Now, calculate a rotation angle
-        // for use by out fragment shader to do GPU stippling. 
+        // for use by out fragment shader to do GPU stippling.
         // This "rotates" the fragment coordinate onto the X axis so that
         // we can apply stippling along the direction of the line.
-        // Note: this depends on the GLSL "provoking vertex" being at the 
+        // Note: this depends on the GLSL "provoking vertex" being at the
         // beginning of the line segment!
 
         // flip the vector so stippling always proceedes from left to right
@@ -222,6 +223,7 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 #pragma vp_entryPoint oe_LineDrawable_Stippler_FS
 #pragma vp_location fragment_coloring
 #pragma import_defines(OE_LINE_SMOOTH)
+#pragma import_defines(MP_PATTERN)
 
 uniform int oe_GL_LineStippleFactor;
 uniform int oe_GL_LineStipplePattern;
@@ -229,8 +231,14 @@ uniform int oe_GL_LineStipplePattern;
 flat in vec2 oe_LineDrawable_rv;
 flat in int oe_LineDrawable_draw;
 
-#ifdef OE_LINE_SMOOTH
+#if defined OE_LINE_SMOOTH || defined MP_PATTERN
 in float oe_LineDrawable_lateral;
+#endif
+
+#ifdef MP_PATTERN
+// MissionPlus line pattern with one part of the line having full alpha and the other part a lesser value
+uniform float oe_MPPatternAlpha; // value of the target decreased alpha
+uniform float oe_MPPatternThreshold; // where on the line the alpha decrease starts to apply
 #endif
 
 void oe_LineDrawable_Stippler_FS(inout vec4 color)
@@ -243,7 +251,7 @@ void oe_LineDrawable_Stippler_FS(inout vec4 color)
         // coordinate of the fragment, shifted to 0:
         vec2 coord = (gl_FragCoord.xy - 0.5);
 
-        // rotate the frag coord onto the X-axis so we can sample the 
+        // rotate the frag coord onto the X-axis so we can sample the
         // stipple pattern:
         vec2 coordProj =
             mat2(oe_LineDrawable_rv.x, -oe_LineDrawable_rv.y,
@@ -254,7 +262,7 @@ void oe_LineDrawable_Stippler_FS(inout vec4 color)
         int ci = int(mod(coordProj.x, 16.0 * float(oe_GL_LineStippleFactor))) / oe_GL_LineStippleFactor;
         int pattern16 = 0xffff & (oe_GL_LineStipplePattern & (1 << ci));
         if (pattern16 == 0)
-            discard; 
+            discard;
 
         // uncomment to debug stipple direction vectors
         //color.b = 0;
@@ -262,9 +270,28 @@ void oe_LineDrawable_Stippler_FS(inout vec4 color)
         //color.g = oe_LineDrawable_rv.y;
     }
 
+#ifdef MP_PATTERN
+# ifdef OE_LINE_SMOOTH
+    const float aliasWidth = 0.25f;
+
+    // middle-line anti-aliasing
+    float limit = oe_MPPatternThreshold + aliasWidth;
+    float alphaInverse = 1.f - oe_MPPatternAlpha;
+    if (oe_LineDrawable_lateral > oe_MPPatternThreshold)
+    {
+        color.a = 1.f - ((alphaInverse) * smoothstep(oe_MPPatternThreshold, limit, oe_LineDrawable_lateral));
+    }
+# else // OE_LINE_SMOOTH == 0
+    if (oe_LineDrawable_lateral > oe_MPPatternThreshold)
+    {
+        color.a = oe_MPPatternAlpha;
+    }
+# endif // OE_LINE_SMOOTH
+#endif // MP_PATTERN
+
 #ifdef OE_LINE_SMOOTH
     // anti-aliasing
     float L = abs(oe_LineDrawable_lateral);
     color.a = color.a * smoothstep(0.0, 1.0, 1.0-(L*L));
-#endif
+#endif // OE_LINE_SMOOTH
 }

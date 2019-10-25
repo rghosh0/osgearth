@@ -46,6 +46,15 @@ namespace osgEarth
         //! Configure line antialiasing (GL_LINE_SMOOTH)
         static void setLineSmooth(osg::StateSet* stateSet, osg::StateAttribute::OverrideValue ov);
 
+        //! Configure MissionPlus pattern alpha
+        static void setLineMPPatternAlpha(osg::StateSet* stateSet, float value, osg::StateAttribute::OverrideValue ov);
+
+        //! Configure MissionPlus pattern threshold
+        static void setLineMPPatternThreshold(osg::StateSet* stateSet, float value, osg::StateAttribute::OverrideValue ov);
+
+        //! Enable or disable MissionPlus pattern
+        static void setLineMPPattern(osg::StateSet* stateSet, osg::StateAttribute::OverrideValue ov);
+
         //! Configure point rendering size (GL_POINT_SIZE)
         static void setPointSize(osg::StateSet* stateSet, float value, osg::StateAttribute::OverrideValue ov);
 

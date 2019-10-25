@@ -497,6 +497,12 @@ LineDrawable::setLineSmooth(bool value)
     }
 }
 
+void LineDrawable::setMPPatternParams(float alpha, float threshold) {
+    GLUtils::setLineMPPatternAlpha(getOrCreateStateSet(), alpha, 1);
+    GLUtils::setLineMPPatternThreshold(getOrCreateStateSet(), threshold, 1);
+    GLUtils::setLineMPPattern(getOrCreateStateSet(), 1);
+}
+
 void
 LineDrawable::setColor(const osg::Vec4& color)
 {

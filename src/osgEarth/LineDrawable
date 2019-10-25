@@ -136,6 +136,12 @@ namespace osgEarth
         //! all LineDrawables used with that state set.
         static void setLineWidth(osg::StateSet* stateSet, float value, int overrideFlags=osg::StateAttribute::ON);
 
+        //! Sets and enables MissionPlus line pattern.
+        //! has a plain part and blurred part
+        //! blur set to the passed alpha
+        //! proportion plain/blurred set with threshold (value between 0 and 1, 1 for a normal plain line)
+        void setMPPatternParams(float alpha, float threshold);
+
     public:
 
         //! Binding location for "previous" vertex attribute (default = 9)

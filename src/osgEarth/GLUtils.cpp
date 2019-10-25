@@ -98,6 +98,27 @@ GLUtils::setLineSmooth(osg::StateSet* stateSet, osg::StateAttribute::OverrideVal
 }
 
 void
+GLUtils::setLineMPPatternAlpha(osg::StateSet* stateSet, float value, osg::StateAttribute::OverrideValue ov)
+{
+    stateSet->addUniform(new osg::Uniform("oe_MPPatternAlpha", value), ov);
+}
+
+void
+GLUtils::setLineMPPatternThreshold(osg::StateSet* stateSet, float value, osg::StateAttribute::OverrideValue ov)
+{
+    // input value is between 0 and 1
+    // shader value must be between -1 and 1
+    float shaderThreshold = (value * 2.f) - 1.f;
+    stateSet->addUniform(new osg::Uniform("oe_MPPatternThreshold", shaderThreshold), ov);
+}
+
+void
+GLUtils::setLineMPPattern(osg::StateSet* stateSet, osg::StateAttribute::OverrideValue ov)
+{
+    stateSet->setDefine("MP_PATTERN", ov);
+}
+
+void
 GLUtils::setPointSize(osg::StateSet* stateSet, float value, osg::StateAttribute::OverrideValue ov)
 {
 #ifdef OSG_GL_FIXED_FUNCTION_AVAILABLE
