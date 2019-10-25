@@ -205,7 +205,7 @@ public:
 class ECITrackDrawable : public LineDrawable //public PointDrawable
 {
 public:
-    ECITrackDrawable() : LineDrawable(GL_LINE_STRIP)
+    ECITrackDrawable() : LineDrawable(static_cast<GLenum>(GL_LINE_STRIP))
     {
         Lighting::set(getOrCreateStateSet(), 0);
         //setPointSmooth(true);
@@ -251,7 +251,7 @@ public:
 osg::Node* createECIAxes()
 {
     const float R = 10e6;
-    LineDrawable* d = new LineDrawable(GL_LINES);
+    LineDrawable* d = new LineDrawable(static_cast<GLenum>(GL_LINES));
     d->allocate(6);
 
     d->setVertex(0, osg::Vec3(0,0,0));
