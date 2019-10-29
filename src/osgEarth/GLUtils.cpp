@@ -25,10 +25,10 @@
 #include <osg/LineStipple>
 #include <osg/GraphicsContext>
 
-#ifdef OSG_GL_FIXED_FUNCTION_AVAILABLE
+//#ifdef OSG_GL_FIXED_FUNCTION_AVAILABLE
 #include <osg/LineWidth>
 #include <osg/Point>
-#endif
+//#endif
 
 using namespace osgEarth;
 
@@ -69,9 +69,9 @@ GLUtils::setLighting(osg::StateSet* stateSet, osg::StateAttribute::OverrideValue
 void
 GLUtils::setLineWidth(osg::StateSet* stateSet, float value, osg::StateAttribute::OverrideValue ov)
 {
-#ifdef OSG_GL_FIXED_FUNCTION_AVAILABLE
+//#ifdef OSG_GL_FIXED_FUNCTION_AVAILABLE
     stateSet->setAttributeAndModes(new osg::LineWidth(value), ov);
-#endif
+//#endif
 
     stateSet->addUniform(new osg::Uniform("oe_GL_LineWidth", value), ov);
 }
