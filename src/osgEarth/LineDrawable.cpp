@@ -343,6 +343,7 @@ _colors(NULL)
     if (_gpu) {
         setupShaders();
     }
+    setStipplePattern(_pattern);
 }
 
 LineDrawable::LineDrawable(GLenum mode, bool gpu) :
@@ -365,6 +366,7 @@ _colors(NULL)
     if (_gpu) {
         setupShaders();
     }
+    setStipplePattern(_pattern);
 }
 
 LineDrawable::LineDrawable(const LineDrawable& rhs, const osg::CopyOp& copy) :
@@ -392,6 +394,7 @@ _colors(NULL)
     }
 
     setupShaders();
+    setStipplePattern(_pattern);
 }
 
 LineDrawable::~LineDrawable()
