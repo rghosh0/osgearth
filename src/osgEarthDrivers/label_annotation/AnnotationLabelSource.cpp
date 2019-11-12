@@ -22,6 +22,7 @@
 #include <osgEarthFeatures/FilterContext>
 #include <osgEarthAnnotation/LabelNode>
 #include <osgEarthAnnotation/PlaceNode>
+#include <osgEarthAnnotation/AttachedLabelNode>
 #include <osgEarth/DepthOffset>
 #include <osgEarth/VirtualProgram>
 #include <osgEarth/StateSetCache>
@@ -133,13 +134,21 @@ public:
                     tempStyle.get<IconSymbol>()->heading()->setLiteral( feature->eval(iconHeadingExpr, &context) );
             }
 
-            PlaceNode* node = makePlaceNode(
-                context,
-                feature,
-                tempStyle,
-                textPriorityExpr,
-                text &&
-                    ( text->autoOffsetAlongLine() == true || text->autoRotateAlongLine() == true || text->autoOffsetGeomWKT().isSet() ) );
+            GeoPositionNode *node = nullptr;
+            if ((text != nullptr) && (text->attachedLabel() == true))
+            {
+                node = makeAttachedLabelNode(context, feature, tempStyle, textPriorityExpr);
+            }
+            else
+            {
+                node = makePlaceNode(
+                    context,
+                    feature,
+                    tempStyle,
+                    textPriorityExpr,
+                    text &&
+                        (text->autoOffsetAlongLine() == true || text->autoRotateAlongLine() == true || text->autoOffsetGeomWKT().isSet()));
+            }
 
             if ( node )
             {
@@ -168,6 +177,19 @@ public:
         return group;
     }
 
+    AttachedLabelNode* makeAttachedLabelNode(FilterContext &context,
+                                             Feature *feature,
+                                             const Style &style,
+                                             NumericExpression &priorityExpr)
+    {
+        auto center = feature->getGeometry()->getBounds().center();
+        auto geoCenter = buildGeoPoint(center, style.getSymbol<AltitudeSymbol>(), feature->getSRS());
+        auto node = new AttachedLabelNode{};
+        node->updateGeometry(context, feature);
+        node->setStyle(style);
+        node->setPosition(geoCenter);
+        return node;
+    }
 
     PlaceNode* makePlaceNode(FilterContext&     context,
                              Feature*           feature,
@@ -241,13 +263,6 @@ public:
             node->setStyle(style, context.getDBOptions());
             node->setPosition(geoCenter);
         }
-
-        if ( !priorityExpr.empty() && node != 0L )
-        {
-            float val = feature->eval(priorityExpr, &context);
-            node->setPriority( val >= 0.0f ? val : FLT_MAX );
-        }
-
         return node;
     }
 

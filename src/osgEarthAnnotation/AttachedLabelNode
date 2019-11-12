@@ -1,0 +1,93 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
+* http://osgearth.org
+*
+* osgEarth is free software; you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>
+*/
+
+#pragma once
+
+#include <osgEarthAnnotation/GeoPositionNode>
+#include <osgEarthSymbology/Style>
+#include <osgEarthSymbology/Geometry>
+
+#include <osgEarthFeatures/Feature>
+#include <osgEarthFeatures/FilterContext>
+#include <osgEarth/MapNode>
+#include <osgEarth/ScreenSpaceLayout>
+#include <osg/Geode>
+
+namespace osgEarth
+{
+namespace Annotation
+{
+
+class OSGEARTHANNO_EXPORT AttachedLabelNode : public GeoPositionNode
+{
+public:
+    META_AnnotationNode(osgEarthAnnotation, AttachedLabelNode);
+
+    AttachedLabelNode();
+    AttachedLabelNode(osgEarth::Features::FilterContext& context,
+                      osgEarth::Features::Feature* feature,
+                      const Style& style);
+    AttachedLabelNode(const osgEarth::Config& conf, const osgDB::Options* dbOptions);
+    virtual ~AttachedLabelNode() override = default;
+
+    //virtual osgEarth::Config getConfig() const override;
+    virtual void setPriority(float value) override;
+    virtual void setDynamic(bool value) override;
+    virtual void setStyle(const Style& style) override;
+    virtual const Style& getStyle() const override;
+    virtual void dirty() override;
+
+    void updateGeometry(osgEarth::Features::FilterContext& context,
+                        osgEarth::Features::Feature* feature,
+                        double decimationTolerance = 1.0);
+
+protected:
+    AttachedLabelNode(const AttachedLabelNode& other, const osg::CopyOp& copyOp);
+
+    std::string _text;
+    osgEarth::Symbology::Style _style;
+    osg::ref_ptr<osgEarth::Symbology::Geometry> _geometry;
+
+    osg::ref_ptr<osg::Geode> _geode;
+    osg::ref_ptr<ScreenSpaceLayoutData> _dataLayout;
+
+    GeoPoint _geoPointLoc;
+    GeoPoint _geoPointProj;
+
+    struct _Line
+    {
+        osg::Vec3d start;
+        osg::Vec3d end;
+
+        inline double length() const { return (end - start).length(); }
+        inline bool operator<(const _Line& other) const { return length() < other.length(); }
+    };
+    std::vector<_Line> _srcGeomLines;
+
+private:
+
+    void _construct();
+    void _compile();
+    void _updateLayoutData();
+};
+} // namespace Annotation
+} // namespace osgEarth

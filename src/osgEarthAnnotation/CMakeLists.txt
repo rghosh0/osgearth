@@ -17,6 +17,7 @@ set(LIB_PUBLIC_HEADERS
     AnnotationRegistry
     AnnotationUtils
 	BboxDrawable
+    AttachedLabelNode
     CircleNode
     Common
     Draggers
@@ -45,6 +46,7 @@ set(LIB_COMMON_FILES
     AnnotationRegistry.cpp
     AnnotationUtils.cpp
 	BboxDrawable.cpp
+    AttachedLabelNode.cpp
     CircleNode.cpp
     Draggers.cpp
     EllipseNode.cpp
@@ -62,6 +64,9 @@ set(LIB_COMMON_FILES
     TrackNode.cpp
 )
 
+IF (GEOS_FOUND)
+    ADD_DEFINITIONS(-DOSGEARTH_HAVE_GEOS)
+ENDIF(GEOS_FOUND)
 
 ADD_LIBRARY( ${LIB_NAME} ${OSGEARTH_USER_DEFINED_DYNAMIC_OR_STATIC}
     ${LIB_PUBLIC_HEADERS}

@@ -176,6 +176,14 @@ public:
     optional<StringExpression>& autoOffsetGeomWKT() { return _autoOffsetGeomWKT; }
     const optional<StringExpression>& autoOffsetGeomWKT() const { return _autoOffsetGeomWKT; }
 
+    // Enable usage of attached label
+    inline optional<bool>& attachedLabel() { return _attachedLabel; }
+    inline const optional<bool>& attachedLabel() const { return _attachedLabel; }
+
+    // Specify decimation tolerance in case of attached label usage
+    inline optional<double>& attachedLabelDecimationTolerance() { return _attachedLabelDecimationTolerance; }
+    inline const optional<double>& attachedLabelDecimationTolerance() const { return _attachedLabelDecimationTolerance; }
+
 public:
     virtual Config getConfig() const;
     virtual void mergeConfig( const Config& conf );
@@ -204,6 +212,8 @@ protected:
     optional<bool>              _autoOffsetAlongLine;
     optional<bool>              _autoRotateAlongLine;
     optional<StringExpression>  _autoOffsetGeomWKT;
+    optional<bool>              _attachedLabel;
+    optional<double>            _attachedLabelDecimationTolerance;
 };
 
 } } // namespace osgEarth::Symbology

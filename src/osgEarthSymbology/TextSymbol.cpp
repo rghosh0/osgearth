@@ -50,7 +50,9 @@ TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _occlusionCullAltitude(rhs._occlusionCullAltitude),
                                                                            _autoOffsetAlongLine(rhs._autoOffsetAlongLine),
                                                                            _autoRotateAlongLine(rhs._autoRotateAlongLine),
-                                                                           _autoOffsetGeomWKT(rhs.autoOffsetGeomWKT())
+                                                                           _autoOffsetGeomWKT(rhs._autoOffsetGeomWKT),
+                                                                           _attachedLabel(rhs._attachedLabel),
+                                                                           _attachedLabelDecimationTolerance(rhs._attachedLabelDecimationTolerance)
 {
 }
 
@@ -72,7 +74,9 @@ TextSymbol::TextSymbol( const Config& conf ) :
                                              _onScreenRotation     ( 0.0 ),
                                              _geographicCourse     ( 0.0 ),
                                              _autoOffsetAlongLine  ( false ),
-                                             _autoRotateAlongLine  ( false )
+                                             _autoRotateAlongLine  ( false ),
+                                             _attachedLabel        ( false ),
+                                             _attachedLabelDecimationTolerance( false )
 {
     mergeConfig(conf);
 }
@@ -149,6 +153,9 @@ TextSymbol::getConfig() const
     conf.set( "auto-rotate-alongline", _autoRotateAlongLine);
     conf.set( "auto-offset-support", _autoOffsetGeomWKT );
 
+    conf.set( "attached-label", _attachedLabel );
+    conf.set( "attached-label-decimation-tolerance", _attachedLabelDecimationTolerance );
+
     return conf;
 }
 
@@ -221,6 +228,9 @@ TextSymbol::mergeConfig( const Config& conf )
     conf.get( "auto-offset-alongline", _autoOffsetAlongLine );
     conf.get( "auto-rotate-alongline", _autoRotateAlongLine );
     conf.get( "auto-offset-support", _autoOffsetGeomWKT );
+
+    conf.get( "attached-label", _attachedLabel );
+    conf.get( "attached-label-decimation-tolerance", _attachedLabelDecimationTolerance );
 }
 
 
@@ -376,5 +386,11 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "text-auto-offset-support") ) {
         style.getOrCreate<TextSymbol>()->autoOffsetGeomWKT() = StringExpression( c.value() );
+    }
+    else if ( match(c.key(), "text-attached-label") ) {
+        style.getOrCreate<TextSymbol>()->attachedLabel() = as<bool>(c.value(), defaults.attachedLabel().get() );
+    }
+    else if ( match(c.key(), "text-attached-label-decimation-tolerance") ) {
+        style.getOrCreate<TextSymbol>()->attachedLabelDecimationTolerance() = as<bool>(c.value(), defaults.attachedLabelDecimationTolerance().get() );
     }
 }

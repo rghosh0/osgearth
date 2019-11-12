@@ -262,6 +262,15 @@ GeometryCompiler::compile(FeatureList&          workingSet,
     // Perform tessellation first.
     if ( line )
     {
+        if(line->tessellation().isSet() || line->tessellationSize().isSet())
+        {
+            for(auto& feature : workingSet)
+            {
+                auto tmp = feature->getGeometry();
+                feature->srcGeom = tmp->cloneAs(tmp->getType());
+            }
+        }
+
         if ( line->tessellation().isSet() )
         {
             TessellateOperator filter;

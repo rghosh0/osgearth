@@ -261,6 +261,8 @@ namespace osgEarth { namespace Features
          */
         void splitAcrossDateLine(FeatureList& splitFeatures);
 
+        osg::ref_ptr<Geometry> srcGeom;
+
     protected:
 
         Feature( FeatureID fid =0L );
