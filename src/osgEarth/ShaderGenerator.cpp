@@ -63,7 +63,7 @@ using namespace osgEarth;
 // compatibility string for GLES:
 
 #if defined(OSG_GLES2_AVAILABLE) || defined(OSG_GLES3_AVAILABLE)
-#   define GLSL_PRECISION "precision mediump float;"
+#define GLSL_PRECISION "precision highp float;"
 #   define MEDIUMP        "mediump "
 #   define LOWP           "lowp "
 #   define HIGHP          "highp "
