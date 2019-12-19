@@ -152,6 +152,9 @@ public:
 
             if ( node )
             {
+                node->setHorizonCulling(false);
+                node->setOcclusionCulling(false);
+
                 if (!textPriorityExpr.empty())
                 {
                     float val = feature->eval(textPriorityExpr, &context);
