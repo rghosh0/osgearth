@@ -41,6 +41,13 @@ namespace osgEarth { namespace Symbology
             GEOM_BOX_ROUNDED
         };
 
+        enum BboxGroup {
+            GROUP_NONE,
+            GROUP_ICON_ONLY,
+            GROUP_TEXT_ONLY,
+            GROUP_ICON_AND_TEXT
+        };
+
         META_Object(osgEarthSymbology, BBoxSymbol);
 
         BBoxSymbol(const BBoxSymbol& rhs,const osg::CopyOp& copyop=osg::CopyOp::SHALLOW_COPY);
@@ -65,6 +72,10 @@ namespace osgEarth { namespace Symbology
         optional<BboxGeom>& geom() { return _bboxGeom; }
         const optional<BboxGeom>& geom() const { return _bboxGeom; }
 
+        /** Bounding box group. */
+        optional<BboxGroup>& group() { return _bboxGroup; }
+        const optional<BboxGroup>& group() const { return _bboxGroup; }
+
     public:
         virtual Config getConfig() const;
         virtual void mergeConfig( const Config& conf );
@@ -75,6 +86,7 @@ namespace osgEarth { namespace Symbology
         optional<Stroke>            _border;
         optional<float>             _margin;
         optional<BboxGeom>          _bboxGeom;
+        optional<BboxGroup>         _bboxGroup;
     };
 
 } } // namespace osgEarth::Symbology
