@@ -155,8 +155,9 @@ PlaceNode::construct()
 void
 PlaceNode::compile()
 {
-    osg::Group* pat = getPositionAttitudeTransform();
-    pat->removeChildren(0, pat->getNumChildren());
+    //osg::Group* root = getPositionAttitudeTransform();
+    osg::Group* root = getGeoTransform();
+    root->removeChildren(0, root->getNumChildren());
 
     _geode = new osg::Geode();
     _geode->setCullingActive(false);
@@ -166,7 +167,7 @@ PlaceNode::compile()
     // useful for things like horizon culling.
     _geode->setComputeBoundingSphereCallback(new ControlPointCallback());
 
-    getPositionAttitudeTransform()->addChild(_geode);
+    root->addChild(_geode);
 
     _imageDrawable = 0L;
     _bboxDrawable = 0L;
