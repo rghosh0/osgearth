@@ -298,7 +298,6 @@ PlaceNode::compile()
         {
             // todo: optimize this better:
             _imageDrawable->getOrCreateStateSet()->merge(*_imageStateSet.get());
-            _geode->addDrawable(_imageDrawable);
             imageBox = _imageDrawable->getBoundingBox();
         }
     }
@@ -322,11 +321,56 @@ PlaceNode::compile()
         _textDrawable->setCullingActive(false);
     }
 
+    // MissionPlus specific: the bounding box can enclose either the text, or
+    // the image, or both, instead of the text only.
     const BBoxSymbol* bboxsymbol = _style.get<BBoxSymbol>();
-    if ( bboxsymbol && _textDrawable )
+    if ( bboxsymbol && (bboxsymbol->group() != BBoxSymbol::BboxGroup::GROUP_NONE)
+                    && (_textDrawable || _imageDrawable) )
     {
-        _bboxDrawable = new BboxDrawable( _textDrawable->getBoundingBox(), *bboxsymbol );
-        _geode->addDrawable(_bboxDrawable);
+        osg::BoundingBox groupBBox{};
+
+
+        if ( _imageDrawable && (bboxsymbol->geom() == BBoxSymbol::BboxGeom::GEOM_BOX_ROUNDED) &&
+             ((bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY) ||
+              (!_textDrawable && (bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT))) )
+        {
+            // This is the case where only the image should have a rounded
+            // background, either by choice or because the text is not
+            // available. The way rounded boxes are drawn is basically by
+            // adding two semicircles on each side of the original bounding
+            // box. The result is a pill shape instead of a circle shape for an
+            // original square bounding box. To bypass this behavior, the
+            // original bounding box is transformed to have a width of zero and
+            // a height equal to the diagonal of the image.
+
+            const osg::BoundingBox imageBB{_imageDrawable->getBoundingBox()};
+
+            groupBBox.expandBy( {imageBB.center().x(), imageBB.center().y() - imageBB.radius(), imageBB.center().z(),
+                                 imageBB.center().x(), imageBB.center().y() + imageBB.radius(), imageBB.center().z()} );
+        }
+        else {
+            // Enclose text
+            if ( _textDrawable && (bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_TEXT_ONLY ||
+                                   bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT) )
+            {
+                groupBBox.expandBy( _textDrawable->getBoundingBox() );
+            }
+
+            // Enclose image
+            if ( _imageDrawable && (bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY ||
+                                    bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT) )
+            {
+                groupBBox.expandBy( _imageDrawable->getBoundingBox() );
+            }
+        }
+
+        _bboxDrawable = new BboxDrawable( groupBBox, *bboxsymbol );
+        _geode->addDrawable( _bboxDrawable );
+    }
+
+    if ( _imageDrawable )
+    {
+        _geode->addDrawable( _imageDrawable );
     }
 
     if ( _textDrawable )
