@@ -58,7 +58,7 @@ public:
         osg::ref_ptr<osg::Drawable>     drawable;
         osg::ref_ptr<osg::RefMatrix>    matrix;
         osg::Vec3d                      localIntersectionPoint;
-        osg::Vec3d                       localIntersectionNormal;
+        osg::Vec3d                      localIntersectionNormal;
         IndexList                       indexList;
         RatioList                       ratioList;
         unsigned int                    primitiveIndex;
@@ -88,6 +88,15 @@ public:
     inline double getThickness() const { return _thicknessVal; }
 
     inline bool getOverlayIgnore() const { return _overlayIgnore; }
+
+    inline void setCamMatrix(const osg::Matrix& matrix) { _camMatrix = matrix; }
+    inline const osg::Matrix& getCamMatrix() const { return _camMatrix; }
+
+    inline void setPickCoord(double x, double y) { _pickCoord = osg::Vec2d(x, y); }
+    inline const osg::Vec2d& getPickCoord() const { return _pickCoord; }
+
+    inline void setBuffer(double buf) { _buffer = buf; }
+    inline double getBuffer() const { return _buffer; }
 
 public:
 
@@ -120,6 +129,10 @@ protected:
     osg::Vec3d  _thickness;
     double _thicknessVal;
     bool _overlayIgnore;
+
+    osg::Matrix _camMatrix;
+    osg::Vec2d _pickCoord;
+    double _buffer;
 
     Intersections _intersections;
 

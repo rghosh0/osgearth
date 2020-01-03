@@ -19,6 +19,8 @@
 
 #include <osgEarth/PrimitiveIntersector>
 #include <osgEarth/Utils>
+#include <osgEarth/ScreenSpaceLayout>
+#include <osgEarth/GeoTransform>
 #include <osg/TemplatePrimitiveFunctor>
 
 #define LC "[PrmitiveIntersector] "
@@ -59,7 +61,7 @@ struct PrimitiveIntersectorFunctor
 {
     osg::Vec3d   _s;
     osg::Vec3d   _d;
-    osg::Vec3d    _thickness;
+    osg::Vec3d   _thickness;
 
     float       _length;
 
@@ -67,6 +69,8 @@ struct PrimitiveIntersectorFunctor
     float       _ratio;
     bool        _hit;
     bool        _limitOneIntersection;
+
+    bool        _inScreenSpace;
 
     PrimitiveIntersections _intersections;
 
@@ -77,14 +81,16 @@ struct PrimitiveIntersectorFunctor
         _ratio = 0.0f;
         _hit = false;
         _limitOneIntersection = false;
+        _inScreenSpace = false;
     }
 
-    void set(const osg::Vec3d& start, osg::Vec3d& end, const osg::Vec3d& thickness, float ratio=FLT_MAX)
+    void set(const osg::Vec3d& start, osg::Vec3d& end, const osg::Vec3d& thickness, bool inScreenSpace=false, float ratio=FLT_MAX)
     {
         _hit=false;
         _thickness = thickness;
         _index = 0;
         _ratio = ratio;
+        _inScreenSpace = inScreenSpace;
 
         _s = start;
         _d = end - start;
@@ -95,7 +101,7 @@ struct PrimitiveIntersectorFunctor
     //POINT
     inline void operator () (const osg::Vec3& p, bool treatVertexDataAsTemporary)
     {
-        if (_limitOneIntersection && _hit) return;
+        if (_inScreenSpace || _limitOneIntersection && _hit) return;
 
         osg::Vec3d n = _d ^ _thickness;
 
@@ -111,8 +117,8 @@ struct PrimitiveIntersectorFunctor
 
     //LINE
     inline void operator () (const osg::Vec3& v1, const osg::Vec3& v2, bool treatVertexDataAsTemporary)
-     {
-        if (_limitOneIntersection && _hit) return;
+    {
+        if (_inScreenSpace || _limitOneIntersection && _hit) return;
 
         float thickness =  _thickness.length();
         osg::Vec3d l12 = v2 - v1;
@@ -134,10 +140,10 @@ struct PrimitiveIntersectorFunctor
 
     //QUAD
     inline void operator () (
-        const osg::Vec3d& v1, const osg::Vec3& v2, const osg::Vec3& v3, const osg::Vec3& v4, bool treatVertexDataAsTemporary
-        )
+            const osg::Vec3d& v1, const osg::Vec3& v2, const osg::Vec3& v3, const osg::Vec3& v4, bool treatVertexDataAsTemporary
+            )
     {
-        if (_limitOneIntersection && _hit) return;
+        if (_inScreenSpace || _limitOneIntersection && _hit) return;
 
         this->operator()(v1, v2, v3, treatVertexDataAsTemporary);
         if (_limitOneIntersection && _hit) return;
@@ -148,16 +154,16 @@ struct PrimitiveIntersectorFunctor
 
     //TRIANGLE (buffered)
     inline void operator () (
-        const osg::Vec3& v1, const osg::Vec3& v2, const osg::Vec3& v3, bool treatVertexDataAsTemporary
-        )
+            const osg::Vec3& v1, const osg::Vec3& v2, const osg::Vec3& v3, bool treatVertexDataAsTemporary
+            )
     {
         if (_limitOneIntersection && _hit) return;
 
         // first do a simple test against the unbuffered triangle:
         this->triNoBuffer(v1, v2, v3, &v1, &v2, &v3, treatVertexDataAsTemporary);
-        if (_limitOneIntersection && _hit) return;
+        if (_inScreenSpace || _limitOneIntersection && _hit) return;
 
-//#if 0
+        //#if 0
         // now buffer each edge and test against that.
         float thickness = _thickness.length();
         osg::Vec3d ln, buf;
@@ -187,11 +193,11 @@ struct PrimitiveIntersectorFunctor
 
         --_index;
         this->triNoBuffer(v3+buf, v1-buf, v3-buf, &v1, &v2, &v3, treatVertexDataAsTemporary);
-//#endif
+        //#endif
     }
 
     //TRIANGLE (no buffer applied)
-    inline void triNoBuffer(const osg::Vec3d& v1, const osg::Vec3d& v2, const osg::Vec3d& v3, 
+    inline void triNoBuffer(const osg::Vec3d& v1, const osg::Vec3d& v2, const osg::Vec3d& v3,
                             const osg::Vec3* v1Ptr, const osg::Vec3* v2Ptr, const osg::Vec3* v3Ptr,
                             bool treatVertexDataAsTemporary)
     {
@@ -199,73 +205,81 @@ struct PrimitiveIntersectorFunctor
 
         if (_limitOneIntersection && _hit) return;
 
-        if (v1==v2 || v2==v3 || v1==v3) return;
+        if (! _inScreenSpace && (v1==v2 || v2==v3 || v1==v3)) return;
 
         osg::Vec3d v12 = v2-v1;
         osg::Vec3d n12 = v12^_d;
         float ds12 = (_s-v1)*n12;
         float d312 = (v3-v1)*n12;
-        if (d312>=0.0f)
+        if (! _inScreenSpace)
         {
-            if (ds12<0.0f) return;
-            if (ds12>d312) return;
-        }
-        else                     // d312 < 0
-        {
-            if (ds12>0.0f) return;
-            if (ds12<d312) return;
+            if (d312>=0.0f)
+            {
+                if (ds12<0.0f) return;
+                if (ds12>d312) return;
+            }
+            else                     // d312 < 0
+            {
+                if (ds12>0.0f) return;
+                if (ds12<d312) return;
+            }
         }
 
         osg::Vec3d v23 = v3-v2;
         osg::Vec3d n23 = v23^_d;
         float ds23 = (_s-v2)*n23;
         float d123 = (v1-v2)*n23;
-        if (d123>=0.0f)
+        if (! _inScreenSpace)
         {
-            if (ds23<0.0f) return;
-            if (ds23>d123) return;
-        }
-        else                     // d123 < 0
-        {
-            if (ds23>0.0f) return;
-            if (ds23<d123) return;
+            if (d123>=0.0f)
+            {
+                if (ds23<0.0f) return;
+                if (ds23>d123) return;
+            }
+            else                     // d123 < 0
+            {
+                if (ds23>0.0f) return;
+                if (ds23<d123) return;
+            }
         }
 
         osg::Vec3d v31 = v1-v3;
         osg::Vec3d n31 = v31^_d;
         float ds31 = (_s-v3)*n31;
         float d231 = (v2-v3)*n31;
-        if (d231>=0.0f)
+        if (! _inScreenSpace)
         {
-            if (ds31<0.0f) return;
-            if (ds31>d231) return;
+            if (d231>=0.0f)
+            {
+                if (ds31<0.0f) return;
+                if (ds31>d231) return;
+            }
+            else                     // d231 < 0
+            {
+                if (ds31>0.0f) return;
+                if (ds31<d231) return;
+            }
         }
-        else                     // d231 < 0
-        {
-            if (ds31>0.0f) return;
-            if (ds31<d231) return;
-        }
-
 
         float r3;
         if (ds12==0.0f) r3=0.0f;
         else if (d312!=0.0f) r3 = ds12/d312;
-        else return; // the triangle and the line must be parallel intersection.
+        else if (! _inScreenSpace) return; // the triangle and the line must be parallel intersection.
 
         float r1;
         if (ds23==0.0f) r1=0.0f;
         else if (d123!=0.0f) r1 = ds23/d123;
-        else return; // the triangle and the line must be parallel intersection.
+        else if (! _inScreenSpace) return; // the triangle and the line must be parallel intersection.
 
         float r2;
         if (ds31==0.0f) r2=0.0f;
         else if (d231!=0.0f) r2 = ds31/d231;
-        else return; // the triangle and the line must be parallel intersection.
+        else if (! _inScreenSpace) return; // the triangle and the line must be parallel intersection.
 
         float total_r = (r1+r2+r3);
         if (total_r!=1.0f)
         {
-            if (total_r==0.0f) return; // the triangle and the line must be parallel intersection.
+            if (! _inScreenSpace && total_r==0.0f) return; // the triangle and the line must be parallel intersection.
             float inv_total_r = 1.0f/total_r;
             r1 *= inv_total_r;
             r2 *= inv_total_r;
@@ -273,7 +287,7 @@ struct PrimitiveIntersectorFunctor
         }
 
         osg::Vec3d in = v1*r1+v2*r2+v3*r3;
-        if (!in.valid())
+        if (! _inScreenSpace && ! in.valid())
         {
             //OE_WARN << LC << "Picked up error in TriangleIntersect" << std::endl;;
             return;
@@ -281,8 +295,11 @@ struct PrimitiveIntersectorFunctor
 
         float d = (in-_s)*_d;
 
-        if (d<0.0f) return;
-        if (d>_length) return;
+        if (! _inScreenSpace)
+        {
+            if (d<0.0f) return;
+            if (d>_length) return;
+        }
 
         osg::Vec3d normal = v12^v23;
         normal.normalize();
@@ -311,9 +328,9 @@ struct PrimitiveIntersectorFunctor
 //  PrimitiveIntersector
 //
 PrimitiveIntersector::PrimitiveIntersector() :
-_parent(0),
-_thicknessVal(0),
-_overlayIgnore(false)
+    _parent(0),
+    _thicknessVal(0),
+    _overlayIgnore(false)
 {
     //nop
 }
@@ -325,10 +342,10 @@ PrimitiveIntersector::PrimitiveIntersector(CoordinateFrame cf, double x, double 
 {
     switch(cf)
     {
-        case WINDOW: _start.set(x,y,0.0); _end.set(x,y,1.0); break;
-        case PROJECTION : _start.set(x,y,-1.0); _end.set(x,y,1.0); break;
-        case VIEW : _start.set(x,y,0.0); _end.set(x,y,1.0); break;
-        case MODEL : _start.set(x,y,0.0); _end.set(x,y,1.0); break;
+    case WINDOW: _start.set(x,y,0.0); _end.set(x,y,1.0); break;
+    case PROJECTION : _start.set(x,y,-1.0); _end.set(x,y,1.0); break;
+    case VIEW : _start.set(x,y,0.0); _end.set(x,y,1.0); break;
+    case MODEL : _start.set(x,y,0.0); _end.set(x,y,1.0); break;
     }
 
     setThickness(thickness);
@@ -339,30 +356,30 @@ PrimitiveIntersector::PrimitiveIntersector(CoordinateFrame cf, const osg::Vec3d&
     _parent(0),
     _overlayIgnore(overlayIgnore)
 {
-  _start.set(start);
-  _end.set(end);
+    _start.set(start);
+    _end.set(end);
 
-  setThickness(thickness);
+    setThickness(thickness);
 }
 
 PrimitiveIntersector::Intersection::Intersection(const PrimitiveIntersector::Intersection &rhs)
 {
-  ratio = rhs.ratio;
-  nodePath = rhs.nodePath;
-  drawable = rhs.drawable;
-  matrix = rhs.matrix;
-  localIntersectionPoint = rhs.localIntersectionPoint;
-  localIntersectionNormal = rhs.localIntersectionNormal;
-  indexList = rhs.indexList;
-  ratioList = rhs.ratioList;
-  primitiveIndex = rhs.primitiveIndex;
+    ratio = rhs.ratio;
+    nodePath = rhs.nodePath;
+    drawable = rhs.drawable;
+    matrix = rhs.matrix;
+    localIntersectionPoint = rhs.localIntersectionPoint;
+    localIntersectionNormal = rhs.localIntersectionNormal;
+    indexList = rhs.indexList;
+    ratioList = rhs.ratioList;
+    primitiveIndex = rhs.primitiveIndex;
 }
 
 void PrimitiveIntersector::setThickness(double thickness)
 {
-  _thicknessVal = thickness;
-  double halfThickness = 0.5 * thickness;
-  _thickness.set(_start.x()+halfThickness, _start.y()+halfThickness, _start.z()+halfThickness);
+    _thicknessVal = thickness;
+    double halfThickness = 0.5 * thickness;
+    _thickness.set(_start.x()+halfThickness, _start.y()+halfThickness, _start.z()+halfThickness);
 }
 
 osgUtil::Intersector* PrimitiveIntersector::clone(osgUtil::IntersectionVisitor& iv)
@@ -377,6 +394,9 @@ osgUtil::Intersector* PrimitiveIntersector::clone(osgUtil::IntersectionVisitor& 
         lsi->_thicknessVal = _thicknessVal;
         lsi->_parent = this;
         lsi->_intersectionLimit = _intersectionLimit;
+        lsi->_camMatrix = _camMatrix;
+        lsi->_pickCoord = _pickCoord;
+        lsi->_buffer = _buffer;
 
         return lsi.release();
     }
@@ -388,24 +408,24 @@ osgUtil::Intersector* PrimitiveIntersector::clone(osgUtil::IntersectionVisitor& 
 
     switch (_coordinateFrame)
     {
-        case(WINDOW):
-            if (iv.getWindowMatrix()) matrix.preMult( *iv.getWindowMatrix() );
-            if (iv.getProjectionMatrix()) matrix.preMult( *iv.getProjectionMatrix() );
-            if (iv.getViewMatrix()) matrix.preMult( *iv.getViewMatrix() );
-            if (iv.getModelMatrix()) matrix.preMult( *iv.getModelMatrix() );
-            break;
-        case(PROJECTION):
-            if (iv.getProjectionMatrix()) matrix.preMult( *iv.getProjectionMatrix() );
-            if (iv.getViewMatrix()) matrix.preMult( *iv.getViewMatrix() );
-            if (iv.getModelMatrix()) matrix.preMult( *iv.getModelMatrix() );
-            break;
-        case(VIEW):
-            if (iv.getViewMatrix()) matrix.preMult( *iv.getViewMatrix() );
-            if (iv.getModelMatrix()) matrix.preMult( *iv.getModelMatrix() );
-            break;
-        case(MODEL):
-            if (iv.getModelMatrix()) matrix = *iv.getModelMatrix();
-            break;
+    case(WINDOW):
+        if (iv.getWindowMatrix()) matrix.preMult( *iv.getWindowMatrix() );
+        if (iv.getProjectionMatrix()) matrix.preMult( *iv.getProjectionMatrix() );
+        if (iv.getViewMatrix()) matrix.preMult( *iv.getViewMatrix() );
+        if (iv.getModelMatrix()) matrix.preMult( *iv.getModelMatrix() );
+        break;
+    case(PROJECTION):
+        if (iv.getProjectionMatrix()) matrix.preMult( *iv.getProjectionMatrix() );
+        if (iv.getViewMatrix()) matrix.preMult( *iv.getViewMatrix() );
+        if (iv.getModelMatrix()) matrix.preMult( *iv.getModelMatrix() );
+        break;
+    case(VIEW):
+        if (iv.getViewMatrix()) matrix.preMult( *iv.getViewMatrix() );
+        if (iv.getModelMatrix()) matrix.preMult( *iv.getModelMatrix() );
+        break;
+    case(MODEL):
+        if (iv.getModelMatrix()) matrix = *iv.getModelMatrix();
+        break;
     }
 
     inverse.invert(matrix);
@@ -417,8 +437,36 @@ osgUtil::Intersector* PrimitiveIntersector::clone(osgUtil::IntersectionVisitor& 
     lsi->_thicknessVal = _thicknessVal;
     lsi->_parent = this;
     lsi->_intersectionLimit = _intersectionLimit;
+    lsi->_camMatrix = _camMatrix;
+    lsi->_pickCoord = _pickCoord;
+    lsi->_buffer = _buffer;
     
     return lsi.release();
+}
+
+inline bool isNodeInScreenSpaceLayout(const osg::Node& node)
+{
+    return node.getStateSet() && node.getStateSet()->getBinName() == OSGEARTH_SCREEN_SPACE_LAYOUT_BIN;
+}
+
+inline GeoTransform* getScreenSpaceGeoTransform(const osg::NodePath& nodePath)
+{
+    bool inssl = false;
+    GeoTransform* out = nullptr;
+    for (auto node : nodePath)
+    {
+        if (! inssl)
+            inssl = isNodeInScreenSpaceLayout(*node);
+        if (inssl && out)
+            return out;
+
+        if (! out)
+            out = dynamic_cast<GeoTransform*>(node);
+        if (inssl && out)
+            return out;
+    }
+
+    return nullptr;
 }
 
 bool PrimitiveIntersector::enter(const osg::Node& node)
@@ -443,20 +491,40 @@ void PrimitiveIntersector::intersect(osgUtil::IntersectionVisitor& iv, osg::Draw
 {
     if (reachedLimit() || !drawable) return;
 
-    osg::BoundingBox bb = drawable->getBoundingBox();
-
-    if (bb.valid())
-        bb.expandBy(osg::BoundingSphere(bb.center(), (_thickness - _start).length()));
-
-    osg::Vec3d s(_start), e(_end);
-    if ( !intersectAndClip( s, e, bb ) ) return;
-
     if (iv.getDoDummyTraversal()) return;
 
+    osg::Vec3d s(_start), e(_end);
+
+    // if the drawable is in the screenspace then compute intersection in screenspace
+    bool inScreenSpace = false;
+    GeoTransform* geoTransform = nullptr;
+    if ( (geoTransform = getScreenSpaceGeoTransform(iv.getNodePath())) )
+    {
+        if(_camMatrix.isIdentity())
+            return;
+
+        osg::Vec3d worldPoint;
+        geoTransform->getPosition().toWorld(worldPoint);
+        osg::Vec3d screenSpacePoint = worldPoint * _camMatrix;
+        if ((osg::Vec2d(screenSpacePoint.x(), screenSpacePoint.y()) - _pickCoord).length() > _buffer)
+            return;
+
+        inScreenSpace = true;
+    }
+
+    if (! inScreenSpace)
+    {
+        osg::BoundingBox bb = drawable->getBoundingBox();
+
+        if (bb.valid())
+            bb.expandBy(osg::BoundingSphere(bb.center(), (_thickness - _start).length()));
+
+        if ( !intersectAndClip( s, e, bb ) ) return;
+    }
 
     osg::TemplatePrimitiveFunctor<PrimitiveIntersectorFunctor> ti;
 
-    ti.set(s,e,_thickness-_start);
+    ti.set(s,e,_thickness-_start,inScreenSpace);
     ti._limitOneIntersection = (_intersectionLimit == LIMIT_ONE_PER_DRAWABLE || _intersectionLimit == LIMIT_ONE);
     drawable->accept(ti);
 
@@ -700,7 +768,7 @@ bool PrimitiveIntersector::intersectAndClip(osg::Vec3d& s, osg::Vec3d& e,const o
 unsigned int PrimitiveIntersector::findPrimitiveIndex(osg::Drawable* drawable, unsigned int index)
 {
     if (!drawable)
-      return index;
+        return index;
 
     const osg::Geometry* geom = drawable->asGeometry();
     if ( geom )
