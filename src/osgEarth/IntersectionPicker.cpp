@@ -72,11 +72,10 @@ IntersectionPicker::pick( float x, float y, Hits& results ) const
     }
 
     osg::Matrix windowMatrix;
+    osg::Matrix modelMatrix;
 
     if ( _root.valid() )
     {
-        osg::Matrix modelMatrix;
-
         if (camera->getViewport())
         {
             windowMatrix = camera->getViewport()->computeWindowMatrix();
@@ -130,6 +129,10 @@ IntersectionPicker::pick( float x, float y, Hits& results ) const
         iv.pushWindowMatrix( new osg::RefMatrix(windowMatrix) );
         iv.pushProjectionMatrix( new osg::RefMatrix(camera->getProjectionMatrix()) );
         iv.pushViewMatrix( new osg::RefMatrix(camera->getViewMatrix()) );
+        // params needed for screenspace intersections
+        picker->setCamMatrix( modelMatrix );
+        picker->setPickCoord( x, y );
+        picker->setBuffer( _buffer );
     }
 
     iv.setTraversalMask( _travMask );
