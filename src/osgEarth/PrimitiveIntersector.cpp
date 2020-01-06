@@ -174,10 +174,10 @@ struct PrimitiveIntersectorFunctor
         if (_limitOneIntersection && _hit) return;
 
         --_index;
-        this->triNoBuffer(v1+buf, v3-buf, v1-buf, &v1, &v2, &v3, treatVertexDataAsTemporary);
+        this->triNoBuffer(v1+buf, v2-buf, v1-buf, &v1, &v2, &v3, treatVertexDataAsTemporary);
         if (_limitOneIntersection && _hit) return;
 
-        osg::Vec3d v23 = v3-v1; ln = _d ^ v23; ln.normalize(); buf = ln*thickness;
+        osg::Vec3d v23 = v3-v2; ln = _d ^ v23; ln.normalize(); buf = ln*thickness;
         --_index;
         this->triNoBuffer(v2+buf, v3+buf, v3-buf, &v1, &v2, &v3, treatVertexDataAsTemporary );
         if (_limitOneIntersection && _hit) return;
