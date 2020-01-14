@@ -54,15 +54,15 @@ struct SortFrontToBackPreservingGeodeTraversalOrder
     bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
         if (lhs->getDrawable()->getNumParents() > 0 &&
-            rhs->getDrawable()->getNumParents() > 0 &&
-            rhs->getDrawable()->getParent(0) == lhs->getDrawable()->getParent(0))
+                rhs->getDrawable()->getNumParents() > 0 &&
+                rhs->getDrawable()->getParent(0) == lhs->getDrawable()->getParent(0))
         {
             const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
             return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
         }
         else
         {
-                return ( lhs->_depth < rhs->_depth );
+            return ( lhs->_depth < rhs->_depth );
         }
     }
 };
@@ -74,8 +74,8 @@ struct SortByPriorityPreservingGeodeTraversalOrder : public DeclutterSortFunctor
     bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
         if (lhs->getDrawable()->getNumParents() > 0 &&
-            rhs->getDrawable()->getNumParents() > 0 &&
-            rhs->getDrawable()->getParent(0) == lhs->getDrawable()->getParent(0))
+                rhs->getDrawable()->getNumParents() > 0 &&
+                rhs->getDrawable()->getParent(0) == lhs->getDrawable()->getParent(0))
         {
             const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
             return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
@@ -99,7 +99,7 @@ struct SortByPriorityPreservingGeodeTraversalOrder : public DeclutterSortFunctor
             if ( diff != 0.0f )
                 return diff < 0.0f;
 
-                // then fallback on traversal order.
+            // then fallback on traversal order.
 #if OSG_VERSION_GREATER_THAN(3,6,0)
             diff = float(lhs->_traversalOrderNumber) - float(rhs->_traversalOrderNumber);
 #else
@@ -152,12 +152,12 @@ struct PerCamInfo
 static bool s_declutteringEnabledGlobally = true;
 
 static const char* s_faderFS =
-    "#version " GLSL_VERSION_STR "\n"
-    GLSL_DEFAULT_PRECISION_FLOAT "\n"
-    "uniform float " FADE_UNIFORM_NAME ";\n"
-    "void oe_declutter_apply_fade(inout vec4 color) { \n"
-    "    color.a *= " FADE_UNIFORM_NAME ";\n"
-    "}\n";
+        "#version " GLSL_VERSION_STR "\n"
+        GLSL_DEFAULT_PRECISION_FLOAT "\n"
+                                     "uniform float " FADE_UNIFORM_NAME ";\n"
+                                                                        "void oe_declutter_apply_fade(inout vec4 color) { \n"
+                                                                        "    color.a *= " FADE_UNIFORM_NAME ";\n"
+                                                                                                            "}\n";
 }
 
 //----------------------------------------------------------------------------
@@ -300,7 +300,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 }
                 isResolved =
-                    ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
+                        ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
             } else {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -328,7 +328,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
-                    ratio >= 1.f || ((loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax);
+                        ratio >= 1.f || ((loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax);
             } else {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -356,7 +356,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
-                    ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
+                        ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
             } else {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -384,7 +384,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                 else
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
-                    ratio >= 1.f || ((loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax);
+                        ratio >= 1.f || ((loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax);
             } else {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
@@ -464,10 +464,10 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         // If the camera is actually an RTT slave camera, it's our picker, and we need to
         // adjust the scale to match it.
         if (cam->isRenderToTextureCamera() &&
-            cam->getView() &&
-            cam->getView()->getCamera() &&
-            cam->getView()->getCamera() != cam)
-        //cam->getView()->findSlaveIndexForCamera(cam) < cam->getView()->getNumSlaves())
+                cam->getView() &&
+                cam->getView()->getCamera() &&
+                cam->getView()->getCamera() != cam)
+            //cam->getView()->findSlaveIndexForCamera(cam) < cam->getView()->getNumSlaves())
         {
             osg::Camera* parentCam = cam->getView()->getCamera();
             refVP = parentCam->getViewport();
@@ -503,8 +503,8 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
         // Go through each leaf and test for visibility.
         // Enforce the "max objects" limit along the way.
         for(osgUtil::RenderBin::RenderLeafList::iterator i = leaves.begin();
-             i != leaves.end() && local._passed.size() < limit;
-             ++i )
+            i != leaves.end() && local._passed.size() < limit;
+            ++i )
         {
             bool visible = true;
 
@@ -518,8 +518,8 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
             // (use parent bbox for line following algorithm)
             osg::BoundingBox box = layoutData != 0L && layoutData->isAutoFollowLine() && drawableParent != 0L
                     && drawableParent->asGeode() != 0L
-                ? drawableParent->asGeode()->getBoundingBox()
-                : drawable->getBoundingBox();
+                    ? drawableParent->asGeode()->getBoundingBox()
+                    : drawable->getBoundingBox();
 
             osg::Vec3f offset;
             osg::Quat rot;
@@ -590,8 +590,8 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                     // avoid the label characters to be inverted:
                     // use a symetric translation and adapt the rotation to be in the desired angles
                     offset.set( -layoutData->_pixelOffset.x() - box.xMax() - box.xMin(),
-                               -layoutData->_pixelOffset.y() - box.yMax() - box.yMin(),
-                               0.f );
+                                -layoutData->_pixelOffset.y() - box.yMax() - box.yMin(),
+                                0.f );
                     angle += angle < -osg::PI_2? osg::PI : -osg::PI; // JD #1029
                 }
                 else
@@ -609,7 +609,7 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
                     osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
                     if ( angle > - osg::PI / 2. && angle < osg::PI / 2.)
                         box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
-                                osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
+                                 osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
                     else
                         box.set(osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
                                 osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0);
@@ -645,12 +645,12 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
             // The "declutter" box is the box we use to reserve screen space.
             // This must be unquantized regardless of whether snapToPixel is set.
             box.set(
-                floor(refWinPos.x() + box.xMin())-buffer,
-                floor(refWinPos.y() + box.yMin())-buffer,
-                refWinPos.z(),
-                ceil(refWinPos.x() + box.xMax())+buffer,
-                ceil(refWinPos.y() + box.yMax())+buffer,
-                refWinPos.z() );
+                        floor(refWinPos.x() + box.xMin())-buffer,
+                        floor(refWinPos.y() + box.yMin())-buffer,
+                        refWinPos.z(),
+                        ceil(refWinPos.x() + box.xMax())+buffer,
+                        ceil(refWinPos.y() + box.yMax())+buffer,
+                        refWinPos.z() );
 
             // if snapping is enabled, only snap when the camera stops moving.
             bool quantize = snapToPixel;
@@ -670,84 +670,90 @@ struct /*internal*/ DeclutterSort : public osgUtil::RenderBin::SortCallback
             float vpWidth = static_cast<float>(refVP->width());
             float vpHeight = static_cast<float>(refVP->height());
             if (box.xMax() < vpX || box.xMin() > vpX + vpWidth ||
-                box.yMax() < vpY || box.yMin() > vpY + vpHeight) {
+                    box.yMax() < vpY || box.yMin() > vpY + vpHeight)
+            {
                 visible = false;
                 isViewCulled = true;
             }
 
-            if ( s_declutteringEnabledGlobally )
+            if (!isViewCulled)
             {
-                // A max priority => never occlude.
-                float priority = layoutData ? layoutData->_priority : 0.0f;
 
-                if ( priority >= FLT_MAX )
+                if ( s_declutteringEnabledGlobally )
                 {
-                    visible = true;
+                    // A max priority => never occlude.
+                    float priority = layoutData ? layoutData->_priority : 0.0f;
+
+                    if ( priority >= FLT_MAX )
+                    {
+                        visible = true;
+                    }
+
+                    // if this leaf is already in a culled group, skip it.
+                    else if ( drawableParent != 0L && culledParents.find(drawableParent) != culledParents.end() )
+                    {
+                        visible = false;
+                    }
+
+                    else
+                    {
+                        // weed out any drawables that are obscured by closer drawables.
+                        // TODO: think about a more efficient algorithm - right now we are just using
+                        // brute force to compare all bbox's
+                        for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
+                        {
+                            // only need a 2D test since we're in clip space
+                            bool isClear =
+                                    box.xMin() > j->second.xMax() ||
+                                    box.xMax() < j->second.xMin() ||
+                                    box.yMin() > j->second.yMax() ||
+                                    box.yMax() < j->second.yMin();
+
+                            // if there's an overlap (and the conflict isn't from the same drawable
+                            // parent, which is acceptable), then the leaf is culled.
+                            if ( !isClear && drawableParent != j->first )
+                            {
+                                visible = false;
+                                break;
+                            }
+                        }
+                    }
                 }
 
-                // if this leaf is already in a culled group, skip it.
-                else if ( drawableParent != 0L && culledParents.find(drawableParent) != culledParents.end() )
+                if ( visible )
                 {
-                    visible = false;
+                    // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
+                    // to the final draw list.
+                    if (drawableParent)
+                        local._used.push_back( std::make_pair(drawableParent, box) );
+
+                    local._passed.push_back( leaf );
                 }
 
                 else
                 {
-                    // weed out any drawables that are obscured by closer drawables.
-                    // TODO: think about a more efficient algorithm - right now we are just using
-                    // brute force to compare all bbox's
-                    for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
-                    {
-                        // only need a 2D test since we're in clip space
-                        bool isClear =
-                            box.xMin() > j->second.xMax() ||
-                            box.xMax() < j->second.xMin() ||
-                            box.yMin() > j->second.yMax() ||
-                            box.yMax() < j->second.yMin();
-
-                        // if there's an overlap (and the conflict isn't from the same drawable
-                        // parent, which is acceptable), then the leaf is culled.
-                        if ( !isClear && drawableParent != j->first )
-                        {
-                            visible = false;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if ( visible )
-            {
-                // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
-                // to the final draw list.
-                if (drawableParent)
-                    local._used.push_back( std::make_pair(drawableParent, box) );
-
-                local._passed.push_back( leaf );
-            }
-
-            else
-            {
-                // culled, so put the parent in the parents list so that any future leaves
-                // with the same parent will be trivially rejected
-                if (drawableParent)
-                    culledParents.insert(drawableParent);
+                    // culled, so put the parent in the parents list so that any future leaves
+                    // with the same parent will be trivially rejected
+                    if (drawableParent)
+                        culledParents.insert(drawableParent);
 
                     local._failed.push_back( leaf );
-            }
+                }
 
-            // modify the leaf's modelview matrix to correctly position it in the 2D ortho
-            // projection when it's drawn later. We'll also preserve the scale.
-            if (!isViewCulled) {
+                // modify the leaf's modelview matrix to correctly position it in the 2D ortho
+                // projection when it's drawn later. We'll also preserve the scale.
                 offset = refCamScaleMat * offset;
                 osg::Matrix newModelView;
-                if (rot.zeroRotation()) {
+                if (rot.zeroRotation())
+                {
                     newModelView.makeTranslate(
-                        osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
+                                osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
                     newModelView.preMultScale(leaf->_modelview->getScale() * refCamScaleMat);
-                } else {
+                }
+                else
+                {
                     newModelView.makeTranslate(
-                        osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
+                                osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
                     newModelView.preMultScale(leaf->_modelview->getScale() * refCamScaleMat);
                     newModelView.preMultRotate(rot);
 
@@ -930,8 +936,8 @@ struct DeclutterDraw : public osgUtil::RenderBin::DrawCallback
         osgUtil::RenderBin::RenderLeafList& leaves = bin->getRenderLeafList();
 
         for(osgUtil::RenderBin::RenderLeafList::reverse_iterator rlitr = leaves.rbegin();
-             rlitr!= leaves.rend();
-             ++rlitr)
+            rlitr!= leaves.rend();
+            ++rlitr)
         {
             osgUtil::RenderLeaf* rl = *rlitr;
             renderLeaf( rl, renderInfo, previous );
@@ -1101,9 +1107,9 @@ ScreenSpaceLayout::activate(osg::StateSet* stateSet) //, int binNum)
 
         // the OVERRIDE prevents subsequent statesets from disabling the layout bin
         stateSet->setRenderBinDetails(
-            binNum,
-            OSGEARTH_SCREEN_SPACE_LAYOUT_BIN,
-            osg::StateSet::OVERRIDE_PROTECTED_RENDERBIN_DETAILS);
+                    binNum,
+                    OSGEARTH_SCREEN_SPACE_LAYOUT_BIN,
+                    osg::StateSet::OVERRIDE_PROTECTED_RENDERBIN_DETAILS);
 
         // Force a single shared layout bin per render stage
         stateSet->setNestRenderBins( false );
@@ -1134,7 +1140,7 @@ ScreenSpaceLayout::setSortFunctor( DeclutterSortFunctor* functor )
 {
     // pull our prototype
     osgEarthScreenSpaceLayoutRenderBin* bin = dynamic_cast<osgEarthScreenSpaceLayoutRenderBin*>(
-        osgUtil::RenderBin::getRenderBinPrototype( OSGEARTH_SCREEN_SPACE_LAYOUT_BIN ) );
+                osgUtil::RenderBin::getRenderBinPrototype( OSGEARTH_SCREEN_SPACE_LAYOUT_BIN ) );
 
     if ( bin )
     {
@@ -1147,7 +1153,7 @@ ScreenSpaceLayout::clearSortFunctor()
 {
     // pull our prototype
     osgEarthScreenSpaceLayoutRenderBin* bin = dynamic_cast<osgEarthScreenSpaceLayoutRenderBin*>(
-        osgUtil::RenderBin::getRenderBinPrototype( OSGEARTH_SCREEN_SPACE_LAYOUT_BIN ) );
+                osgUtil::RenderBin::getRenderBinPrototype( OSGEARTH_SCREEN_SPACE_LAYOUT_BIN ) );
 
     if ( bin )
     {
@@ -1160,13 +1166,13 @@ ScreenSpaceLayout::setOptions( const ScreenSpaceLayoutOptions& options )
 {
     // pull our prototype
     osgEarthScreenSpaceLayoutRenderBin* bin = dynamic_cast<osgEarthScreenSpaceLayoutRenderBin*>(
-        osgUtil::RenderBin::getRenderBinPrototype( OSGEARTH_SCREEN_SPACE_LAYOUT_BIN ) );
+                osgUtil::RenderBin::getRenderBinPrototype( OSGEARTH_SCREEN_SPACE_LAYOUT_BIN ) );
 
     if ( bin )
     {
         // activate priority-sorting through the options.
         if ( options.sortByPriority().isSetTo( true ) &&
-            bin->_context->_options.sortByPriority() == false )
+             bin->_context->_options.sortByPriority() == false )
         {
             ScreenSpaceLayout::setSortFunctor(new SortByPriorityPreservingGeodeTraversalOrder());
         }
@@ -1183,7 +1189,7 @@ ScreenSpaceLayout::getOptions()
 
     // pull our prototype
     osgEarthScreenSpaceLayoutRenderBin* bin = dynamic_cast<osgEarthScreenSpaceLayoutRenderBin*>(
-        osgUtil::RenderBin::getRenderBinPrototype( OSGEARTH_SCREEN_SPACE_LAYOUT_BIN ) );
+                osgUtil::RenderBin::getRenderBinPrototype( OSGEARTH_SCREEN_SPACE_LAYOUT_BIN ) );
 
     if ( bin )
     {
@@ -1208,7 +1214,7 @@ static osgEarthRegisterRenderBinProxy<osgEarthScreenSpaceLayoutRenderBin> s_regb
 namespace osgEarth
 {
 class ScreenSpaceLayoutExtension : public Extension,
-                                   public ScreenSpaceLayoutOptions
+        public ScreenSpaceLayoutOptions
 {
 public:
     META_OE_Extension(osgEarth, ScreenSpaceLayoutExtension, screen_space_layout);
