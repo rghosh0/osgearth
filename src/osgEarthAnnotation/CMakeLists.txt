@@ -35,6 +35,8 @@ set(LIB_PUBLIC_HEADERS
     PlaceNode
     RectangleNode
     TrackNode
+	
+	MPAnnotationGroup
 )
 
 set(LIB_COMMON_FILES
@@ -62,6 +64,8 @@ set(LIB_COMMON_FILES
     ModelNode.cpp
     PlaceNode.cpp
     TrackNode.cpp
+	
+	MPAnnotationGroup.cpp
 )
 
 IF (GEOS_FOUND)

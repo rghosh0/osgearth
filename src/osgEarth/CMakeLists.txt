@@ -221,6 +221,8 @@ SET(LIB_PUBLIC_HEADERS
     VirtualProgram
     VisibleLayer
     XmlUtils
+	
+    MPScreenSpaceLayout
 )
 
 
@@ -389,6 +391,9 @@ set(TARGET_SRC
     VirtualProgram.cpp
     VisibleLayer.cpp
     XmlUtils.cpp
+	
+    MPScreenSpaceLayout.cpp
+	
     ${SHADERS_CPP} )
 
 

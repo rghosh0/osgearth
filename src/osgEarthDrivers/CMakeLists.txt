@@ -83,6 +83,9 @@ add_subdirectory(webp)
 add_subdirectory(wms)
 add_subdirectory(xyz)
 
+# mission plus new label engine
+add_subdirectory(label_mp_screen_annotations)
+
 # Libraries that require C++11 support
 if(CXX11_AVAILABLE)
     add_subdirectory(gltf)

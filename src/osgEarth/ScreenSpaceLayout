@@ -39,10 +39,12 @@ class ScreenSpaceLayoutData : public osg::Referenced
 {
 public:
     /** Install and return a LayoutData on a drawable. */
-    static ScreenSpaceLayoutData* getOrCreate(osg::Drawable* drawable) {
+    static ScreenSpaceLayoutData* getOrCreate(osg::Drawable* drawable)
+    {
         if (!drawable) return 0L;
         ScreenSpaceLayoutData* ld = dynamic_cast<ScreenSpaceLayoutData*>(drawable->getUserData());
-        if (!ld) {
+        if (!ld)
+        {
             ld = new ScreenSpaceLayoutData();
             drawable->setUserData(ld);
         }
@@ -54,7 +56,8 @@ public:
                               _priority(0.0f),
                               _pixelOffset(0, 0),
                               _autoRotate(false),
-                              _autoFollowLine(false) { }
+                              _autoFollowLine(false),
+                              _id(-1) { }
 
     /** Decluttering priority - FLT_MAX means don't declutter */
     void setPriority(float value) { _priority = value; }
@@ -81,17 +84,22 @@ public:
     const osg::Vec3d& getLineStartPoint() const { return _lineStart; }
 
     /**
-         * Stop world point for automatic placement on a line
-         * also used as projection point for label rotation reference
-         */
+     * Stop world point for automatic placement on a line
+     * also used as projection point for label rotation reference
+     */
     void setLineEndPoint(const osg::Vec3d& value) { _lineEnd = value; }
     const osg::Vec3d& getLineEndPoint() const { return _lineEnd; }
+
+    /** Identifier to group drawables that relates to the same feature */
+    void setId(long id) { _id = id; }
+    long getId() const { return _id; }
 
 public:
     float      _priority;
     osg::Vec2s _pixelOffset;
     bool       _autoRotate, _autoFollowLine;
     osg::Vec3d _anchorPoint, _lineStart, _lineEnd;
+    long       _id;
 
 public:
     virtual ~ScreenSpaceLayoutData() { }

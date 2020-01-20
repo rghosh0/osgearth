@@ -1,0 +1,69 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
+ * http://osgearth.org
+ *
+ * osgEarth is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+#ifndef OSGEARTH_MP_ANNOTATION_GROUP_H
+#define OSGEARTH_MP_ANNOTATION_GROUP_H 1
+
+#include <osgEarthSymbology/Style>
+#include <osgEarth/MPScreenSpaceLayout>
+#include <osgEarth/GeoData>
+#include <osgEarthAnnotation/Export>
+#include <osg/Group>
+
+
+namespace osgEarth { namespace Annotation
+{
+
+using namespace osgEarth;
+using namespace osgEarth::Symbology;
+
+
+class OSGEARTHANNO_EXPORT MPAnnotationGroup : public osg::Group
+{
+public:
+
+    MPAnnotationGroup();
+
+    // Add an annotation (list of drawables corresponding to one feature)
+    long addAnnotation(const Style& style, const osgEarth::GeoPoint& pos, const osgDB::Options* readOptions);
+
+    std::vector<unsigned int>& getDrawableList(long id) { return _drawableList[id]; }
+
+    // Need a custom bounding sphere for the culling process
+    virtual osg::BoundingSphere computeBound () const override;
+
+protected:
+
+    virtual ~MPAnnotationGroup() { }
+
+    void updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, const GeoPoint &pos);
+
+
+protected:
+
+    std::map<long, std::vector<unsigned int>> _drawableList;
+
+    static osg::observer_ptr<osg::StateSet> s_rootStateSet;
+    osg::ref_ptr<osg::StateSet> _rootStateSet;
+    static std::map<std::string, osg::observer_ptr<osg::StateSet>> s_imageStateSet;
+};
+
+
+} } // namespace osgEarth::Annotation
+
+#endif //OSGEARTH_ANNOTATION_PLACE_NODE_H
