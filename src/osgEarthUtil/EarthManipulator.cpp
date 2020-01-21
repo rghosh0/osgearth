@@ -1351,11 +1351,11 @@ void EarthManipulator::updateProjection(osg::Camera *eventCamera) {
         eventCamera->setProjectionMatrixAsOrtho(-x, +x, -y, +y, N, F);
 #endif
 
-        OE_DEBUG << "ORTHO: "
-                 << "ar = " << ar << ", width=" << vp->width()
-                 << ", height=" << vp->height() << ", dist = " << _distance
-                 << ", vfov=" << _lastKnownVFOV << ", X = " << x
-                 << ", Y = " << y << std::endl;
+//        OE_DEBUG << "ORTHO: "
+//                 << "ar = " << ar << ", width=" << vp->width()
+//                 << ", height=" << vp->height() << ", dist = " << _distance
+//                 << ", vfov=" << _lastKnownVFOV << ", X = " << x
+//                 << ", Y = " << y << std::endl;
       }
     }
   }

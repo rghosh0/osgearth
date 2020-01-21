@@ -141,11 +141,12 @@ public:
             // actually build the scenegraph related to this feature
             long id = addDrawablesForOneFeature(feature, tempStyle, context.getDBOptions(), root);
 
+            // tag the drawables for that the feature can be retrieved when picking
             if ( context.featureIndex() )
             {
                 std::vector<unsigned int> drawableList = root->getDrawableList(id);
                 for (auto index : drawableList )
-                    context.featureIndex()->tagNode(root->getChild(index), feature);
+                    context.featureIndex()->tagDrawable(root->getChild(index)->asDrawable(), feature);
             }
         }
 
