@@ -419,12 +419,12 @@ OgrUtils::createFeature( OGRFeatureH handle, const SpatialReference* srs )
 
                 if (OGR_F_IsFieldSet( handle, i ))
                 {
-                    int *doubleNumber = new int();  // number of elements in list
-                    // See https://www.gdal.org/ogr__api_8h.html#a4a27f74a38506ac492ec8b6e00eb58c9
-                    const double * value = OGR_F_GetFieldAsDoubleList( handle, i, doubleNumber );
-                    if((*doubleNumber) > 0)
+                    int doubleNumber = 0;  // number of elements in list
+                   
+                    const double * value = OGR_F_GetFieldAsDoubleList( handle, i, &doubleNumber );
+                    if((doubleNumber) > 0)
                     {
-                        osg::ref_ptr<osg::DoubleArray> valueArray = new osg::DoubleArray(*doubleNumber, value);
+                        osg::ref_ptr<osg::DoubleArray> valueArray = new osg::DoubleArray(doubleNumber, value);
                         feature->set( name, valueArray );
                     }
                     else
