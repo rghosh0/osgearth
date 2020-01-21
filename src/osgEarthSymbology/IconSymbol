@@ -79,6 +79,10 @@ namespace osgEarth { namespace Symbology
         optional<double>& occlusionCullAltitude() { return _occlusionCullAltitude; }
         const optional<double>& occlusionCullAltitude() const { return _occlusionCullAltitude; }
         
+        /** Margin area on all four sides of the icon */
+        optional<float>& margin() { return _margin; }
+        const optional<float>& margin() const { return _margin; }
+
     public: // non-serialized properties (for programmatic use only)
 
         /** Explicit image to use for 2D icon placemet */
@@ -100,6 +104,7 @@ namespace osgEarth { namespace Symbology
         mutable osg::ref_ptr<osg::Image> _image;
         optional<bool>                   _occlusionCull;
         optional<double>                 _occlusionCullAltitude;
+        optional<float>                  _margin;
     };
 
 } } // namespace osgEarth::Symbology

@@ -36,7 +36,8 @@ _heading(rhs._heading),
 _declutter(rhs._declutter),
 _image(rhs._image),
 _occlusionCull(rhs._occlusionCull),
-_occlusionCullAltitude(rhs._occlusionCullAltitude)
+_occlusionCullAltitude(rhs._occlusionCullAltitude),
+_margin(rhs._margin)
 {
 }
 
@@ -46,7 +47,8 @@ _alignment            ( ALIGN_CENTER_BOTTOM ),
 _heading              ( NumericExpression(0.0) ),
 _declutter            ( true ),
 _occlusionCull        ( false ),
-_occlusionCullAltitude( 200000 )
+_occlusionCullAltitude( 200000 ),
+_margin               ( 0.0 )
 {
     mergeConfig( conf );
 }
@@ -71,6 +73,7 @@ IconSymbol::getConfig() const
     conf.set( "declutter", _declutter );	                  
 	conf.set( "icon-occlusion-cull", _occlusionCull );
     conf.set( "icon-occlusion-cull-altitude", _occlusionCullAltitude );
+    conf.set( "margin",    _margin );
 
     conf.setNonSerializable( "IconSymbol::image", _image.get() );
     return conf;
@@ -93,6 +96,7 @@ IconSymbol::mergeConfig( const Config& conf )
     conf.get( "declutter", _declutter );
 	conf.get( "icon-occlusion-cull", _occlusionCull );
     conf.get( "icon-occlusion-cull-altitude", _occlusionCullAltitude );
+    conf.get( "margin",    _margin );
 
     _image = conf.getNonSerializable<osg::Image>( "IconSymbol::image" );
 }
@@ -206,6 +210,9 @@ IconSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "icon-occlusion-cull-altitude") ) {
         style.getOrCreate<IconSymbol>()->occlusionCullAltitude() = as<float>(c.value(), *defaults.occlusionCullAltitude());
+    }
+    else if ( match(c.key(), "icon-margin") ) {
+        style.getOrCreate<IconSymbol>()->margin() = as<float>(c.value(), *defaults.margin());
     }
     else if ( match(c.key(), "icon-script") ) {
         style.getOrCreate<IconSymbol>()->script() = StringExpression(c.value());

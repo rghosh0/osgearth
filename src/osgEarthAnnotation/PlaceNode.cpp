@@ -311,10 +311,21 @@ PlaceNode::compile()
 
     if( ! _text.empty() && symbol )
     {
+        // MissionPlus specific: Add a margin around the icon if set.
+        // It allows a space between the icon and the text.
+        osg::BoundingBox imageBoxWithMargin{imageBox};
+
+        if ( icon && icon->margin().isSet() )
+        {
+            const float margin{icon->margin().value()};
+            imageBoxWithMargin.expandBy({imageBox.xMin() - margin, imageBox.yMin() - margin, imageBox.zMin()});
+            imageBoxWithMargin.expandBy({imageBox.xMax() + margin, imageBox.yMax() + margin, imageBox.zMax()});
+        }
+
         _textDrawable = AnnotationUtils::createTextDrawable(
             _text,
             symbol,
-            imageBox );
+            imageBoxWithMargin );
 
         // MissionPlus specific: disable culling for sliding labels
         // prevents text from being hidden when it is sliding on a border of the screen
