@@ -234,27 +234,36 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         bool toIsDef = to.x() != 0.f && to.y() != 0.f && to.z() != 0.f;
 
         // must go to the right
-        if (loc.x() < leftMin) {
-            if (toIsDef) {
+        if (loc.x() < leftMin)
+        {
+            if (toIsDef)
+            {
                 linePt = to;
-            } else {
+            }
+            else
+            {
                 linePt = layoutData->getLineEndPoint() * camVPW;
                 if (linePt.x() < loc.x() || linePt.z() < -1 || linePt.z() > 1)
                     linePt = layoutData->getLineStartPoint() * camVPW;
             }
             maxPointIsDef = true;
 
-            if (linePt.x() >= (leftMin - (box.xMax() - box.xMin()))) {
+            if (linePt.x() >= (leftMin - (box.xMax() - box.xMin())))
+            {
                 float ratio = (leftMin - loc.x()) / (linePt.x() - loc.x());
-                if (ratio < 1) {
+                if (ratio < 1)
+                {
                     offset.set(leftMin - loc.x(), ratio * (linePt.y() - loc.y()), 0.f);
                 }
-                else {
+                else
+                {
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 }
                 isResolved =
                         ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
-            } else {
+            }
+            else
+            {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved = true;
@@ -262,11 +271,16 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         }
 
         // must go up
-        if (!isResolved && loc.y() < bottomMin) {
-            if (!maxPointIsDef) {
-                if (toIsDef) {
+        if (!isResolved && loc.y() < bottomMin)
+        {
+            if (!maxPointIsDef)
+            {
+                if (toIsDef)
+                {
                     linePt = to;
-                } else {
+                }
+                else
+                {
                     linePt = layoutData->getLineEndPoint() * camVPW;
                     if (linePt.y() < loc.y() || linePt.z() < -1 || linePt.z() > 1)
                         linePt = layoutData->getLineStartPoint() * camVPW;
@@ -274,7 +288,8 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 maxPointIsDef = true;
             }
 
-            if (linePt.y() >= (bottomMin - (box.yMax() - box.yMin()))) {
+            if (linePt.y() >= (bottomMin - (box.yMax() - box.yMin())))
+            {
                 float ratio = (bottomMin - loc.y()) / (linePt.y() - loc.y());
                 if (ratio < 1)
                     offset.set(ratio * (linePt.x() - loc.x()), bottomMin - loc.y(), 0.f);
@@ -282,7 +297,9 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
                         ratio >= 1.f || ((loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax);
-            } else {
+            }
+            else
+            {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved = true;
@@ -290,11 +307,16 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         }
 
         // must go to the left
-        if (!isResolved && loc.x() > rightMax) {
-            if (!maxPointIsDef) {
-                if (toIsDef) {
+        if (!isResolved && loc.x() > rightMax)
+        {
+            if (!maxPointIsDef)
+            {
+                if (toIsDef)
+                {
                     linePt = to;
-                } else {
+                }
+                else
+                {
                     linePt = layoutData->getLineEndPoint() * camVPW;
                     if (linePt.x() > loc.x() || linePt.z() < -1 || linePt.z() > 1)
                         linePt = layoutData->getLineStartPoint() * camVPW;
@@ -302,7 +324,8 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 maxPointIsDef = true;
             }
 
-            if (linePt.x() <= (rightMax + (box.xMax() - box.xMin()))) {
+            if (linePt.x() <= (rightMax + (box.xMax() - box.xMin())))
+            {
                 float ratio = (rightMax - loc.x()) / (linePt.x() - loc.x());
                 if (ratio < 1)
                     offset.set(rightMax - loc.x(), ratio * (linePt.y() - loc.y()), 0.f);
@@ -310,7 +333,9 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
                         ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
-            } else {
+            }
+            else
+            {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved = true;
@@ -318,11 +343,16 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         }
 
         // must go down
-        if (!isResolved && loc.y() > topMax) {
-            if (!maxPointIsDef) {
-                if (toIsDef) {
+        if (!isResolved && loc.y() > topMax)
+        {
+            if (!maxPointIsDef)
+            {
+                if (toIsDef)
+                {
                     linePt = to;
-                } else {
+                }
+                else
+                {
                     linePt = layoutData->getLineEndPoint() * camVPW;
                     if (linePt.y() > loc.y() || linePt.z() < -1 || linePt.z() > 1)
                         linePt = layoutData->getLineStartPoint() * camVPW;
@@ -330,7 +360,8 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 maxPointIsDef = true;
             }
 
-            if (linePt.y() <= (topMax + (box.yMax() - box.yMin()))) {
+            if (linePt.y() <= (topMax + (box.yMax() - box.yMin())))
+            {
                 float ratio = (topMax - loc.y()) / (linePt.y() - loc.y());
                 if (ratio < 1)
                     offset.set(ratio * (linePt.x() - loc.x()), topMax - loc.y(), 0.f);
@@ -338,7 +369,9 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved =
                         ratio >= 1.f || ((loc.x() + offset.x()) > leftMin && (loc.x() + offset.x()) < rightMax);
-            } else {
+            }
+            else
+            {
                 // out of screen : used closest point
                 offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
                 isResolved = true;
@@ -462,10 +495,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 
             // transform the bounding box of the drawable into window-space.
             // (use parent bbox for line following algorithm)
-            osg::BoundingBox box = /*layoutData != 0L && layoutData->isAutoFollowLine() && drawableParent != 0L
-                    && drawableParent->asGeode() != 0L
-                    ? drawableParent->asGeode()->getBoundingBox()
-                    : */drawable->getBoundingBox();
+            osg::BoundingBox box = layoutData->isAutoFollowLine() ? layoutData->getBBox() : drawable->getBoundingBox();
 
             osg::Vec3f offset;
             osg::Quat rot;
@@ -1119,12 +1149,7 @@ MPScreenSpaceLayout::setOptions( const ScreenSpaceLayoutOptions& options )
 
     if ( bin )
     {
-        // activate priority-sorting through the options.
-        if ( options.sortByPriority().isSetTo( true ) &&
-             bin->_context->_options.sortByPriority() == false )
-        {
-            MPScreenSpaceLayout::setSortFunctor(new SortByPriority());
-        }
+        MPScreenSpaceLayout::setSortFunctor(new SortByPriority());
 
         // communicate the new options on the shared context.
         bin->_context->_options = options;

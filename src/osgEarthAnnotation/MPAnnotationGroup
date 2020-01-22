@@ -20,9 +20,11 @@
 #define OSGEARTH_MP_ANNOTATION_GROUP_H 1
 
 #include <osgEarthSymbology/Style>
+#include <osgEarthSymbology/Geometry>
 #include <osgEarth/MPScreenSpaceLayout>
 #include <osgEarth/GeoData>
 #include <osgEarthAnnotation/Export>
+#include <osgEarthFeatures/Feature>
 #include <osg/Group>
 
 
@@ -40,7 +42,7 @@ public:
     MPAnnotationGroup();
 
     // Add an annotation (list of drawables corresponding to one feature)
-    long addAnnotation(const Style& style, const osgEarth::GeoPoint& pos, const osgDB::Options* readOptions);
+    long addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions);
 
     std::vector<unsigned int>& getDrawableList(long id) { return _drawableList[id]; }
 
@@ -51,7 +53,7 @@ protected:
 
     virtual ~MPAnnotationGroup() { }
 
-    void updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, const GeoPoint &pos);
+    void updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, Geometry *geom);
 
 
 protected:

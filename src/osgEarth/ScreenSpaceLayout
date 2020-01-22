@@ -94,12 +94,17 @@ public:
     void setId(long id) { _id = id; }
     long getId() const { return _id; }
 
+    /** The global BBox for the whole feature (containing all the drawables) */
+    const osg::BoundingBox& getBBox() const { return _bbox; }
+    void expandBboxBy ( const osg::BoundingBox& bbox) { _bbox.expandBy(bbox); }
+
 public:
     float      _priority;
     osg::Vec2s _pixelOffset;
     bool       _autoRotate, _autoFollowLine;
     osg::Vec3d _anchorPoint, _lineStart, _lineEnd;
     long       _id;
+    osg::BoundingBox _bbox;
 
 public:
     virtual ~ScreenSpaceLayoutData() { }
