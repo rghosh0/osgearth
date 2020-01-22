@@ -139,13 +139,14 @@ public:
             }
 
             // actually build the scenegraph related to this feature
-            long id = addDrawablesForOneFeature(feature, tempStyle, context.getDBOptions(), root);
+            long id = root->addAnnotation(tempStyle, feature->getGeometry(), context.getDBOptions());
 
+            // tag the drawables for that the feature can be retrieved when picking
             if ( context.featureIndex() )
             {
                 std::vector<unsigned int> drawableList = root->getDrawableList(id);
                 for (auto index : drawableList )
-                    context.featureIndex()->tagNode(root->getChild(index), feature);
+                    context.featureIndex()->tagDrawable(root->getChild(index)->asDrawable(), feature);
             }
         }
 
@@ -154,15 +155,6 @@ public:
 
         return root;
     }
-
-    inline long addDrawablesForOneFeature(Feature* feature, const Style& style, const osgDB::Options* readOptions, MPAnnotationGroup* root)
-    {
-        const osg::Vec3d center = feature->getGeometry()->getBounds().center();
-        GeoPoint pos( feature->getSRS(), center.x(), center.y(), center.z(), ALTMODE_ABSOLUTE );
-
-        return root->addAnnotation(style, pos, readOptions);
-    }
-
 };
 
 

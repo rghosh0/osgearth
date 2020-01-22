@@ -19,9 +19,10 @@
 
 #include <osgEarth/PrimitiveIntersector>
 #include <osgEarth/Utils>
-#include <osgEarth/ScreenSpaceLayout>
+#include <osgEarth/MPScreenSpaceLayout>
 #include <osgEarth/GeoTransform>
 #include <osg/TemplatePrimitiveFunctor>
+#include <osgText/Text>
 
 #define LC "[PrmitiveIntersector] "
 
@@ -498,18 +499,33 @@ void PrimitiveIntersector::intersect(osgUtil::IntersectionVisitor& iv, osg::Draw
     // if the drawable is in the screenspace then compute intersection in screenspace
     bool inScreenSpace = false;
     GeoTransform* geoTransform = nullptr;
+    osg::Vec3d ssPt;
+    // old screenspacelayout
     if ( (geoTransform = getScreenSpaceGeoTransform(iv.getNodePath())) )
     {
         if(_camMatrix.isIdentity())
             return;
 
-        osg::Vec3d worldPoint;
-        geoTransform->getPosition().toWorld(worldPoint);
-        osg::Vec3d screenSpacePoint = worldPoint * _camMatrix;
+        geoTransform->getPosition().toWorld(ssPt);
+        osg::Vec3d screenSpacePoint = ssPt * _camMatrix;
         if ((osg::Vec2d(screenSpacePoint.x(), screenSpacePoint.y()) - _pickCoord).length() > _buffer)
             return;
 
         inScreenSpace = true;
+    }
+    // new screenspacelayout
+    else
+    {
+        osg::ref_ptr<ScreenSpaceLayoutData> ssld = dynamic_cast<ScreenSpaceLayoutData*>(drawable->getUserData());
+        if (ssld.valid())
+        {
+            ssPt = ssld->getAnchorPoint();
+            osg::Vec3d screenSpacePoint = ssld->getAnchorPoint() * _camMatrix;
+            if ((osg::Vec2d(screenSpacePoint.x(), screenSpacePoint.y()) - _pickCoord).length() > _buffer)
+                return;
+
+            inScreenSpace = true;
+        }
     }
 
     if (! inScreenSpace)
@@ -556,9 +572,9 @@ void PrimitiveIntersector::intersect(osgUtil::IntersectionVisitor& iv, osg::Draw
             hit.matrix = iv.getModelMatrix();
             hit.nodePath = iv.getNodePath();
             hit.drawable = drawable;
-            hit.primitiveIndex = findPrimitiveIndex(drawable, triHit._index);
+            hit.primitiveIndex = inScreenSpace ? 0 : findPrimitiveIndex(drawable, triHit._index);
 
-            hit.localIntersectionPoint = _start*(1.0-remap_ratio) + _end*remap_ratio;
+            hit.localIntersectionPoint = inScreenSpace ? ssPt : _start*(1.0-remap_ratio) + _end*remap_ratio;
 
             hit.localIntersectionNormal = triHit._normal;
 

@@ -25,6 +25,7 @@
 #include <osgEarth/Lighting>
 #include <osgEarth/ShaderGenerator>
 #include <osgEarth/GeoMath>
+#include <osgEarthFeatures/GeometryUtils>
 #include <osg/Depth>
 
 #define LC "[MPAnnoLabelSource] "
@@ -104,21 +105,26 @@ osg::BoundingSphere MPAnnotationGroup::computeBound () const
 {
     osg::BoundingSphere bsphere;
 
-    for(osg::NodeList::const_iterator itr = _children.begin();
-        itr!=_children.end();
-        ++itr)
+    for(osg::NodeList::const_iterator itr = _children.begin(); itr!=_children.end(); ++itr)
     {
         if (itr->valid())
         {
             const ScreenSpaceLayoutData *ssld = static_cast<ScreenSpaceLayoutData*>((*itr)->getUserData());
             if (ssld)
+            {
                 bsphere.expandBy(ssld->getAnchorPoint());
+                if (ssld->isAutoFollowLine())
+                {
+                    bsphere.expandBy(ssld->getLineStartPoint());
+                    bsphere.expandBy(ssld->getLineEndPoint());
+                }
+            }
         }
     }
     return bsphere;
 }
 
-long MPAnnotationGroup::addAnnotation(const Style& style, const osgEarth::GeoPoint& pos, const osgDB::Options* readOptions)
+long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions)
 {
     // layout data for screenspace information
     static long id{0};
@@ -339,29 +345,32 @@ long MPAnnotationGroup::addAnnotation(const Style& style, const osgEarth::GeoPoi
     }
 
     // layout data for screenspace information
-    updateLayoutData(dataLayout, style, pos);
+    updateLayoutData(dataLayout, style, geom);
 
     return dataLayout->getId();
 }
 
 
 void
-MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, const GeoPoint &pos)
+MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, Geometry* geom)
 {
     if (! dataLayout.valid())
         return;
 
+    const TextSymbol* ts = style.get<TextSymbol>();
+
     // the anchor point in world coordinates
+    const osg::Vec3d center = geom->getBounds().center();
+    GeoPoint pos( osgEarth::SpatialReference::get("wgs84"), center.x(), center.y(), center.z(), ALTMODE_ABSOLUTE );
     osg::Vec3d p0;
     pos.toWorld(p0);
     dataLayout->setAnchorPoint(p0);
 
     // priority and pixel offset
-    const TextSymbol* ts = style.get<TextSymbol>();
     if (ts)
     {
         if (ts->priority().isSet())
-            dataLayout->setPriority(style.getSymbol<TextSymbol>()->priority()->eval());
+            dataLayout->setPriority(static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval()));
         if (ts->pixelOffset().isSet())
             dataLayout->setPixelOffset(ts->pixelOffset().get());
     }
@@ -395,19 +404,75 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
         dataLayout->setAutoRotate(true);
     }
 
-    // TODO
+    // sliding label
 
-//    if ( (ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get()) && _lineStartPoint.isValid() && _lineEndPoint.isValid() )
-//    {
-//        osg::Vec3d p0, p1, p2;
-//        _lineStartPoint.toWorld(p0);
-//        _lineEndPoint.toWorld(p1);
-//        _geoPointLoc.toWorld(p2);
-//        _dataLayout->setLineStartPoint(p0);
-//        _dataLayout->setLineEndPoint(p1);
-//        _dataLayout->setAnchorPoint(p2);
+    Geometry* geomSupport = nullptr;
+    LineString* geomLineString = nullptr;
 
-//        _dataLayout->setAutoFollowLine( ts->autoOffsetAlongLine().get() );
-//        _dataLayout->setAutoRotate( ts->autoRotateAlongLine().get() );
-//    }
+    if( ts->autoOffsetGeomWKT().isSet() )
+    {
+        std::string lineSupport = ts->autoOffsetGeomWKT()->eval();
+        if (! lineSupport.empty() )
+            geomSupport = osgEarth::Features::GeometryUtils::geometryFromWKT(lineSupport);
+    }
+
+    if( (ts->autoOffsetGeomWKT().isSet() || ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get())
+            && geomSupport && geomSupport->getComponentType() == Geometry::TYPE_LINESTRING )
+    {
+        if( geomSupport->getType() == Geometry::TYPE_LINESTRING)
+        {
+            geomLineString = dynamic_cast<LineString*>( geomSupport );
+        }
+        else
+        {
+            const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport);
+            if( geomMulti )
+                geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
+        }
+    }
+
+    if ( geomLineString &&  (ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get()) )
+    {
+        osg::Vec3d p1, p2;
+
+        if( geomLineString )
+        {
+            GeoPoint geoStart( osgEarth::SpatialReference::get("wgs84"), geomLineString->front().x(), geomLineString->front().y(),
+                    geomLineString->front().z(), ALTMODE_ABSOLUTE );
+            GeoPoint geoEnd( osgEarth::SpatialReference::get("wgs84"), geomLineString->back().x(), geomLineString->back().y(),
+                    geomLineString->back().z(), ALTMODE_ABSOLUTE );
+
+            if( ts->autoOffsetGeomWKT().isSet() )
+            {
+                // Direction to the longest distance
+                if( (geoStart.vec3d() - center).length2() > (geoEnd.vec3d() - center).length2() )
+                {
+                    geoEnd.toWorld(p1);
+                    geoStart.toWorld(p2);
+                }
+                else
+                {
+                    geoStart.toWorld(p1);
+                    geoEnd.toWorld(p2);
+                }
+            }
+            else
+            {
+                geoEnd.toWorld(p1);
+                geoStart.toWorld(p2);
+            }
+        }
+
+        dataLayout->setLineStartPoint(p1);
+        dataLayout->setLineEndPoint(p2);
+        if( ts->autoOffsetGeomWKT().isSet() )
+            dataLayout->setAnchorPoint(dataLayout->getLineStartPoint());
+
+        dataLayout->setAutoFollowLine( ts->autoOffsetAlongLine().get() );
+        dataLayout->setAutoRotate( ts->autoRotateAlongLine().get() );
+    }
+
+    // global BBox
+    for ( auto i : _drawableList[dataLayout->getId()] )
+        dataLayout->expandBboxBy(this->getChild(i)->asDrawable()->getBoundingBox());
 }
