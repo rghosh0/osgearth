@@ -96,7 +96,8 @@ public:
 
     /** The global BBox for the whole feature (containing all the drawables) */
     const osg::BoundingBox& getBBox() const { return _bbox; }
-    void expandBboxBy ( const osg::BoundingBox& bbox) { _bbox.expandBy(bbox); }
+    void expandBboxBy ( const osg::BoundingBox& bbox) { _bbox.expandBy(bbox); _bsphere.expandRadiusBy(bbox); _bboxSymetric.expandBy(_bsphere); }
+    const osg::BoundingBox& getBBoxSymetric() const { return _bboxSymetric; }
 
 public:
     float      _priority;
@@ -105,6 +106,11 @@ public:
     osg::Vec3d _anchorPoint, _lineStart, _lineEnd;
     long       _id;
     osg::BoundingBox _bbox;
+    osg::BoundingSphere _bsphere{osg::Vec3d(0., 0., 0), 0.};
+    osg::BoundingBox _bboxSymetric;
+
+    osg::Vec3d          _cull_anchorOnScreen;
+    osg::BoundingBoxd   _cull_bboxSymOnScreen;
 
 public:
     virtual ~ScreenSpaceLayoutData() { }
@@ -137,7 +143,10 @@ public:
           _sortByDistance       ( true ),
           _snapToPixel          ( false ),
           _maxObjects           ( INT_MAX ),
-          _renderBinNumber      ( 13 )
+          _renderBinNumber      ( 13 ),
+          _useScreenGrid        ( false ),
+          _screenGridNbCol      ( 28 ),
+          _screenGridNbRow      ( 20 )
     {
         fromConfig(_conf);
     }
@@ -169,7 +178,7 @@ public:
     const optional<bool>& sortByDistance() const { return _sortByDistance; }
 
     /** Whether to always start rendering text on a pixel boundary, thereby
-          * minimizing filtering artifacts. */
+      * minimizing filtering artifacts. */
     optional<bool>& snapToPixel() { return _snapToPixel; }
     const optional<bool>& snapToPixel() const { return _snapToPixel; }
 
@@ -180,6 +189,19 @@ public:
     /** Render bin number to use for the screen layout */
     optional<int>& renderOrder() { return _renderBinNumber; }
     const optional<int>& renderOrder() const { return _renderBinNumber; }
+
+    /** Whether the declutter algorithm uses a screen grid to group annotations
+     * according to their location */
+    optional<bool>& useScreenGrid() { return _useScreenGrid; }
+    const optional<bool>& useScreenGrid() const { return _useScreenGrid; }
+
+    /** The number of columns when screen grid is activated for decluttering */
+    optional<int>& screenGridNbCol() { return _screenGridNbCol; }
+    const optional<int>& screenGridNbCol() const { return _screenGridNbCol; }
+
+    /** The number of row when screen grid is activated for decluttering */
+    optional<int>& screenGridNbRow() { return _screenGridNbRow; }
+    const optional<int>& screenGridNbRow() const { return _screenGridNbRow; }
 
 public:
 
@@ -195,6 +217,9 @@ protected:
     optional<bool>     _snapToPixel;
     optional<unsigned> _maxObjects;
     optional<int>      _renderBinNumber;
+    optional<bool>     _useScreenGrid;
+    optional<int>      _screenGridNbCol;
+    optional<int>      _screenGridNbRow;
 
     void fromConfig( const Config& conf );
 };

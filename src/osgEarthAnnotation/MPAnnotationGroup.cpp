@@ -64,8 +64,40 @@ class AnnotationNodeGroupCullCallback : public osg::NodeCallback
 public:
     void operator()(osg::Node* node, osg::NodeVisitor* nv)
     {
-        if(! nv->asCullVisitor()->isCulled(node->getBound()))
+        osgUtil::CullVisitor* cullVisitor = nv->asCullVisitor();
+        if(! cullVisitor->isCulled(node->getBound()))
+        {
+            const osg::Matrix& MVPW = *(cullVisitor->getMVPW());
+            double vpXmin = cullVisitor->getViewport()->x();
+            double vpXmax = cullVisitor->getViewport()->x() + cullVisitor->getViewport()->width();
+            double vpYmin = cullVisitor->getViewport()->y();
+            double vpYmax = cullVisitor->getViewport()->y() + cullVisitor->getViewport()->height();
+            MPAnnotationGroup* annoGroup = static_cast<MPAnnotationGroup*>(node);
+
+            for ( auto const &anno : annoGroup->getDrawableList() )
+            {
+                if ( ! anno.second.empty() )
+                {
+                    ScreenSpaceLayoutData* ssld = static_cast<ScreenSpaceLayoutData*>((annoGroup->getChild(anno.second[0]))->getUserData());
+                    ssld->_cull_anchorOnScreen = ssld->_anchorPoint * MVPW;
+                    if ( ssld->isAutoFollowLine() )
+                        continue;
+
+                    osg::Node::NodeMask nodeMask = 0xffffffff;
+                    ssld->_cull_bboxSymOnScreen.set(ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._min, ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._max);
+                    if (osg::maximum(ssld->_cull_bboxSymOnScreen.xMin(), vpXmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.xMax(), vpXmax) ||
+                        osg::maximum(ssld->_cull_bboxSymOnScreen.yMin(), vpYmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.yMax(), vpYmax) )
+                    {
+                        nodeMask = 0;
+                    }
+
+                    for (auto i : anno.second)
+                        annoGroup->getChild(i)->setNodeMask(nodeMask);
+                }
+            }
+
             traverse(node, nv);
+        }
     }
 };
 

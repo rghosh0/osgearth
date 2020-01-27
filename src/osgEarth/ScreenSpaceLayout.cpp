@@ -174,6 +174,9 @@ ScreenSpaceLayoutOptions::fromConfig( const Config& conf )
     conf.get( "snap_to_pixel",       _snapToPixel );
     conf.get( "max_objects",         _maxObjects );
     conf.get( "render_order",        _renderBinNumber );
+    conf.get( "use_screen_grid",     _useScreenGrid );
+    conf.get( "screen_grid_NbCol",   _screenGridNbCol );
+    conf.get( "screen_grid_NbRow",   _screenGridNbRow );
 }
 
 Config
@@ -189,6 +192,9 @@ ScreenSpaceLayoutOptions::getConfig() const
     conf.set( "snap_to_pixel",       _snapToPixel );
     conf.set( "max_objects",         _maxObjects );
     conf.set( "render_order",        _renderBinNumber );
+    conf.set( "use_screen_grid",     _useScreenGrid );
+    conf.set( "screen_grid_NbCol",   _screenGridNbCol );
+    conf.set( "screen_grid_NbRow",   _screenGridNbRow );
     return conf;
 }
 

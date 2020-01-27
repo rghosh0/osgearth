@@ -36,8 +36,6 @@
 
 #define LC "[MPScreenSpaceLayout] "
 
-#define FADE_UNIFORM_NAME "oe_declutter_fade"
-
 using namespace osgEarth;
 
 //----------------------------------------------------------------------------
@@ -61,16 +59,7 @@ struct SortByPriority : public DeclutterSortFunctor
     bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
         const ScreenSpaceLayoutData* lhsdata = static_cast<const ScreenSpaceLayoutData*>(lhs->getDrawable()->getUserData());
-        long lhsId = lhsdata->_id;
-
         const ScreenSpaceLayoutData* rhsdata = static_cast<const ScreenSpaceLayoutData*>(rhs->getDrawable()->getUserData());
-        long rhsId = rhsdata->_id;
-
-        if ( lhsId == rhsId )
-        {
-            const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
-            return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
-        }
 
         float lhsPriority = lhsdata->_priority ;
         float rhsPriority = rhsdata->_priority;
@@ -79,10 +68,14 @@ struct SortByPriority : public DeclutterSortFunctor
         if ( diff != 0.0f )
             return diff > 0.0f;
 
-        // first fallback on depth:
-        diff = lhs->_depth - rhs->_depth;
-        if ( diff != 0.0f )
-            return diff < 0.0f;
+//        long lhsId = lhsdata->_id;
+//        long rhsId = rhsdata->_id;
+
+//        if ( lhsId == rhsId )
+//        {
+//            const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
+//            return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
+//        }
 
         // then fallback on traversal order.
 #if OSG_VERSION_GREATER_THAN(3,6,0)
@@ -104,8 +97,8 @@ struct MPScreenSpaceLayoutContext : public osg::Referenced
 // TODO: a way to clear out this list when drawables go away
 struct DrawableInfo
 {
-    DrawableInfo() : _lastAlpha(1.0f), _lastScale(1.0f), _frame(0u), _visible(true) { }
-    float _lastAlpha, _lastScale;
+    DrawableInfo() : _lastScale(1.), _frame(0u), _visible(true) { }
+    double _lastScale;
     unsigned _frame;
     bool _visible;
 };
@@ -133,15 +126,20 @@ struct PerCamInfo
     osg::Matrix _lastCamVPW;
 };
 
+// Data structure for storing common data for all drawables of one given annotation
+struct AnnotationInfo
+{
+    long id{-1};
+    bool isInitialized{false};
+    bool isOutOfView{false};
+    double angle{0.};
+
+};
+
+typedef std::map<long, AnnotationInfo> AnnotationInfoList;
+
 static bool s_mp_declutteringEnabledGlobally = true;
 
-static const char* s_faderFS =
-        "#version " GLSL_VERSION_STR "\n"
-        GLSL_DEFAULT_PRECISION_FLOAT "\n"
-                "uniform float " FADE_UNIFORM_NAME ";\n"
-                "void oe_declutter_apply_fade(inout vec4 color) { \n"
-                "    color.a *= " FADE_UNIFORM_NAME ";\n"
-                "}\n";
 }
 
 //----------------------------------------------------------------------------
@@ -252,15 +250,10 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             {
                 float ratio = (leftMin - loc.x()) / (linePt.x() - loc.x());
                 if (ratio < 1)
-                {
                     offset.set(leftMin - loc.x(), ratio * (linePt.y() - loc.y()), 0.f);
-                }
                 else
-                {
                     offset.set(linePt.x() - loc.x(), linePt.y() - loc.y(), 0.f);
-                }
-                isResolved =
-                        ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
+                isResolved = ratio >= 1.f || ((loc.y() + offset.y()) > bottomMin && (loc.y() + offset.y()) < topMax);
             }
             else
             {
@@ -389,16 +382,13 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 
         bin->copyLeavesFromStateGraphListToRenderLeafList();
 
-        // first, sort the leaves:
-        if ( _customSortFunctor && s_mp_declutteringEnabledGlobally )
-        {
-            // if there's a custom sorting function installed
-            std::sort( leaves.begin(), leaves.end(), MPSortContainer( *_customSortFunctor ) );
-        }
-
         // nothing to sort? bail out
         if ( leaves.size() == 0 )
             return;
+
+        // if there's a custom sorting function installed
+        if ( _customSortFunctor && s_mp_declutteringEnabledGlobally )
+            std::sort( leaves.begin(), leaves.end(), MPSortContainer( *_customSortFunctor ) );
 
         // access the view-specific persistent data:
         osg::Camera* cam = bin->getStage()->getCamera();
@@ -427,39 +417,28 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         local._failed.clear();          // drawables that fail occlusion test
         local._used.clear();            // list of occupied bounding boxes in screen space
 
-        // compute a window matrix so we can do window-space culling. If this is an RTT camera
-        // with a reference camera attachment, we actually want to declutter in the window-space
-        // of the reference camera. (e.g., for picking).
+        // compute a window matrix so we can do window-space culling.
         const osg::Viewport* vp = cam->getViewport();
+        double vpXMin = vp->x();
+        double vpYMin = vp->y();
+        double vpWidth = vp->width();
+        double vpHeight = vp->height();
+        double vpXMax = vpXMin + vp->width();
+        double vpYMax = vpYMin + vp->height();
         osg::Matrix windowMatrix = vp->computeWindowMatrix();
-        osg::Vec3f  refCamScale(1.0f, 1.0f, 1.0f);
-        osg::Matrix refCamScaleMat;
-        osg::Matrix refWindowMatrix = windowMatrix;
-        const osg::Viewport* refVP = vp;
         osg::Vec3d eye, center, up, look;
-
-        // If the camera is actually an RTT slave camera, it's our picker, and we need to
-        // adjust the scale to match it.
-        if (cam->isRenderToTextureCamera() &&
-                cam->getView() &&
-                cam->getView()->getCamera() &&
-                cam->getView()->getCamera() != cam)
-            //cam->getView()->findSlaveIndexForCamera(cam) < cam->getView()->getNumSlaves())
-        {
-            osg::Camera* parentCam = cam->getView()->getCamera();
-            refVP = parentCam->getViewport();
-            refCamScale.set( vp->width() / refVP->width(), vp->height() / refVP->height(), 1.0 );
-            refCamScaleMat.makeScale( refCamScale );
-            refWindowMatrix = refVP->computeWindowMatrix();
-            parentCam->getViewMatrixAsLookAt(eye, center, up);
-        }
-        else
-        {
-            cam->getViewMatrixAsLookAt(eye, center, up);
-        }
-
+        cam->getViewMatrixAsLookAt(eye, center, up);
         look = center - eye;
         look.normalize();
+
+        int screenMapNbCol = options.screenGridNbCol().get();
+        int screenMapNbRow = options.screenGridNbRow().get();
+        const bool useScreenGrid = options.useScreenGrid().get();
+        double mapSizeX = vp->width() / screenMapNbCol;
+        double mapSizeY = vp->height() / screenMapNbRow;
+        //std::vector<RenderLeafBox> _usedMap[screenMapNbCol][screenMapNbRow];
+        //std::vector<RenderLeafBox> _usedMap[screenMapNbCol][screenMapNbRow];
+        std::vector<std::vector<std::vector<RenderLeafBox>>> _usedMap(screenMapNbCol, std::vector<std::vector<RenderLeafBox>>(screenMapNbRow));
 
         // Track the features that are obscured (and culled). Drawables
         // with the same feature id are considered to be grouped and
@@ -468,16 +447,24 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 
         unsigned limit = *options.maxObjects();
 
-        bool snapToPixel = options.snapToPixel() == true;
+        double minAnimationScale = static_cast<double>(*options.minAnimationScale());
+
+//        bool snapToPixel = options.snapToPixel() == true;
 
         osg::Matrix camVPW;
         camVPW.postMult(cam->getViewMatrix());
         camVPW.postMult(cam->getProjectionMatrix());
-        camVPW.postMult(refWindowMatrix);
+        camVPW.postMult(windowMatrix);
 
         // has the camera moved?
-        bool camChanged = camVPW != local._lastCamVPW;
+//        bool camChanged = camVPW != local._lastCamVPW;
         local._lastCamVPW = camVPW;
+
+        osg::Vec3f offset;
+        osg::Vec3d offset1px(1., 1., 0.);
+        osg::Vec3d offset3px(3., 3., 0.);
+
+        AnnotationInfoList annoInfoList;
 
         // Go through each leaf and test for visibility.
         // Enforce the "max objects" limit along the way.
@@ -485,261 +472,287 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             i != leaves.end() && local._passed.size() < limit;
             ++i )
         {
-            bool visible = true;
-
             osgUtil::RenderLeaf* leaf = *i;
             const osg::Drawable* drawable = leaf->getDrawable();
-            long drawableFid = -1;
-
             const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
+
+            // do the treatment only once per annotation
+//            AnnotationInfo &annoInfo = annoInfoList[layoutData->getId()];
+//            if (annoInfo.isInitialized && annoInfo.isOutOfView)
+//            {
+//                continue;
+//            }
+
+            //osg::Vec3d anchorSc = layoutData->getAnchorPoint() * camVPW;
+            osg::Vec3d anchorSc = layoutData->_cull_anchorOnScreen;
+
+            // Check if the bbox of the full annotation is out of viewport
+//            osg::BoundingBoxd featureBox(anchorSc + layoutData->getBBoxSymetric()._min, anchorSc + layoutData->getBBoxSymetric()._max);
+//            if (osg::maximum(featureBox.xMin(), vpXMin) > osg::minimum(featureBox.xMax(), vpXMax) ||
+//                osg::maximum(featureBox.yMin(), vpYMin) > osg::minimum(featureBox.yMax(), vpYMax) )
+//            {
+//                annoInfo.isInitialized = true;
+//                annoInfo.isOutOfView = true;
+//                continue;
+//            }
 
             // transform the bounding box of the drawable into window-space.
             // (use parent bbox for line following algorithm)
             osg::BoundingBox box = layoutData->isAutoFollowLine() ? layoutData->getBBox() : drawable->getBoundingBox();
 
-            osg::Vec3f offset;
+            bool isText = dynamic_cast<const osgText::Text*>(drawable) != nullptr;
+            long drawableFid = layoutData->getId();
+            double angle = 0;
             osg::Quat rot;
-            osg::Vec3d anchorSc;
+            osg::Vec3d to;
+            bool visible = true;
 
-            if (layoutData)
+            // local transformation data
+            // and management of the label orientation (must be always readable)
+            if (layoutData->isAutoRotate())
             {
-                drawableFid = layoutData->getId();
+                osg::Vec3d anchorLoc = layoutData->getAnchorPoint();
+                osg::Vec3d anchorTo = layoutData->getLineEndPoint();
 
-                // local transformation data
-                // and management of the label orientation (must be always readable)
-                double angle = 0;
-                anchorSc = layoutData->getAnchorPoint() * camVPW;
-                osg::Vec3d to;
+                osg::Vec3d camToAnchorLoc = anchorLoc - eye;
+                osg::Vec3d camToAnchorTo = anchorTo - eye;
 
-                bool isText = dynamic_cast<const osgText::Text*>(drawable) != nullptr;
+                bool anchorLocIsBehindCam = camToAnchorLoc * look < 0.;
+                bool originalLocIsBehindCamera = anchorLocIsBehindCam;
+                bool anchorToIsBehindCam = camToAnchorTo * look < 0.;
+                bool invertAngle = false;
 
-                if (layoutData->isAutoRotate())
+                // check wether one side of the line has a better placement
+                if (anchorLocIsBehindCam && anchorToIsBehindCam)
                 {
-                    osg::Vec3d anchorLoc = layoutData->getAnchorPoint();
-                    osg::Vec3d anchorTo = layoutData->getLineEndPoint();
-
-                    osg::Vec3d camToAnchorLoc = anchorLoc - eye;
-                    osg::Vec3d camToAnchorTo = anchorTo - eye;
-
-                    bool anchorLocIsBehindCam = camToAnchorLoc * look < 0.;
-                    bool originalLocIsBehindCamera = anchorLocIsBehindCam;
-                    bool anchorToIsBehindCam = camToAnchorTo * look < 0.;
-                    bool invertAngle = false;
-
-                    // check wether one side of the line has a better placement
-                    if (anchorLocIsBehindCam && anchorToIsBehindCam)
+                    if (layoutData->isAutoFollowLine())
                     {
-                        if (layoutData->isAutoFollowLine())
-                        {
-                            anchorTo = layoutData->getLineStartPoint();
-                            camToAnchorTo = anchorTo - eye;
-                            anchorToIsBehindCam = camToAnchorTo * look < 0.;
-                            if (!anchorToIsBehindCam)
-                                invertAngle = true;
-                        }
-                    }
-
-                    // Go closer to Anchor To
-                    if (anchorLocIsBehindCam && !anchorToIsBehindCam)
-                        anchorLoc = anchorLoc + (anchorTo - anchorLoc) * 0.95;
-                    // Go closer to Anchor From
-                    else if (!anchorLocIsBehindCam && anchorToIsBehindCam)
-                        anchorTo = anchorTo + (anchorLoc - anchorTo) * 0.95;
-
-                    // projection on screen for computing the angle
-                    osg::Vec3d anchorFromProj = anchorLoc * camVPW;
-                    osg::Vec3d anchorToProj = anchorTo * camVPW;
-                    to = anchorToProj;
-                    anchorToProj -= anchorFromProj;
-                    if (invertAngle)
-                        anchorToProj = -anchorToProj;
-                    angle = atan2(anchorToProj.y(), anchorToProj.x());
-
-                    if (originalLocIsBehindCamera)
-                    {
-                        anchorToProj.normalize();
-                        anchorToProj *= 10000.;
-                        anchorSc = to - anchorToProj;
-                    }
-                    else if (anchorToIsBehindCam)
-                    {
-                        anchorToProj.normalize();
-                        anchorToProj *= 10000.;
-                        to = anchorFromProj + anchorToProj;
+                        anchorTo = layoutData->getLineStartPoint();
+                        camToAnchorTo = anchorTo - eye;
+                        anchorToIsBehindCam = camToAnchorTo * look < 0.;
+                        if (!anchorToIsBehindCam)
+                            invertAngle = true;
                     }
                 }
 
-                if ( isText && (angle < -osg::PI_2 || angle > osg::PI_2) )
+                // Go closer to Anchor To
+                if (anchorLocIsBehindCam && !anchorToIsBehindCam)
+                    anchorLoc = anchorLoc + (anchorTo - anchorLoc) * 0.95;
+                // Go closer to Anchor From
+                else if (!anchorLocIsBehindCam && anchorToIsBehindCam)
+                    anchorTo = anchorTo + (anchorLoc - anchorTo) * 0.95;
+
+                // projection on screen for computing the angle
+                osg::Vec3d anchorFromProj = anchorLoc * camVPW;
+                osg::Vec3d anchorToProj = anchorTo * camVPW;
+                to = anchorToProj;
+                anchorToProj -= anchorFromProj;
+                if (invertAngle)
+                    anchorToProj = -anchorToProj;
+                angle = atan2(anchorToProj.y(), anchorToProj.x());
+
+                if (originalLocIsBehindCamera)
                 {
-                    // avoid the label characters to be inverted:
-                    // use a symetric translation and adapt the rotation to be in the desired angles
-                    offset.set( -layoutData->_pixelOffset.x() - box.xMax() - box.xMin(),
-                                -layoutData->_pixelOffset.y() - box.yMax() - box.yMin(),
-                                0.f );
-                    angle += angle < -osg::PI_2? osg::PI : -osg::PI; // JD #1029
+                    anchorToProj.normalize();
+                    anchorToProj *= 10000.;
+                    anchorSc = to - anchorToProj;
                 }
+                else if (anchorToIsBehindCam)
+                {
+                    anchorToProj.normalize();
+                    anchorToProj *= 10000.;
+                    to = anchorFromProj + anchorToProj;
+                }
+            }
+
+            if ( isText && (angle < -osg::PI_2 || angle > osg::PI_2) )
+            {
+                // avoid the label characters to be inverted:
+                // use a symetric translation and adapt the rotation to be in the desired angles
+                offset.set( -layoutData->_pixelOffset.x() - box.xMax() - box.xMin(),
+                            -layoutData->_pixelOffset.y() - box.yMax() - box.yMin(), 0. );
+                angle += angle < -osg::PI_2 ? osg::PI : -osg::PI; // JD #1029
+            }
+            else
+            {
+                offset.set( layoutData->_pixelOffset.x(), layoutData->_pixelOffset.y(), 0. );
+            }
+
+            // handle the local rotation
+            if ( angle != 0. )
+            {
+                rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
+                osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
+                osg::Vec3f lu = rot * ( osg::Vec3f(box.xMin(), box.yMax(), 0.) );
+                osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
+                osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
+                if ( angle > - osg::PI / 2. && angle < osg::PI / 2.)
+                    box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
+                             osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
                 else
-                {
-                    offset.set( layoutData->_pixelOffset.x(), layoutData->_pixelOffset.y(), 0.f );
-                }
-
-                // handle the local rotation
-                if ( angle != 0. )
-                {
-                    rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
-                    osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
-                    osg::Vec3f lu = rot * ( osg::Vec3f(box.xMin(), box.yMax(), 0.) );
-                    osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
-                    osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
-                    if ( angle > - osg::PI / 2. && angle < osg::PI / 2.)
-                        box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
-                                 osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
-                    else
-                        box.set(osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
-                                osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0);
-                }
-
-
-                // adapt the offset for auto sliding label
-                if (layoutData->isAutoFollowLine())
-                    updateOffsetForAutoLabelOnLine(box, refVP, anchorSc, layoutData, camVPW, offset, to);
-
-                // handle the local translation
-                box.xMin() += offset.x();
-                box.xMax() += offset.x();
-                box.yMin() += offset.y();
-                box.yMax() += offset.y();
+                    box.set(osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
+                            osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0);
             }
 
-            // if we are using a reference camera (like for picking), we do the decluttering in
-            // its viewport so that they match.
-            osg::Vec3f winPos = anchorSc;
-            osg::Vec3f refWinPos = winPos;
 
-            // Expand the box if this object is currently not visible, so that it takes a little
-            // more room for it to before visible once again.
+            // adapt the offset for auto sliding label
+            if (layoutData->isAutoFollowLine())
+                updateOffsetForAutoLabelOnLine(box, vp, anchorSc, layoutData, camVPW, offset, to);
+
+            // handle the local translation
+            box.xMin() += offset.x();
+            box.xMax() += offset.x();
+            box.yMin() += offset.y();
+            box.yMax() += offset.y();
+
+//            // Expand the box if this object is currently not visible, so that it takes a little
+//            // more room for it to before visible once again.
+//            DrawableInfo& info = local._memory[drawable];
+//            float buffer = info._visible ? 1.0f : 3.0f;
             DrawableInfo& info = local._memory[drawable];
-            float buffer = info._visible ? 1.0f : 3.0f;
+            osg::Vec3d &buffer = info._visible ? offset1px : offset3px;
 
-            // The "declutter" box is the box we use to reserve screen space.
-            // This must be unquantized regardless of whether snapToPixel is set.
-            box.set(
-                        floor(refWinPos.x() + box.xMin())-buffer,
-                        floor(refWinPos.y() + box.yMin())-buffer,
-                        refWinPos.z(),
-                        ceil(refWinPos.x() + box.xMax())+buffer,
-                        ceil(refWinPos.y() + box.yMax())+buffer,
-                        refWinPos.z() );
+//            // The "declutter" box is the box we use to reserve screen space.
+//            // This must be unquantized regardless of whether snapToPixel is set.
+//            box.set(
+//                        floor(anchorSc.x() + box.xMin())-buffer,
+//                        floor(anchorSc.y() + box.yMin())-buffer,
+//                        anchorSc.z(),
+//                        ceil(anchorSc.x() + box.xMax())+buffer,
+//                        ceil(anchorSc.y() + box.yMax())+buffer,
+//                        anchorSc.z() );
 
-            // if snapping is enabled, only snap when the camera stops moving.
-            bool quantize = snapToPixel;
-            if ( quantize && !camChanged )
+//            // if snapping is enabled, only snap when the camera stops moving.
+//            bool quantize = snapToPixel;
+//            if ( quantize && !camChanged )
+//            {
+//                // Quanitize the window draw coordinates to mitigate text rendering filtering anomalies.
+//                // Drawing text glyphs on pixel boundaries mitigates aliasing.
+//                // Adding 0.5 will cause the GPU to sample the glyph texels exactly on center.
+//                anchorSc.x() = floor(anchorSc.x()) + 0.5;
+//                anchorSc.y() = floor(anchorSc.y()) + 0.5;
+//            }
+
+            box.set( box._min + anchorSc - buffer, box._max + anchorSc + buffer);
+
+            int mapStartX,  mapStartY, mapEndX, mapEndY;
+
+            if ( s_mp_declutteringEnabledGlobally )
             {
-                // Quanitize the window draw coordinates to mitigate text rendering filtering anomalies.
-                // Drawing text glyphs on pixel boundaries mitigates aliasing.
-                // Adding 0.5 will cause the GPU to sample the glyph texels exactly on center.
-                winPos.x() = floor(winPos.x()) + 0.5f;
-                winPos.y() = floor(winPos.y()) + 0.5f;
-            }
+                // if this leaf is already in a culled group, skip it.
+                if ( culledParents.find(drawableFid) != culledParents.end() )
+                {
+                    visible = false;
+                }
 
-            // fully out of viewport
-            bool isViewCulled = false;
-            float vpX = static_cast<float>(refVP->x());
-            float vpY = static_cast<float>(refVP->y());
-            float vpWidth = static_cast<float>(refVP->width());
-            float vpHeight = static_cast<float>(refVP->height());
-            if (box.xMax() < vpX || box.xMin() > vpX + vpWidth ||
-                    box.yMax() < vpY || box.yMin() > vpY + vpHeight)
-            {
-                visible = false;
-                isViewCulled = true;
-            }
-
-            // modify the leaf's modelview matrix to correctly position it in the 2D ortho
-            // projection when it's drawn later. We'll also preserve the scale.
-            if (!isViewCulled)
-            {
-
-                if ( s_mp_declutteringEnabledGlobally )
+                else
                 {
                     // A max priority => never occlude.
                     float priority = layoutData ? layoutData->_priority : 0.0f;
+
+                    if ( useScreenGrid )
+                    {
+                        mapStartX = osg::clampTo(static_cast<int>(floor((box.xMin() - vpXMin) / mapSizeX)), 0, screenMapNbCol-1);
+                        mapStartY = osg::clampTo(static_cast<int>(floor((box.yMin() - vpYMin) / mapSizeY)), 0, screenMapNbRow-1);
+                        mapEndX = osg::clampTo(static_cast<int>(floor((box.xMax() - vpXMin) / mapSizeX)), 0, screenMapNbCol-1);
+                        mapEndY = osg::clampTo(static_cast<int>(floor((box.yMax() - vpYMin) / mapSizeY)), 0, screenMapNbRow-1);
+                    }
 
                     if ( priority >= FLT_MAX )
                     {
                         visible = true;
                     }
 
-                    // if this leaf is already in a culled group, skip it.
-                    else if ( drawableFid != -1 && culledParents.find(drawableFid) != culledParents.end() )
-                    {
-                        visible = false;
-                    }
-
                     else
                     {
-                        // weed out any drawables that are obscured by closer drawables.
-                        // TODO: think about a more efficient algorithm - right now we are just using
-                        // brute force to compare all bbox's
-                        for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
-                        {
-                            // only need a 2D test since we're in clip space
-                            bool isClear =
-                                    box.xMin() > j->second.xMax() ||
-                                    box.xMax() < j->second.xMin() ||
-                                    box.yMin() > j->second.yMax() ||
-                                    box.yMax() < j->second.yMin();
 
-                            // if there's an overlap (and the conflict isn't from the same drawable
-                            // parent, which is acceptable), then the leaf is culled.
-                            if ( !isClear && drawableFid != j->first )
+                        // declutter only on screen cells that intersects the current bbox cells
+                        if ( useScreenGrid )
+                        {
+                            for ( int mapX = mapStartX ; mapX <= mapEndX && visible ; ++mapX )
+                                for ( int mapY = mapStartY ; mapY <= mapEndY && visible ; ++mapY )
+                                    for( std::vector<RenderLeafBox>::const_iterator j = _usedMap[mapX][mapY].begin(); j != _usedMap[mapX][mapY].end(); ++j )
+                                    {
+                                        // only need a 2D test since we're in clip space
+                                        bool isClear = osg::maximum(box.xMin(), j->second.xMin()) > osg::minimum(box.xMax(), j->second.xMax()) ||
+                                                osg::maximum(box.yMin(), j->second.yMin()) > osg::minimum(box.yMax(), j->second.yMax());
+
+                                        // if there's an overlap (and the conflict isn't from the same drawable
+                                        // parent, which is acceptable), then the leaf is culled.
+                                        if ( ! isClear && drawableFid != j->first )
+                                        {
+                                            visible = false;
+                                            break;
+                                        }
+                                    }
+                        }
+
+                        // declutter in full screen
+                        else
+                        {
+                            // weed out any drawables that are obscured by closer drawables.
+                            // TODO: think about a more efficient algorithm - right now we are just using
+                            // brute force to compare all bbox's
+                            for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
                             {
-                                visible = false;
-                                break;
+                                // only need a 2D test since we're in clip space
+                                bool isClear = osg::maximum(box.xMin(),j->second.xMin()) > osg::minimum(box.xMax(),j->second.xMax()) ||
+                                        osg::maximum(box.yMin(),j->second.yMin()) > osg::minimum(box.yMax(),j->second.yMax());
+
+                                // if there's an overlap (and the conflict isn't from the same drawable
+                                // parent, which is acceptable), then the leaf is culled.
+                                if ( ! isClear && drawableFid != j->first )
+                                {
+                                    visible = false;
+                                    break;
+                                }
                             }
                         }
                     }
+
+                    if ( visible )
+                    {
+                        // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
+                        // to the final draw list.
+                        local._used.push_back( std::make_pair(drawableFid, box) );
+                        local._passed.push_back( leaf );
+
+                        if ( useScreenGrid )
+                            for ( int mapX = mapStartX ; mapX <= mapEndX ; ++mapX )
+                                for ( int mapY = mapStartY ; mapY <= mapEndY ; ++mapY )
+                                    _usedMap[mapX][mapY].push_back( local._used.back() );
+                    }
                 }
 
-                if ( visible )
-                {
-                    // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
-                    // to the final draw list.
-                    local._used.push_back( std::make_pair(drawableFid, box) );
-                    local._passed.push_back( leaf );
-                }
-
-                else
+                if ( ! visible )
                 {
                     // culled, so put the feature id in the culled list so that any future leaves
                     // with the same feature id will be trivially rejected
                     culledParents.insert(drawableFid);
                     local._failed.push_back( leaf );
                 }
-
-                offset = refCamScaleMat * offset;
-                osg::Matrix newModelView;
-                if (rot.zeroRotation())
-                {
-                    newModelView.makeTranslate(
-                                osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
-                    //newModelView.preMultScale(leaf->_modelview->getScale() * refCamScaleMat);
-                }
-                else
-                {
-                    newModelView.makeTranslate(
-                                osg::Vec3f(winPos.x() + offset.x(), winPos.y() + offset.y(), 0));
-                    //newModelView.preMultScale(leaf->_modelview->getScale() * refCamScaleMat);
-                    newModelView.preMultRotate(rot);
-
-                }
-
-                // Leaf modelview matrixes are shared (by objects in the traversal stack) so we
-                // cannot just replace it unfortunately. Have to make a new one. Perhaps a nice
-                // allocation pool is in order here
-                leaf->_modelview = new osg::RefMatrix(newModelView);
             }
-        }
+
+            // no declutter
+            else
+            {
+                // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
+                // to the final draw list.
+                local._used.push_back( std::make_pair(drawableFid, box) );
+                local._passed.push_back( leaf );
+            }
+
+            osg::Matrix newModelView;
+            newModelView.makeTranslate(static_cast<double>(anchorSc.x() + offset.x()), static_cast<double>(anchorSc.y() + offset.y()), 0);
+            if (! rot.zeroRotation())
+                newModelView.preMultRotate(rot);
+
+            // Leaf modelview matrixes are shared (by objects in the traversal stack) so we
+            // cannot just replace it unfortunately. Have to make a new one. Perhaps a nice
+            // allocation pool is in order here
+            leaf->_modelview = new osg::RefMatrix(newModelView);
+
+        } // end for each leaf
 
         // copy the final draw list back into the bin, rejecting any leaves whose parents
         // are in the cull list.
@@ -750,11 +763,8 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             {
                 osgUtil::RenderLeaf* leaf     = *i;
                 const osg::Drawable* drawable = leaf->getDrawable();
-//                const osg::Node* drawableParent = drawable->getNumParents() > 0 ? drawable->getParent(0) : 0L;
-                long drawableFid = -1;
                 const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
-                if ( layoutData )
-                    drawableFid = layoutData->getId();
+                long drawableFid = layoutData->getId();
 
                 if ( culledParents.find(drawableFid) == culledParents.end() )
                 {
@@ -763,27 +773,19 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                     bool fullyIn = true;
 
                     // scale in until at full scale:
-                    if ( info._lastScale != 1.0f )
+                    if ( info._lastScale != 1. )
                     {
                         fullyIn = false;
+                        if ( info._lastScale == 0. )
+                            info._lastScale = minAnimationScale;
                         info._lastScale += elapsedSeconds / osg::maximum(*options.inAnimationTime(), 0.001f);
-                        if ( info._lastScale > 1.0f )
-                            info._lastScale = 1.0f;
+                        if ( info._lastScale > 1. )
+                            info._lastScale = 1.;
                     }
 
-                    if ( info._lastScale != 1.0f )
-                        leaf->_modelview->preMult( osg::Matrix::scale(info._lastScale,info._lastScale,1) );
+                    if ( info._lastScale != 1. )
+                        leaf->_modelview->preMult( osg::Matrix::scale(info._lastScale, info._lastScale, 1) );
 
-                    // fade in until at full alpha:
-                    if ( info._lastAlpha != 1.0f )
-                    {
-                        fullyIn = false;
-                        info._lastAlpha += elapsedSeconds / osg::maximum(*options.inAnimationTime(), 0.001f);
-                        if ( info._lastAlpha > 1.0f )
-                            info._lastAlpha = 1.0f;
-                    }
-
-                    leaf->_depth = info._lastAlpha;
                     leaves.push_back( leaf );
 
                     info._frame++;
@@ -804,47 +806,56 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 
                 DrawableInfo& info = local._memory[drawable];
 
-                bool isText = dynamic_cast<const osgText::Text*>(drawable) != nullptr;
-                bool isBbox = dynamic_cast<const osgEarth::Annotation::BboxDrawable*>(drawable) != nullptr;
-                bool fullyOut = true;
-
                 if (info._frame > 0u)
                 {
-                    if ( info._lastScale != *options.minAnimationScale() )
+                    // the drawable is failed but has not reached its out animation
+                    if ( info._lastScale > minAnimationScale )
                     {
-                        fullyOut = false;
-                        info._lastScale -= elapsedSeconds / osg::maximum(*options.outAnimationTime(), 0.001f);
-                        if ( info._lastScale < *options.minAnimationScale() )
-                            info._lastScale = *options.minAnimationScale();
-                    }
+                        bool isText = dynamic_cast<const osgText::Text*>(drawable) != nullptr;
+                        bool isBbox = dynamic_cast<const osgEarth::Annotation::BboxDrawable*>(drawable) != nullptr;
 
-                    if ( info._lastAlpha != *options.minAnimationAlpha() )
-                    {
-                        fullyOut = false;
-                        info._lastAlpha -= elapsedSeconds / osg::maximum(*options.outAnimationTime(), 0.001f);
-                        if ( info._lastAlpha < *options.minAnimationAlpha() )
-                            info._lastAlpha = *options.minAnimationAlpha();
+                        // case out animation exists
+                        if ( *options.outAnimationTime() <= 0.001f)
+                        {
+                            if ( isText || isBbox )
+                                info._lastScale = 0.;
+                            else
+                                info._lastScale = minAnimationScale;
+                        }
+
+                        // case no out animation exists
+                        else
+                        {
+                            info._lastScale -= elapsedSeconds / osg::maximum(*options.outAnimationTime(), 0.001f);
+                            if ( info._lastScale <= minAnimationScale )
+                            {
+                                if ( isText || isBbox )
+                                    info._lastScale = 0.;
+                                else
+                                    info._lastScale = minAnimationScale;
+                            }
+                        }
                     }
                 }
                 else
                 {
+                    bool isText = dynamic_cast<const osgText::Text*>(drawable) != nullptr;
+                    bool isBbox = dynamic_cast<const osgEarth::Annotation::BboxDrawable*>(drawable) != nullptr;
+
                     // prevent first-frame "pop out"
-                    info._lastScale = options.minAnimationScale().get();
-                    info._lastAlpha = options.minAnimationAlpha().get();
+                    if ( isText || isBbox )
+                        info._lastScale = 0.;
+                    else
+                        info._lastScale = minAnimationScale;
                 }
 
-                leaf->_depth = info._lastAlpha;
-
-                if ( (!isText && !isBbox) || !fullyOut )
+                if ( info._lastScale > 0. )
                 {
-                    if ( info._lastAlpha > 0.01f && info._lastScale >= 0.0f )
-                    {
-                        leaves.push_back( leaf );
+                    leaves.push_back( leaf );
 
-                        // scale it:
-                        if ( info._lastScale != 1.0f )
-                            leaf->_modelview->preMult( osg::Matrix::scale(info._lastScale,info._lastScale,1) );
-                    }
+                    // scale it:
+                    if ( info._lastScale != 1. )
+                        leaf->_modelview->preMult( osg::Matrix::scale(info._lastScale, info._lastScale, 1) );
                 }
 
                 info._frame++;
@@ -863,7 +874,6 @@ struct MPDeclutterDraw : public osgUtil::RenderBin::DrawCallback
 {
     MPScreenSpaceLayoutContext*                 _context;
     PerThread< osg::ref_ptr<osg::RefMatrix> > _ortho2D;
-    osg::ref_ptr<osg::Uniform>                _fade;
 
     /**
      * Constructs the decluttering draw callback.
@@ -872,9 +882,6 @@ struct MPDeclutterDraw : public osgUtil::RenderBin::DrawCallback
     MPDeclutterDraw( MPScreenSpaceLayoutContext* context )
         : _context( context )
     {
-        // create the fade uniform.
-        _fade = new osg::Uniform( osg::Uniform::FLOAT, FADE_UNIFORM_NAME );
-        _fade->set( 1.0f );
     }
 
     /**
@@ -972,7 +979,7 @@ struct MPDeclutterDraw : public osgUtil::RenderBin::DrawCallback
         else
         {
             // apply state if required.
-            osgUtil::StateGraph::moveStateGraph(state,NULL,leaf->_parent->_parent);
+            osgUtil::StateGraph::moveStateGraph(state, nullptr, leaf->_parent->_parent);
 
             state.apply(leaf->_parent->getStateSet());
         }
@@ -982,22 +989,11 @@ struct MPDeclutterDraw : public osgUtil::RenderBin::DrawCallback
         if (state.getUseModelViewAndProjectionUniforms())
             state.applyModelViewAndProjectionUniformsIfRequired();
 
-        // apply the fading uniform
-        const osg::Program::PerContextProgram* pcp = state.getLastAppliedProgramObject();
-        if ( pcp )
-        {
-            // todo: find a way to optimize this..?
-            _fade->set( s_mp_declutteringEnabledGlobally ? leaf->_depth : 1.0f );
-            pcp->apply( *_fade.get() );
-        }
-
         // draw the drawable
         leaf->_drawable->draw(renderInfo);
 
         if (leaf->_dynamic)
-        {
             state.decrementDynamicObjectCount();
-        }
     }
 };
 }
@@ -1014,8 +1010,6 @@ class osgEarthMPScreenSpaceLayoutRenderBin : public osgUtil::RenderBin
 public:
     osgEarthMPScreenSpaceLayoutRenderBin()
     {
-        _vpInstalled = false;
-
         this->setName( OSGEARTH_MP_SCREEN_SPACE_LAYOUT_BIN );
         _context = new MPScreenSpaceLayoutContext();
         clearSortingFunctor();
@@ -1024,9 +1018,6 @@ public:
         // needs its own state set for special magic.
         osg::StateSet* stateSet = new osg::StateSet();
         this->setStateSet( stateSet );
-
-//        VirtualProgram* vp = VirtualProgram::getOrCreate(stateSet);
-//        vp->setFunction( "oe_declutter_apply_fade", s_faderFS, ShaderComp::LOCATION_FRAGMENT_COLORING, 0.5f );
     }
 
     osgEarthMPScreenSpaceLayoutRenderBin(const osgEarthMPScreenSpaceLayoutRenderBin& rhs, const osg::CopyOp& copy)
@@ -1034,20 +1025,6 @@ public:
           _f(rhs._f.get()),
           _context(rhs._context.get())
     {
-        // Set up a VP to do fading. Do it here so it doesn't happen until the first time
-        // we clone the render bin. This play nicely with static initialization.
-        if (!_vpInstalled)
-        {
-            Threading::ScopedMutexLock lock(_vpMutex);
-            if (!_vpInstalled)
-            {
-                VirtualProgram* vp = VirtualProgram::getOrCreate(getStateSet());
-                vp->setName("ScreenSpaceLayout");
-                vp->setFunction( "oe_declutter_apply_fade", s_faderFS, ShaderComp::LOCATION_FRAGMENT_COLORING, 0.5f );
-                _vpInstalled = true;
-                OE_INFO << LC << "Decluttering VP installed\n";
-            }
-        }
     }
 
     virtual osg::Object* clone(const osg::CopyOp& copyop) const
@@ -1068,12 +1045,8 @@ public:
 
     osg::ref_ptr<DeclutterSortFunctor> _f;
     osg::ref_ptr<MPScreenSpaceLayoutContext> _context;
-    static Threading::Mutex _vpMutex;
-    static bool _vpInstalled;
 };
 
-Threading::Mutex osgEarthMPScreenSpaceLayoutRenderBin::_vpMutex;
-bool osgEarthMPScreenSpaceLayoutRenderBin::_vpInstalled = false;
 
 //----------------------------------------------------------------------------
 
@@ -1150,6 +1123,12 @@ MPScreenSpaceLayout::setOptions( const ScreenSpaceLayoutOptions& options )
     if ( bin )
     {
         MPScreenSpaceLayout::setSortFunctor(new SortByPriority());
+
+        if ( options.useScreenGrid().get() )
+        {
+            OE_INFO << LC << "Decluttering will use a screen grid of " <<
+                       options.screenGridNbCol().get() << " * " <<options.screenGridNbRow().get() << "\n";
+        }
 
         // communicate the new options on the shared context.
         bin->_context->_options = options;

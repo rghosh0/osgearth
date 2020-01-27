@@ -45,6 +45,7 @@ public:
     long addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions);
 
     std::vector<unsigned int>& getDrawableList(long id) { return _drawableList[id]; }
+    std::map<long, std::vector<unsigned int>>& getDrawableList() { return _drawableList; }
 
     // Need a custom bounding sphere for the culling process
     virtual osg::BoundingSphere computeBound () const override;
