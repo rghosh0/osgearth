@@ -65,6 +65,11 @@ struct OSGEARTH_EXPORT MPScreenSpaceLayout
      */
     static const ScreenSpaceLayoutOptions& getOptions();
 
+    /**
+     * True if the extension has been loaded by default through the configuration file
+     */
+    static bool isExtensionLoaded();
+
 public: // advanced
 
     /**

@@ -140,6 +140,8 @@ typedef std::map<long, AnnotationInfo> AnnotationInfoList;
 
 static bool s_mp_declutteringEnabledGlobally = true;
 
+static bool s_mp_extension_loaded = false;
+
 }
 
 //----------------------------------------------------------------------------
@@ -1130,6 +1132,9 @@ MPScreenSpaceLayout::setOptions( const ScreenSpaceLayoutOptions& options )
                        options.screenGridNbCol().get() << " * " <<options.screenGridNbRow().get() << "\n";
         }
 
+        s_mp_extension_loaded = true;
+        OE_INFO << LC << "Use mp_screen_annotations as default text provider\n";
+
         // communicate the new options on the shared context.
         bin->_context->_options = options;
     }
@@ -1150,6 +1155,13 @@ MPScreenSpaceLayout::getOptions()
         return s_defaultOptions;
 }
 
+bool
+MPScreenSpaceLayout::isExtensionLoaded()
+{
+    return s_mp_extension_loaded;
+}
+
+
 //----------------------------------------------------------------------------
 
 /** the actual registration. */
@@ -1166,7 +1178,7 @@ class MPScreenSpaceLayoutExtension : public Extension,
         public ScreenSpaceLayoutOptions
 {
 public:
-    META_OE_Extension(osgEarth, MPScreenSpaceLayoutExtension, mp_screen_space_layout);
+    META_OE_Extension(osgEarth, MPScreenSpaceLayoutExtension, mp_screen_space_layout)
     //META_OE_Extension(osgEarth, MPScreenSpaceLayoutExtension, screen_space_layout);
 
     MPScreenSpaceLayoutExtension() { }

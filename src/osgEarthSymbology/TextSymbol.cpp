@@ -66,7 +66,6 @@ TextSymbol::TextSymbol( const Config& conf ) :
                                              _size                 ( 16.0f ),
                                              _alignment            ( ALIGN_BASE_LINE ),
                                              _layout               ( LAYOUT_LEFT_TO_RIGHT ),
-                                             _provider             ( "annotation" ),
                                              _encoding             ( ENCODING_ASCII ),
                                              _declutter            ( true ),
                                              _occlusionCull        ( false ),
