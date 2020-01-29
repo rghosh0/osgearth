@@ -144,9 +144,9 @@ public:
             // tag the drawables for that the feature can be retrieved when picking
             if ( context.featureIndex() )
             {
-                std::vector<unsigned int> drawableList = root->getDrawableList(id);
-                for (auto index : drawableList )
-                    context.featureIndex()->tagDrawable(root->getChild(index)->asDrawable(), feature);
+                std::vector<MPAnnotationGroup::AnnoInfo> drawableList = root->getDrawableList(id);
+                for (auto iAnno : drawableList )
+                    context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
             }
         }
 

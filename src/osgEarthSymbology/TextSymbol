@@ -184,6 +184,10 @@ public:
     inline optional<double>& attachedLabelDecimationTolerance() { return _attachedLabelDecimationTolerance; }
     inline const optional<double>& attachedLabelDecimationTolerance() const { return _attachedLabelDecimationTolerance; }
 
+    /** The minimum range altitude for the text and its bbox to display */
+    optional<double>& minRange() { return _minRange; }
+    const optional<double>& minRange() const { return _minRange; }
+
 public:
     virtual Config getConfig() const;
     virtual void mergeConfig( const Config& conf );
@@ -214,6 +218,7 @@ protected:
     optional<StringExpression>  _autoOffsetGeomWKT;
     optional<bool>              _attachedLabel;
     optional<double>            _attachedLabelDecimationTolerance;
+    optional<double>            _minRange;
 };
 
 } } // namespace osgEarth::Symbology

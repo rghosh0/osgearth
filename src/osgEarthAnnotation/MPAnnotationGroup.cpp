@@ -72,27 +72,34 @@ public:
             double vpXmax = cullVisitor->getViewport()->x() + cullVisitor->getViewport()->width();
             double vpYmin = cullVisitor->getViewport()->y();
             double vpYmax = cullVisitor->getViewport()->y() + cullVisitor->getViewport()->height();
+            double alt = DBL_MAX;
+            cullVisitor->getCurrentCamera()->getUserValue("altitude", alt);
+
             MPAnnotationGroup* annoGroup = static_cast<MPAnnotationGroup*>(node);
 
             for ( auto const &anno : annoGroup->getDrawableList() )
             {
                 if ( ! anno.second.empty() )
                 {
-                    ScreenSpaceLayoutData* ssld = static_cast<ScreenSpaceLayoutData*>((annoGroup->getChild(anno.second[0]))->getUserData());
+                    ScreenSpaceLayoutData* ssld = static_cast<ScreenSpaceLayoutData*>((annoGroup->getChild(anno.second[0].index))->getUserData());
                     ssld->_cull_anchorOnScreen = ssld->_anchorPoint * MVPW;
-                    if ( ssld->isAutoFollowLine() )
-                        continue;
-
-                    osg::Node::NodeMask nodeMask = 0xffffffff;
-                    ssld->_cull_bboxSymOnScreen.set(ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._min, ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._max);
-                    if (osg::maximum(ssld->_cull_bboxSymOnScreen.xMin(), vpXmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.xMax(), vpXmax) ||
-                        osg::maximum(ssld->_cull_bboxSymOnScreen.yMin(), vpYmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.yMax(), vpYmax) )
+                    if ( ! ssld->isAutoFollowLine() )
                     {
-                        nodeMask = 0;
+                        ssld->_cull_bboxSymOnScreen.set(ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._min, ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._max);
+
+                        // out of viewport
+                        if (osg::maximum(ssld->_cull_bboxSymOnScreen.xMin(), vpXmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.xMax(), vpXmax) ||
+                            osg::maximum(ssld->_cull_bboxSymOnScreen.yMin(), vpYmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.yMax(), vpYmax) )
+                        {
+                            for (auto iAnno : anno.second)
+                                annoGroup->getChild(iAnno.index)->setNodeMask(0);
+                            continue;
+                        }
                     }
 
-                    for (auto i : anno.second)
-                        annoGroup->getChild(i)->setNodeMask(nodeMask);
+                    osg::Node::NodeMask nodeMaskOff = 0xffffffff;
+                    for (auto iAnno : anno.second)
+                        annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeMaskOff : 0);
                 }
             }
 
@@ -119,7 +126,8 @@ MPAnnotationGroup::MPAnnotationGroup() : osg::Group()
 
             // stateset stuff
             _rootStateSet->setAttributeAndModes(new osg::Depth(osg::Depth::ALWAYS, 0, 1, false), 1);
-            _rootStateSet->setDefine(OE_LIGHTING_DEFINE, osg::StateAttribute::OFF | osg::StateAttribute::PROTECTED);
+            _rootStateSet->setDefine( OE_LIGHTING_DEFINE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
+            _rootStateSet->setMode( GL_CULL_FACE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED );
             _rootStateSet->setMode( GL_BLEND, osg::StateAttribute::ON );
         }
     }
@@ -287,9 +295,9 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     // Build text
 
     osg::ref_ptr<osgText::Text> textDrawable;
-    if ( style.has<TextSymbol>() )
+    const TextSymbol* textSymbol = style.get<TextSymbol>();
+    if ( textSymbol )
     {
-        const TextSymbol* textSymbol = style.get<TextSymbol>();
         TextSymbol::Alignment textAlignment = TextSymbol::Alignment::ALIGN_LEFT_CENTER;
         if ( image.valid() && textSymbol->alignment().isSet() )
             textAlignment = textSymbol->alignment().value();
@@ -351,21 +359,14 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     // ----------------------
     // Common settings
 
-    if ( bboxDrawable.valid() )
-    {
-        bboxDrawable->setCullingActive(false);
-        bboxDrawable->setDataVariance(osg::Object::DYNAMIC);
-        bboxDrawable->setUserData(dataLayout);
-        this->addChild( bboxDrawable );
-        _drawableList[id].push_back(this->getNumChildren()-1);
-    }
+    double minRange = textSymbol->minRange().isSet() ? textSymbol->minRange().value() : DBL_MAX;
     if ( imageDrawable.valid() )
     {
         imageDrawable->setCullingActive(false);
         imageDrawable->setDataVariance(osg::Object::DYNAMIC);
         imageDrawable->setUserData(dataLayout);
         this->addChild( imageDrawable );
-        _drawableList[id].push_back(this->getNumChildren()-1);
+        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1));
     }
     if (  textDrawable.valid() )
     {
@@ -373,9 +374,16 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         textDrawable->setDataVariance(osg::Object::DYNAMIC);
         textDrawable->setUserData(dataLayout);
         this->addChild( textDrawable );
-        _drawableList[id].push_back(this->getNumChildren()-1);
+        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, minRange));
     }
-
+    if ( bboxDrawable.valid() )
+    {
+        bboxDrawable->setCullingActive(false);
+        bboxDrawable->setDataVariance(osg::Object::DYNAMIC);
+        bboxDrawable->setUserData(dataLayout);
+        this->addChild( bboxDrawable );
+        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, minRange));
+    }
     // layout data for screenspace information
     updateLayoutData(dataLayout, style, geom);
 
@@ -506,5 +514,5 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
 
     // global BBox
     for ( auto i : _drawableList[dataLayout->getId()] )
-        dataLayout->expandBboxBy(this->getChild(i)->asDrawable()->getBoundingBox());
+        dataLayout->expandBboxBy(this->getChild(i.index)->asDrawable()->getBoundingBox());
 }

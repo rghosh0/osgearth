@@ -41,11 +41,22 @@ public:
 
     MPAnnotationGroup();
 
+    struct AnnoInfo
+    {
+        AnnoInfo(unsigned int i) : index{i} {}
+        AnnoInfo(unsigned int i, double minimumRange) : index{i}, minRange{minimumRange} {}
+
+        // index in the parent list
+        unsigned int index{0};
+        // min range for displaying the drawable
+        double minRange{DBL_MAX};
+    };
+
     // Add an annotation (list of drawables corresponding to one feature)
     long addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions);
 
-    std::vector<unsigned int>& getDrawableList(long id) { return _drawableList[id]; }
-    std::map<long, std::vector<unsigned int>>& getDrawableList() { return _drawableList; }
+    std::vector<AnnoInfo>& getDrawableList(long id) { return _drawableList[id]; }
+    std::map<long, std::vector<AnnoInfo>>& getDrawableList() { return _drawableList; }
 
     // Need a custom bounding sphere for the culling process
     virtual osg::BoundingSphere computeBound () const override;
@@ -59,7 +70,7 @@ protected:
 
 protected:
 
-    std::map<long, std::vector<unsigned int>> _drawableList;
+    std::map<long, std::vector<AnnoInfo>> _drawableList;
 
     static osg::observer_ptr<osg::StateSet> s_rootStateSet;
     osg::ref_ptr<osg::StateSet> _rootStateSet;

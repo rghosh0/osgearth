@@ -172,8 +172,25 @@ _filters          ( filters )
             // note: "Directly" above means _spatialFilter takes ownership if ring handle
         }
 
+        if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
+        {
+            OE_DEBUG << LC << "SQL: " << expr << std::endl;
+            if (_spatialFilter)
+            {
+                char* buf;
+                if (OGR_G_ExportToWkt( _spatialFilter, &buf ) == OGRERR_NONE)
+                {
+                    std::string spatialFilter = std::string(buf);
+                    OE_DEBUG << LC << "    with spatialFilter : " << spatialFilter << std::endl;
+                    OGRFree( buf );
+                }
+            }
+            else
+            {
+                OE_DEBUG << LC << "    with spatialFilter : none" << std::endl;
+            }
+        }
 
-        OE_DEBUG << LC << "SQL: " << expr << std::endl;
         _resultSetHandle = OGR_DS_ExecuteSQL( _dsHandle, expr.c_str(), _spatialFilter, 0L );
 
         if ( _resultSetHandle )

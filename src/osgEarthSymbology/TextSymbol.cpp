@@ -25,7 +25,7 @@
 using namespace osgEarth;
 using namespace osgEarth::Symbology;
 
-OSGEARTH_REGISTER_SIMPLE_SYMBOL(text, TextSymbol);
+OSGEARTH_REGISTER_SIMPLE_SYMBOL(text, TextSymbol)
 
 TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            Symbol(rhs, copyop),
@@ -52,7 +52,8 @@ TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _autoRotateAlongLine(rhs._autoRotateAlongLine),
                                                                            _autoOffsetGeomWKT(rhs._autoOffsetGeomWKT),
                                                                            _attachedLabel(rhs._attachedLabel),
-                                                                           _attachedLabelDecimationTolerance(rhs._attachedLabelDecimationTolerance)
+                                                                           _attachedLabelDecimationTolerance(rhs._attachedLabelDecimationTolerance),
+                                                                           _minRange(rhs._minRange)
 {
 }
 
@@ -75,7 +76,8 @@ TextSymbol::TextSymbol( const Config& conf ) :
                                              _autoOffsetAlongLine  ( false ),
                                              _autoRotateAlongLine  ( false ),
                                              _attachedLabel        ( false ),
-                                             _attachedLabelDecimationTolerance( false )
+                                             _attachedLabelDecimationTolerance( false ),
+                                             _minRange             ( DBL_MAX )
 {
     mergeConfig(conf);
 }
@@ -155,6 +157,8 @@ TextSymbol::getConfig() const
     conf.set( "attached-label", _attachedLabel );
     conf.set( "attached-label-decimation-tolerance", _attachedLabelDecimationTolerance );
 
+    conf.set( "text-min-range", _minRange );
+
     return conf;
 }
 
@@ -230,6 +234,8 @@ TextSymbol::mergeConfig( const Config& conf )
 
     conf.get( "attached-label", _attachedLabel );
     conf.get( "attached-label-decimation-tolerance", _attachedLabelDecimationTolerance );
+
+    conf.get( "min-range", _minRange );
 }
 
 
@@ -391,5 +397,8 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "text-attached-label-decimation-tolerance") ) {
         style.getOrCreate<TextSymbol>()->attachedLabelDecimationTolerance() = as<bool>(c.value(), defaults.attachedLabelDecimationTolerance().get() );
+    }
+    else if ( match(c.key(), "text-min-range") ) {
+        style.getOrCreate<TextSymbol>()->minRange() = as<double>(c.value(), defaults.minRange().get() );
     }
 }
