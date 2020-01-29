@@ -115,7 +115,7 @@ BBoxSymbol::parseSLD(const Config& c, Style& style)
             style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ROUNDED;
         }
     }
-    else if ( match(c.key(), "bbox-group") ) {
+    else if ( match(c.key(), "text-bbox-group") ) {
         if      ( match(c.value(), "none") ) {
             style.getOrCreate<BBoxSymbol>()->group() = GROUP_NONE;
         }
