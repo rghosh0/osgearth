@@ -5,6 +5,8 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 #pragma vp_location vertex_view
 #pragma vp_order last
 
+uniform mat4 osg_ViewMatrix ;
+
 uniform vec2 oe_LineDrawable_limits;
 flat out int oe_LineDrawable_draw;
 out float oe_LineDrawable_backFaceCulled_Frag;
@@ -17,6 +19,8 @@ in vec3 oe_LineDrawable_next;
 vec4 oe_LineDrawable_prevView;
 vec4 oe_LineDrawable_nextView;
 bool oe_LineDrawable_backFaceCulled;
+
+
 
 
 void oe_LineDrawable_VS_VIEW(inout vec4 currView)
@@ -45,8 +49,9 @@ void oe_LineDrawable_VS_VIEW(inout vec4 currView)
     oe_LineDrawable_prevView = gl_ModelViewMatrix * vec4(oe_LineDrawable_prev,1) + deltaView;
     oe_LineDrawable_nextView = gl_ModelViewMatrix * vec4(oe_LineDrawable_next,1) + deltaView;
        
-    // here we compute the orientation of the 3 line vertices relative to the earth center to do backface culling    
-    vec4 earthCenterView=gl_ModelViewMatrix *vec4(0.0,0.0,0.0,1.0);
+    // here we compute the orientation of the 3 line vertices relative to the earth center to do backface culling  
+ 
+    vec4 earthCenterView=osg_ViewMatrix *vec4(0.0,0.0,0.0,1.0); //compute the earth view center with the view matrix
     //this normal computation is done in the shader side to avoid transmitting a normal array 
     vec4 prevNorm=oe_LineDrawable_prevView-earthCenterView;
     vec4 nextNorm=oe_LineDrawable_nextView-earthCenterView;
