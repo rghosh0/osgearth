@@ -302,9 +302,18 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         if ( image.valid() && textSymbol->alignment().isSet() )
             textAlignment = textSymbol->alignment().value();
 
+        osg::BoundingBox imageBoxWithMargin{imageBox};
+
+        if ( icon && icon->margin().isSet() )
+        {
+            const float margin{icon->margin().value()};
+            imageBoxWithMargin.expandBy({imageBox.xMin() - margin, imageBox.yMin() - margin, imageBox.zMin()});
+            imageBoxWithMargin.expandBy({imageBox.xMax() + margin, imageBox.yMax() + margin, imageBox.zMax()});
+        }
+
         std::string text = textSymbol->content()->eval();
         if ( ! text.empty() )
-            textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBox );
+            textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBoxWithMargin );
     }
 
     // ----------------------
