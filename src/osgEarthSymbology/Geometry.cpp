@@ -21,6 +21,7 @@
 */
 #include <osgEarthSymbology/Geometry>
 #include <osgEarthSymbology/GEOS>
+#include <osgEarth/GeoMath>
 #include <algorithm>
 #include <iterator>
 
@@ -709,6 +710,21 @@ LineString::getSegment(double length, osg::Vec3d& start, osg::Vec3d& end)
     return false;
 }
 
+osg::Vec3d
+LineString::getCentroid() const
+{
+    double latRad = 0.;
+    double longRad = 0.;
+    if ( size() > 1 )
+        GeoMath::midpoint( osg::DegreesToRadians((*this)[0].y()),
+                            osg::DegreesToRadians((*this)[0].x()),
+                            osg::DegreesToRadians((*this)[1].y()),
+                            osg::DegreesToRadians((*this)[1].x()),
+                            latRad, longRad);
+
+     return osg::Vec3d(osg::RadiansToDegrees(longRad), osg::RadiansToDegrees(latRad), 0. );
+}
+
 void
 LineString::close()
 {
@@ -1024,6 +1040,12 @@ MultiGeometry::removeColinearPoints()
     {
         i->get()->removeColinearPoints();
     }
+}
+
+osg::Vec3d
+MultiGeometry::getCentroid() const
+{
+    return _parts.front()->getCentroid();
 }
 
 //----------------------------------------------------------------------------

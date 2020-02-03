@@ -110,6 +110,7 @@ public:
     osg::BoundingBox _bboxSymetric;
 
     osg::Vec3d          _cull_anchorOnScreen;
+    double              _cull_rotationRadOnScreen;
     osg::BoundingBoxd   _cull_bboxSymOnScreen;
 
 public:

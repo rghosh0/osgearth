@@ -28,7 +28,7 @@
 #include <osgEarthFeatures/GeometryUtils>
 #include <osg/Depth>
 
-#define LC "[MPAnnoLabelSource] "
+#define LC "[MPAnnotationGroup] "
 
 using namespace osgEarth;
 using namespace osgEarth::Annotation;
@@ -81,7 +81,7 @@ public:
             {
                 if ( ! anno.second.empty() )
                 {
-                    ScreenSpaceLayoutData* ssld = static_cast<ScreenSpaceLayoutData*>((annoGroup->getChild(anno.second[0].index))->getUserData());
+                    ScreenSpaceLayoutData* ssld = anno.second[0].globalSsld;
                     ssld->_cull_anchorOnScreen = ssld->_anchorPoint * MVPW;
                     if ( ! ssld->isAutoFollowLine() )
                     {
@@ -95,9 +95,18 @@ public:
                                 annoGroup->getChild(iAnno.index)->setNodeMask(0);
                             continue;
                         }
+
+                        // in viewport
+                        // compute the screen angle if necessary
+                        if ( ssld->isAutoRotate() )
+                        {
+                            osg::Vec3d anchorToProj = ssld->_lineEnd * MVPW;
+                            anchorToProj -= ssld->_cull_anchorOnScreen;
+                            ssld->_cull_rotationRadOnScreen = atan2(anchorToProj.y(), anchorToProj.x());
+                        }
                     }
 
-                    osg::Node::NodeMask nodeMaskOff = 0xffffffff;
+                    static const osg::Node::NodeMask nodeMaskOff = 0xffffffff;
                     for (auto iAnno : anno.second)
                         annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeMaskOff : 0);
                 }
@@ -375,7 +384,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         imageDrawable->setDataVariance(osg::Object::DYNAMIC);
         imageDrawable->setUserData(dataLayout);
         this->addChild( imageDrawable );
-        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1));
+        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, dataLayout));
     }
     if (  textDrawable.valid() )
     {
@@ -383,7 +392,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         textDrawable->setDataVariance(osg::Object::DYNAMIC);
         textDrawable->setUserData(dataLayout);
         this->addChild( textDrawable );
-        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, minRange));
+        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, dataLayout, minRange));
     }
     if ( bboxDrawable.valid() )
     {
@@ -391,7 +400,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         bboxDrawable->setDataVariance(osg::Object::DYNAMIC);
         bboxDrawable->setUserData(dataLayout);
         this->addChild( bboxDrawable );
-        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, minRange));
+        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, dataLayout, minRange));
     }
     // layout data for screenspace information
     updateLayoutData(dataLayout, style, geom);
@@ -408,8 +417,8 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
 
     const TextSymbol* ts = style.get<TextSymbol>();
 
-    // the anchor point in world coordinates
-    const osg::Vec3d center = geom->getBounds().center();
+    // compute the anchor point as the centroid of the geometry
+    const osg::Vec3d center = geom->getCentroid();
     GeoPoint pos( osgEarth::SpatialReference::get("wgs84"), center.x(), center.y(), center.z(), ALTMODE_ABSOLUTE );
     osg::Vec3d p0;
     pos.toWorld(p0);
@@ -427,9 +436,22 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
     // orientation
     // technic is to create a at 2500m from the anchor with the given bearing
     // then the projection in screenspace of both points will be used to compute the screen-space angle
-    if (ts->geographicCourse().isSet() )
+    if (ts->geographicCourse().isSet() || ts->autoRotateAlongLine().isSetTo(true))
     {
-        double labelRotationRad = osg::DegreesToRadians ( ts->geographicCourse()->eval() );
+        double labelRotationRad = DBL_MAX;
+        if (ts->geographicCourse().isSet())
+        {
+            labelRotationRad = osg::DegreesToRadians ( ts->geographicCourse()->eval() );
+        }
+        else
+        {
+            // get end point
+            osg::Vec3d geomEnd = geom->getType() != Geometry::TYPE_MULTI ? geom->back() : static_cast<MultiGeometry*>(geom)->getComponents().front()->back();
+            labelRotationRad = GeoMath::bearing(osg::DegreesToRadians(pos.y()),
+                                                osg::DegreesToRadians(pos.x()),
+                                                osg::DegreesToRadians(geomEnd.y()),
+                                                osg::DegreesToRadians(geomEnd.x()));
+        }
 
         double latRad;
         double longRad;
@@ -458,11 +480,18 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
     Geometry* geomSupport = nullptr;
     LineString* geomLineString = nullptr;
 
-    if( ts->autoOffsetGeomWKT().isSet() )
+    if( ts->autoOffsetAlongLine().get() )
     {
-        std::string lineSupport = ts->autoOffsetGeomWKT()->eval();
-        if (! lineSupport.empty() )
-            geomSupport = osgEarth::Features::GeometryUtils::geometryFromWKT(lineSupport);
+        if( ts->autoOffsetGeomWKT().isSet() )
+        {
+            std::string lineSupport = ts->autoOffsetGeomWKT()->eval();
+            if (! lineSupport.empty() )
+                geomSupport = osgEarth::Features::GeometryUtils::geometryFromWKT(lineSupport);
+        }
+        else
+        {
+            geomSupport = geom;
+        }
     }
 
     if( (ts->autoOffsetGeomWKT().isSet() || ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get())

@@ -134,6 +134,12 @@ namespace osgEarth { namespace Symbology
         virtual Bounds getBounds() const;
 
         /**
+         * Gets centroid of this geometry
+         * By default it is only the center of the boundingbox
+         */
+        virtual osg::Vec3d getCentroid() const { return getBounds().center(); }
+
+        /**
          * Length of the [outermost] geometry.
          */
         virtual double getLength() const;
@@ -285,6 +291,8 @@ namespace osgEarth { namespace Symbology
 
         virtual void close();
 
+        virtual osg::Vec3d getCentroid() const;
+
     public:
         virtual Type getType() const { return Geometry::TYPE_LINESTRING; }
         virtual bool isValid() const { return size() >= 2; }
@@ -407,6 +415,7 @@ namespace osgEarth { namespace Symbology
         virtual void rewind( Orientation ori );
         virtual void removeColinearPoints();
         virtual void close();
+        virtual osg::Vec3d getCentroid() const;
 
     public:
         GeometryCollection& getComponents() { return _parts; }

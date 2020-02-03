@@ -35,6 +35,7 @@
 #include <osgEarth/ShaderGenerator>
 #include <osgEarth/ShaderUtils>
 #include <osgEarth/Utils>
+#include <osgEarth/DrapeableNode>
 
 #include <osg/MatrixTransform>
 #include <osg/Timer>
@@ -463,7 +464,20 @@ GeometryCompiler::compile(FeatureList&          workingSet,
         if ( node )
         {
             if ( trackHistory ) history.push_back( "geometry" );
-            resultGroup->addChild( node );
+
+            // apply the drapeable here in case of mixing style (a screen space style with a real geometry style)
+            if (altitude && (text || icon) &&
+                altitude->clamping() == AltitudeSymbol::CLAMP_TO_TERRAIN &&
+                altitude->technique() == AltitudeSymbol::TECHNIQUE_DRAPE )
+            {
+                osg::Group* drapeableGroup = new DrapeableNode();
+                drapeableGroup->addChild( node );
+                resultGroup->addChild( drapeableGroup );
+            }
+            else
+            {
+                resultGroup->addChild( node );
+            }
         }
     }
 

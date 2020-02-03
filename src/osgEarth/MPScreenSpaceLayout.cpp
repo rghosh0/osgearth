@@ -63,27 +63,16 @@ struct SortByPriority : public DeclutterSortFunctor
 
         float lhsPriority = lhsdata->_priority ;
         float rhsPriority = rhsdata->_priority;
-        float diff = lhsPriority - rhsPriority;
-
-        if ( diff != 0.0f )
-            return diff > 0.0f;
-
-//        long lhsId = lhsdata->_id;
-//        long rhsId = rhsdata->_id;
-
-//        if ( lhsId == rhsId )
-//        {
-//            const osg::Group* parent = static_cast<const osg::Group*>(lhs->getDrawable()->getParent(0));
-//            return parent->getChildIndex(lhs->getDrawable()) > parent->getChildIndex(rhs->getDrawable());
-//        }
+        if ( lhsPriority != rhsPriority )
+            return lhsPriority > rhsPriority;
 
         // then fallback on traversal order.
 #if OSG_VERSION_GREATER_THAN(3,6,0)
-        diff = float(lhs->_traversalOrderNumber) - float(rhs->_traversalOrderNumber);
+        return lhs->_traversalOrderNumber < rhs->_traversalOrderNumber;
 #else
-        diff = float(lhs->_traversalNumber) - float(rhs->_traversalNumber);
-#endif
+        int diff = lhs->_traversalNumber - rhs->_traversalNumber;
         return diff < 0.0f;
+#endif
     }
 };
 
@@ -438,8 +427,6 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         const bool useScreenGrid = options.useScreenGrid().get();
         double mapSizeX = vp->width() / screenMapNbCol;
         double mapSizeY = vp->height() / screenMapNbRow;
-        //std::vector<RenderLeafBox> _usedMap[screenMapNbCol][screenMapNbRow];
-        //std::vector<RenderLeafBox> _usedMap[screenMapNbCol][screenMapNbRow];
         std::vector<std::vector<std::vector<RenderLeafBox>>> _usedMap(screenMapNbCol, std::vector<std::vector<RenderLeafBox>>(screenMapNbRow));
 
         // Track the features that are obscured (and culled). Drawables
@@ -463,10 +450,8 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         local._lastCamVPW = camVPW;
 
         osg::Vec3f offset;
-        osg::Vec3d offset1px(1., 1., 0.);
-        osg::Vec3d offset3px(3., 3., 0.);
-
-        AnnotationInfoList annoInfoList;
+        static const osg::Vec3d offset1px(1., 1., 0.);
+        static const osg::Vec3d offset3px(3., 3., 0.);
 
         // Go through each leaf and test for visibility.
         // Enforce the "max objects" limit along the way.
@@ -477,26 +462,6 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             osgUtil::RenderLeaf* leaf = *i;
             const osg::Drawable* drawable = leaf->getDrawable();
             const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
-
-            // do the treatment only once per annotation
-//            AnnotationInfo &annoInfo = annoInfoList[layoutData->getId()];
-//            if (annoInfo.isInitialized && annoInfo.isOutOfView)
-//            {
-//                continue;
-//            }
-
-            //osg::Vec3d anchorSc = layoutData->getAnchorPoint() * camVPW;
-            osg::Vec3d anchorSc = layoutData->_cull_anchorOnScreen;
-
-            // Check if the bbox of the full annotation is out of viewport
-//            osg::BoundingBoxd featureBox(anchorSc + layoutData->getBBoxSymetric()._min, anchorSc + layoutData->getBBoxSymetric()._max);
-//            if (osg::maximum(featureBox.xMin(), vpXMin) > osg::minimum(featureBox.xMax(), vpXMax) ||
-//                osg::maximum(featureBox.yMin(), vpYMin) > osg::minimum(featureBox.yMax(), vpYMax) )
-//            {
-//                annoInfo.isInitialized = true;
-//                annoInfo.isOutOfView = true;
-//                continue;
-//            }
 
             // transform the bounding box of the drawable into window-space.
             // (use parent bbox for line following algorithm)
@@ -513,58 +478,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             // and management of the label orientation (must be always readable)
             if (layoutData->isAutoRotate())
             {
-                osg::Vec3d anchorLoc = layoutData->getAnchorPoint();
-                osg::Vec3d anchorTo = layoutData->getLineEndPoint();
-
-                osg::Vec3d camToAnchorLoc = anchorLoc - eye;
-                osg::Vec3d camToAnchorTo = anchorTo - eye;
-
-                bool anchorLocIsBehindCam = camToAnchorLoc * look < 0.;
-                bool originalLocIsBehindCamera = anchorLocIsBehindCam;
-                bool anchorToIsBehindCam = camToAnchorTo * look < 0.;
-                bool invertAngle = false;
-
-                // check wether one side of the line has a better placement
-                if (anchorLocIsBehindCam && anchorToIsBehindCam)
-                {
-                    if (layoutData->isAutoFollowLine())
-                    {
-                        anchorTo = layoutData->getLineStartPoint();
-                        camToAnchorTo = anchorTo - eye;
-                        anchorToIsBehindCam = camToAnchorTo * look < 0.;
-                        if (!anchorToIsBehindCam)
-                            invertAngle = true;
-                    }
-                }
-
-                // Go closer to Anchor To
-                if (anchorLocIsBehindCam && !anchorToIsBehindCam)
-                    anchorLoc = anchorLoc + (anchorTo - anchorLoc) * 0.95;
-                // Go closer to Anchor From
-                else if (!anchorLocIsBehindCam && anchorToIsBehindCam)
-                    anchorTo = anchorTo + (anchorLoc - anchorTo) * 0.95;
-
-                // projection on screen for computing the angle
-                osg::Vec3d anchorFromProj = anchorLoc * camVPW;
-                osg::Vec3d anchorToProj = anchorTo * camVPW;
-                to = anchorToProj;
-                anchorToProj -= anchorFromProj;
-                if (invertAngle)
-                    anchorToProj = -anchorToProj;
-                angle = atan2(anchorToProj.y(), anchorToProj.x());
-
-                if (originalLocIsBehindCamera)
-                {
-                    anchorToProj.normalize();
-                    anchorToProj *= 10000.;
-                    anchorSc = to - anchorToProj;
-                }
-                else if (anchorToIsBehindCam)
-                {
-                    anchorToProj.normalize();
-                    anchorToProj *= 10000.;
-                    to = anchorFromProj + anchorToProj;
-                }
+                angle = layoutData->_cull_rotationRadOnScreen;
             }
 
             if ( isText && (angle < -osg::PI_2 || angle > osg::PI_2) )
@@ -599,7 +513,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 
             // adapt the offset for auto sliding label
             if (layoutData->isAutoFollowLine())
-                updateOffsetForAutoLabelOnLine(box, vp, anchorSc, layoutData, camVPW, offset, to);
+                updateOffsetForAutoLabelOnLine(box, vp, layoutData->_cull_anchorOnScreen, layoutData, camVPW, offset, to);
 
             // handle the local translation
             box.xMin() += offset.x();
@@ -612,17 +526,17 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 //            DrawableInfo& info = local._memory[drawable];
 //            float buffer = info._visible ? 1.0f : 3.0f;
             DrawableInfo& info = local._memory[drawable];
-            osg::Vec3d &buffer = info._visible ? offset1px : offset3px;
+            const osg::Vec3d &buffer = info._visible ? offset1px : offset3px;
 
 //            // The "declutter" box is the box we use to reserve screen space.
 //            // This must be unquantized regardless of whether snapToPixel is set.
 //            box.set(
-//                        floor(anchorSc.x() + box.xMin())-buffer,
-//                        floor(anchorSc.y() + box.yMin())-buffer,
-//                        anchorSc.z(),
-//                        ceil(anchorSc.x() + box.xMax())+buffer,
-//                        ceil(anchorSc.y() + box.yMax())+buffer,
-//                        anchorSc.z() );
+//                        floor(layoutData->_cull_anchorOnScreen.x() + box.xMin())-buffer,
+//                        floor(layoutData->_cull_anchorOnScreen.y() + box.yMin())-buffer,
+//                        layoutData->_cull_anchorOnScreen.z(),
+//                        ceil(layoutData->_cull_anchorOnScreen.x() + box.xMax())+buffer,
+//                        ceil(layoutData->_cull_anchorOnScreen.y() + box.yMax())+buffer,
+//                        layoutData->_cull_anchorOnScreen.z() );
 
 //            // if snapping is enabled, only snap when the camera stops moving.
 //            bool quantize = snapToPixel;
@@ -631,11 +545,11 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 //                // Quanitize the window draw coordinates to mitigate text rendering filtering anomalies.
 //                // Drawing text glyphs on pixel boundaries mitigates aliasing.
 //                // Adding 0.5 will cause the GPU to sample the glyph texels exactly on center.
-//                anchorSc.x() = floor(anchorSc.x()) + 0.5;
-//                anchorSc.y() = floor(anchorSc.y()) + 0.5;
+//                layoutData->_cull_anchorOnScreen.x() = floor(layoutData->_cull_anchorOnScreen.x()) + 0.5;
+//                layoutData->_cull_anchorOnScreen.y() = floor(layoutData->_cull_anchorOnScreen.y()) + 0.5;
 //            }
 
-            box.set( box._min + anchorSc - buffer, box._max + anchorSc + buffer);
+            box.set( box._min + layoutData->_cull_anchorOnScreen - buffer, box._max + layoutData->_cull_anchorOnScreen + buffer);
 
             int mapStartX,  mapStartY, mapEndX, mapEndY;
 
@@ -745,7 +659,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             }
 
             osg::Matrix newModelView;
-            newModelView.makeTranslate(static_cast<double>(anchorSc.x() + offset.x()), static_cast<double>(anchorSc.y() + offset.y()), 0);
+            newModelView.makeTranslate(static_cast<double>(layoutData->_cull_anchorOnScreen.x() + offset.x()), static_cast<double>(layoutData->_cull_anchorOnScreen.y() + offset.y()), 0);
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);
 

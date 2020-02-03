@@ -308,8 +308,10 @@ FeatureNodeFactory::getOrCreateStyleGroup(const Style& style,
     osg::Group* group = 0L;
 
     // If we're draping, the style group will be a DrapeableNode.
+    // (particular case if there is text and drape then the drape will be activated further in the process)
     const AltitudeSymbol* alt = style.get<AltitudeSymbol>();
-    if (alt &&
+    const TextSymbol* text = style.get<TextSymbol>();
+    if (alt && ! text &&
         alt->clamping() == AltitudeSymbol::CLAMP_TO_TERRAIN &&
         alt->technique() == AltitudeSymbol::TECHNIQUE_DRAPE )
     {

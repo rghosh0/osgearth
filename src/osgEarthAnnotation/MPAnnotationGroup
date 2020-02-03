@@ -43,13 +43,15 @@ public:
 
     struct AnnoInfo
     {
-        AnnoInfo(unsigned int i) : index{i} {}
-        AnnoInfo(unsigned int i, double minimumRange) : index{i}, minRange{minimumRange} {}
+        AnnoInfo(unsigned int i, ScreenSpaceLayoutData* ssld) : index{i}, globalSsld{ssld} {}
+        AnnoInfo(unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange) : index{i}, globalSsld{ssld}, minRange{minimumRange} {}
 
         // index in the parent list
         unsigned int index{0};
         // min range for displaying the drawable
         double minRange{DBL_MAX};
+        // ScreenSpaceLayoutData
+        osg::ref_ptr<ScreenSpaceLayoutData> globalSsld;
     };
 
     // Add an annotation (list of drawables corresponding to one feature)
