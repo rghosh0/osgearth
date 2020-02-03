@@ -30,14 +30,27 @@ using namespace osgEarth::Annotation;
 
 //------------------------------------------------------------------------
 
-BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol ) :
+BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol, const float& symbolWidth ) :
 osg::Geometry()
+, _deGlobal(nullptr)
+, _deReduced(nullptr)
+, _daGlobal(nullptr)
+, _daReduced(nullptr)
 {
+    float reducedWidth = symbolWidth < box.xMax() - box.xMin() ? symbolWidth : box.xMax() - box.xMin();
+
     setUseVertexBufferObjects(true);
 
     float margin = bboxSymbol.margin().isSet() ? bboxSymbol.margin().value() : 2.f;
     float shiftRight = 0.f;
     osg::Vec3Array* v = new osg::Vec3Array();
+
+    unsigned int indexMinRightSideFull = 0;
+    unsigned int indexMaxRightSideFull = 0;
+    unsigned int indexMinLeftSide = 0;
+    unsigned int indexMaxLeftSide = 0;
+    unsigned int indexMinRightSideReduced = 0;
+    unsigned int indexMaxRightSideReduced = 0;
 
     if ( bboxSymbol.geom().isSet() &&
          ( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ROUNDED ))
@@ -47,6 +60,8 @@ osg::Geometry()
         int sizeBeforePush = 0;
         float radius = ((box.yMax()-box.yMin())/2)+margin;
         osg::Vec3 center (box.xMax(),(box.yMax()+box.yMin())/2,0);
+
+        // Right side full
         v->push_back( osg::Vec3(box.xMax(), box.yMin()-margin, 0) );
         for (float angle = (3*osg::PI/2.f)+(osg::PI/2.f)/nbStep; angle <2.f*osg::PI ; angle += (osg::PI/2.f)/nbStep)
         {
@@ -60,13 +75,26 @@ osg::Geometry()
             dump = v->at(iterator);
             v->push_back(osg::Vec3(dump.x(), 2*center.y()-dump.y(), dump.z()));
         }
+        indexMaxRightSideFull = v->size() - 1;
         sizeBeforePush = v->size();
 
+        // Left side
+        indexMinLeftSide = indexMaxRightSideFull+1;
         for (int iterator = sizeBeforePush-1; iterator >= sizeBeforePush-nbStep*2-1; --iterator)
         {
             dump = v->at(iterator);
             v->push_back(osg::Vec3(2*center.x()-dump.x()-(box.xMax()-box.xMin()), dump.y(), dump.z()));
         }
+        indexMaxLeftSide = v->size() - 1;
+
+        // Right Side reduced
+        indexMinRightSideReduced =  indexMaxLeftSide+1;
+        for (int iterator = 0; iterator <= sizeBeforePush-1; ++iterator)
+        {
+            dump = v->at(iterator);
+            v->push_back(osg::Vec3(dump.x() - (box.xMax()-box.xMin()) + reducedWidth, dump.y(), dump.z()));
+        }
+        indexMaxRightSideReduced = v->size() - 1;
     }
     else  {
 
@@ -86,6 +114,9 @@ osg::Geometry()
         v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0) );
         v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0) );
         v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMin()-margin, 0) );
+        // Right side points with reduced width
+        v->push_back( osg::Vec3(box.xMin()+reducedWidth+margin+shiftRight, box.yMax()+margin, 0) );
+        v->push_back( osg::Vec3(box.xMin()+reducedWidth+margin+shiftRight, box.yMin()-margin, 0) );
     }
 
     setVertexArray(v);
@@ -97,32 +128,43 @@ osg::Geometry()
     if ( bboxSymbol.fill().isSet() )
     {
         c->push_back( bboxSymbol.fill()->color() );
-        osg::DrawElements* de = new osg::DrawElementsUByte(GL_TRIANGLE_STRIP);
-        if ( v->size() == 4 )
+        _deGlobal = new osg::DrawElementsUByte(GL_TRIANGLE_STRIP);
+        _deReduced = new osg::DrawElementsUByte(GL_TRIANGLE_STRIP);
+        if ( v->size() == 6 )
         {
-            de->addElement(0);
-            de->addElement(1);
-            de->addElement(3);
-            de->addElement(2);
+            _deGlobal->addElement(0);
+            _deGlobal->addElement(1);
+            _deGlobal->addElement(3);
+            _deGlobal->addElement(2);
+
+            _deReduced->addElement(4);
+            _deReduced->addElement(1);
+            _deReduced->addElement(5);
+            _deReduced->addElement(2);
         }
         else
         {
-            de->addElement(0);
-            int prevIndex = 0;
-            int nextIndex = v->size() - 1;
-            bool up = true;
-            int step = 0;
-            while ( abs(nextIndex - prevIndex) >= 1)
+            unsigned int indexRight = indexMinRightSideFull;
+            unsigned int indexLeft = indexMaxLeftSide;
+            while (indexRight <= indexMaxRightSideFull && indexLeft >= indexMinLeftSide)
             {
-                de->addElement(nextIndex);
-                prevIndex = nextIndex;
-                up = !up;
-                if( ! up )
-                    step += 1;
-                nextIndex = up ? v->size() - 1 - step : step;
+                _deGlobal->addElement(indexRight);
+                _deGlobal->addElement(indexLeft);
+                indexRight++;
+                indexLeft--;
+            }
+
+            indexRight = indexMinRightSideReduced;
+            indexLeft = indexMaxLeftSide;
+            while (indexRight <= indexMaxRightSideReduced && indexLeft >= indexMinLeftSide)
+            {
+                _deReduced->addElement(indexRight);
+                _deReduced->addElement(indexLeft);
+                indexRight++;
+                indexLeft--;
             }
         }
-        addPrimitiveSet(de);
+        addPrimitiveSet(_deGlobal);
     }
 
     if ( bboxSymbol.border().isSet() )
@@ -130,11 +172,35 @@ osg::Geometry()
         c->push_back( bboxSymbol.border()->color() );
         if ( bboxSymbol.border()->width().isSet() )
             getOrCreateStateSet()->setAttribute( new osg::LineWidth( bboxSymbol.border()->width().value() ));
-        addPrimitiveSet( new osg::DrawArrays(GL_LINE_LOOP, 0, static_cast<int>(v->getNumElements())) );
+        if ( v->size() == 6 )
+        {
+            _daGlobal = new osg::DrawArrays(GL_LINE_LOOP, 0, 4);
+            _daReduced = new osg::DrawArrays(GL_LINE_LOOP, 2, 4);
+        }
+        else
+        {
+            _daGlobal = new osg::DrawArrays(GL_LINE_LOOP, 0, static_cast<int>(indexMaxLeftSide+1));
+            _daReduced = new osg::DrawArrays(GL_LINE_LOOP, static_cast<int>(indexMinLeftSide), static_cast<int>(indexMaxRightSideReduced-indexMinLeftSide+1));
+        }
+        addPrimitiveSet(_daGlobal);
     }
 
     setColorArray( c );
 
     // Disable culling since this bounding box will eventually be drawn in screen space.
     setCullingActive(false);
+}
+
+void BboxDrawable::setReducedSize(bool b)
+{
+    if (b)
+    {
+        setPrimitiveSet(0,_deReduced);
+        setPrimitiveSet(1,_daReduced);
+    }
+    else
+    {
+        setPrimitiveSet(0,_deGlobal);
+        setPrimitiveSet(1,_daGlobal);
+    }
 }
