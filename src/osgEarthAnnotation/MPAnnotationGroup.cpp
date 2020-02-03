@@ -336,6 +336,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
          && (textDrawable.valid() || imageDrawable.valid()) )
     {
         osg::BoundingBox groupBBox{};
+        float reducedWidth = 0.f;
 
         if ( imageDrawable.valid() && (bboxsymbol->geom() == BBoxSymbol::BboxGeom::GEOM_BOX_ROUNDED) &&
              ((bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY) ||
@@ -354,6 +355,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
 
             groupBBox.expandBy( {imageBB.center().x(), imageBB.center().y() - imageBB.radius(), imageBB.center().z(),
                                  imageBB.center().x(), imageBB.center().y() + imageBB.radius(), imageBB.center().z()} );
+            reducedWidth = imageBB.xMax() - imageBB.xMin();
         }
         else
         {
@@ -369,10 +371,11 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
                                    bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT) )
             {
                 groupBBox.expandBy( imageDrawable->getBoundingBox() );
+                reducedWidth = imageDrawable->getBoundingBox().xMax() - imageDrawable->getBoundingBox().xMin();
             }
         }
 
-        bboxDrawable = new BboxDrawable( groupBBox, *bboxsymbol );
+        bboxDrawable = new BboxDrawable( groupBBox, *bboxsymbol, reducedWidth );
     }
 
     // ----------------------
