@@ -96,7 +96,8 @@ osg::Geometry()
     osg::Vec4Array* c = new osg::Vec4Array(osg::Array::BIND_PER_PRIMITIVE_SET);
     if ( bboxSymbol.fill().isSet() )
     {
-        c->push_back( bboxSymbol.fill()->color() );
+        _originalFillColor = bboxSymbol.fill()->color();
+        c->push_back( _originalFillColor );
         osg::DrawElements* de = new osg::DrawElementsUByte(GL_TRIANGLE_STRIP);
         if ( v->size() == 4 )
         {
@@ -127,7 +128,8 @@ osg::Geometry()
 
     if ( bboxSymbol.border().isSet() )
     {
-        c->push_back( bboxSymbol.border()->color() );
+        _originalStrokeColor = bboxSymbol.border()->color();
+        c->push_back( _originalStrokeColor );
         if ( bboxSymbol.border()->width().isSet() )
             getOrCreateStateSet()->setAttribute( new osg::LineWidth( bboxSymbol.border()->width().value() ));
         addPrimitiveSet( new osg::DrawArrays(GL_LINE_LOOP, 0, static_cast<int>(v->getNumElements())) );
@@ -137,4 +139,22 @@ osg::Geometry()
 
     // Disable culling since this bounding box will eventually be drawn in screen space.
     setCullingActive(false);
+}
+
+void
+BboxDrawable::setHighlight( bool highlight )
+{
+    if ( _isHighlight == highlight )
+        return;
+
+    osg::Vec4Array* c = static_cast<osg::Vec4Array*>(getColorArray());
+
+    // update bbox fill color
+    (*c)[0] = _isHighlight ? _highlightFillColor : _originalFillColor;
+
+    // update the stroke color if drawn
+    if ( c->size() == 2 )
+        (*c)[1] = _isHighlight ? _highlightStrokeColor : _originalStrokeColor;
+
+    _isHighlight = highlight;
 }

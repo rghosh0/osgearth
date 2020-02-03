@@ -37,6 +37,16 @@ namespace osgEarth { namespace Annotation
     {
     public:
         BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol& boxSymbol );
+
+        void setHighlight( bool highlight = true );
+        bool isHighlight() { return _isHighlight; }
+
+    protected:
+        osgEarth::Symbology::Color _highlightFillColor{ 0x3A6CAAFF };
+        osgEarth::Symbology::Color _originalFillColor;
+        osgEarth::Symbology::Color _highlightStrokeColor{ 0x4B96FFFF };
+        osgEarth::Symbology::Color _originalStrokeColor;
+        bool _isHighlight{false};
     };
 
 } } // namespace osgEarth::Annotation
