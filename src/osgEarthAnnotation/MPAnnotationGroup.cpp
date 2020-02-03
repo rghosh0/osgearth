@@ -99,7 +99,17 @@ public:
 
                     osg::Node::NodeMask nodeMaskOff = 0xffffffff;
                     for (auto iAnno : anno.second)
-                        annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeMaskOff : 0);
+                    {
+                       osg::Node* child = annoGroup->getChild(iAnno.index);
+                       BboxDrawable* bbox = dynamic_cast<BboxDrawable*>(child);
+                       if (bbox == nullptr)
+                          child->setNodeMask(alt < iAnno.minRange ? nodeMaskOff : 0);
+                       else
+                       {
+                           bbox->setNodeMask(nodeMaskOff);
+                           bbox->setReducedSize(alt >= iAnno.minRange);
+                       }
+                    }
                 }
             }
 

@@ -36,7 +36,13 @@ namespace osgEarth { namespace Annotation
     class OSGEARTHANNO_EXPORT BboxDrawable : public osg::Geometry
     {
     public:
-        BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol& boxSymbol );
+        BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol& boxSymbol, const float& symbolWidth = 0.f );
+
+        void setReducedSize(bool b);
+
+    private:
+        osg::DrawElements* _deGlobal;
+        osg::DrawElements* _deReduced;
     };
 
 } } // namespace osgEarth::Annotation
