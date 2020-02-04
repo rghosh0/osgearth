@@ -30,9 +30,13 @@ using namespace osgEarth::Annotation;
 
 //------------------------------------------------------------------------
 
-BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol ) :
+BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol, const float& symbolWidth ) :
 osg::Geometry()
 {
+    _widthReduction = symbolWidth < box.xMax() - box.xMin() ? box.xMax() - box.xMin() - symbolWidth : 0;
+    _indexEndRightSide = 0;
+    _sizeReduced = false;
+
     setUseVertexBufferObjects(true);
 
     float margin = bboxSymbol.margin().isSet() ? bboxSymbol.margin().value() : 2.f;
@@ -61,6 +65,7 @@ osg::Geometry()
             v->push_back(osg::Vec3(dump.x(), 2*center.y()-dump.y(), dump.z()));
         }
         sizeBeforePush = v->size();
+        _indexEndRightSide = v->size() - 1;
 
         for (int iterator = sizeBeforePush-1; iterator >= sizeBeforePush-nbStep*2-1; --iterator)
         {
@@ -157,4 +162,46 @@ BboxDrawable::setHighlight( bool highlight )
         (*c)[1] = _isHighlight ? _highlightStrokeColor : _originalStrokeColor;
 
     _isHighlight = highlight;
+}
+
+void BboxDrawable::setReducedSize(bool b)
+{
+    osg::Vec3Array* v = static_cast<osg::Vec3Array*>(getVertexArray());
+
+    if (b && _sizeReduced) return;
+    if (!b && !_sizeReduced) return;
+
+    if (b)
+    {
+        if ( v->size() == 4 )
+        {
+            v->at(0) = osg::Vec3(v->at(0).x()-_widthReduction, v->at(0).y(), v->at(0).z());
+            v->at(3) = osg::Vec3(v->at(3).x()-_widthReduction, v->at(3).y(), v->at(3).z());
+        }
+        else
+        {
+            for (unsigned int it = 0; it <= _indexEndRightSide; it++)
+            {
+                v->at(it) = osg::Vec3(v->at(it).x()-_widthReduction, v->at(it).y(), v->at(it).z());
+            }
+        }
+        _sizeReduced = true;
+    }
+    else
+    {
+        if ( v->size() == 4 )
+        {
+            v->at(0) = osg::Vec3(v->at(0).x()+_widthReduction, v->at(0).y(), v->at(0).z());
+            v->at(3) = osg::Vec3(v->at(3).x()+_widthReduction, v->at(3).y(), v->at(3).z());
+        }
+        else
+        {
+            for (unsigned int it = 0; it <= _indexEndRightSide; it++)
+            {
+                v->at(it) = osg::Vec3(v->at(it).x()+_widthReduction, v->at(it).y(), v->at(it).z());
+            }
+        }
+        _sizeReduced = false;
+    }
+    v->dirty();
 }
