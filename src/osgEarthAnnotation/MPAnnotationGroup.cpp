@@ -83,10 +83,10 @@ public:
                 {
                     ScreenSpaceLayoutData* ssld = anno.second[0].globalSsld;
                     ssld->_cull_anchorOnScreen = ssld->_anchorPoint * MVPW;
+                    ssld->_cull_bboxSymOnScreen.set(ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._min, ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._max);
+
                     if ( ! ssld->isAutoFollowLine() )
                     {
-                        ssld->_cull_bboxSymOnScreen.set(ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._min, ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._max);
-
                         // out of viewport
                         if (osg::maximum(ssld->_cull_bboxSymOnScreen.xMin(), vpXmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.xMax(), vpXmax) ||
                             osg::maximum(ssld->_cull_bboxSymOnScreen.yMin(), vpYmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.yMax(), vpYmax) )
@@ -95,15 +95,15 @@ public:
                                 annoGroup->getChild(iAnno.index)->setNodeMask(0);
                             continue;
                         }
+                    }
 
-                        // in viewport
-                        // compute the screen angle if necessary
-                        if ( ssld->isAutoRotate() )
-                        {
-                            osg::Vec3d anchorToProj = ssld->_lineEnd * MVPW;
-                            anchorToProj -= ssld->_cull_anchorOnScreen;
-                            ssld->_cull_rotationRadOnScreen = atan2(anchorToProj.y(), anchorToProj.x());
-                        }
+                    // in viewport
+                    // compute the screen angle if necessary
+                    if ( ssld->isAutoRotate() )
+                    {
+                        osg::Vec3d anchorToProj = ssld->_lineEnd * MVPW;
+                        anchorToProj -= ssld->_cull_anchorOnScreen;
+                        ssld->_cull_rotationRadOnScreen = atan2(anchorToProj.y(), anchorToProj.x());
                     }
 
                     static const osg::Node::NodeMask nodeMaskOff = 0xffffffff;
@@ -449,7 +449,7 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
     // orientation
     // technic is to create a at 2500m from the anchor with the given bearing
     // then the projection in screenspace of both points will be used to compute the screen-space angle
-    if (ts->geographicCourse().isSet() || ts->autoRotateAlongLine().isSetTo(true))
+    if (ts->geographicCourse().isSet() || (ts->autoRotateAlongLine().isSetTo(true) && ! ts->autoOffsetGeomWKT().isSet() ) )
     {
         double labelRotationRad = DBL_MAX;
         if (ts->geographicCourse().isSet())
