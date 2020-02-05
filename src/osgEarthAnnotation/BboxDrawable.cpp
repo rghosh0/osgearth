@@ -166,23 +166,22 @@ BboxDrawable::setHighlight( bool highlight )
 
 void BboxDrawable::setReducedSize(bool b)
 {
-    osg::Vec3Array* v = static_cast<osg::Vec3Array*>(getVertexArray());
+    if (b == _sizeReduced) return;
 
-    if (b && _sizeReduced) return;
-    if (!b && !_sizeReduced) return;
+    osg::Vec3Array* v = static_cast<osg::Vec3Array*>(getVertexArray());
 
     if (b)
     {
         if ( v->size() == 4 )
         {
-            v->at(0) = osg::Vec3(v->at(0).x()-_widthReduction, v->at(0).y(), v->at(0).z());
-            v->at(3) = osg::Vec3(v->at(3).x()-_widthReduction, v->at(3).y(), v->at(3).z());
+            v->at(0).x() -= _widthReduction;
+            v->at(3).x() -= _widthReduction;
         }
         else
         {
             for (unsigned int it = 0; it <= _indexEndRightSide; it++)
             {
-                v->at(it) = osg::Vec3(v->at(it).x()-_widthReduction, v->at(it).y(), v->at(it).z());
+                v->at(it).x() -= _widthReduction;
             }
         }
         _sizeReduced = true;
@@ -191,14 +190,14 @@ void BboxDrawable::setReducedSize(bool b)
     {
         if ( v->size() == 4 )
         {
-            v->at(0) = osg::Vec3(v->at(0).x()+_widthReduction, v->at(0).y(), v->at(0).z());
-            v->at(3) = osg::Vec3(v->at(3).x()+_widthReduction, v->at(3).y(), v->at(3).z());
+            v->at(0).x() += _widthReduction;
+            v->at(3).x() += _widthReduction;
         }
         else
         {
             for (unsigned int it = 0; it <= _indexEndRightSide; it++)
             {
-                v->at(it) = osg::Vec3(v->at(it).x()+_widthReduction, v->at(it).y(), v->at(it).z());
+                v->at(it).x() += _widthReduction;
             }
         }
         _sizeReduced = false;
