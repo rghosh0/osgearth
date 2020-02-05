@@ -39,13 +39,22 @@ class OSGEARTHANNO_EXPORT MPAnnotationGroup : public osg::Group
 {
 public:
 
+    typedef enum
+    {
+        Symbol = 0,
+        Text,
+        Bbox
+    } typeDrawable;
+
     MPAnnotationGroup();
 
     struct AnnoInfo
     {
-        AnnoInfo(unsigned int i, ScreenSpaceLayoutData* ssld) : index{i}, globalSsld{ssld} {}
-        AnnoInfo(unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange) : index{i}, globalSsld{ssld}, minRange{minimumRange} {}
+        AnnoInfo(typeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld) : type{t}, index{i}, globalSsld{ssld} {}
+        AnnoInfo(typeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange} {}
 
+        // Type of Drawable
+        typeDrawable type;
         // index in the parent list
         unsigned int index{0};
         // min range for displaying the drawable

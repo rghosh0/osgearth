@@ -109,14 +109,16 @@ public:
                     static const osg::Node::NodeMask nodeMaskOff = 0xffffffff;
                     for (auto iAnno : anno.second)
                     {
-                        osg::Node* child = annoGroup->getChild(iAnno.index);
-                        BboxDrawable* bbox = dynamic_cast<BboxDrawable*>(child);
-                        if (bbox == nullptr)
-                            child->setNodeMask(alt < iAnno.minRange ? nodeMaskOff : 0);
-                        else
+                        if (iAnno.type == MPAnnotationGroup::Bbox)
                         {
+                            osg::Node* child = annoGroup->getChild(iAnno.index);
+                            BboxDrawable* bbox = static_cast<BboxDrawable*>(child);
                             bbox->setNodeMask(nodeMaskOff);
                             bbox->setReducedSize(alt >= iAnno.minRange);
+                        }
+                        else
+                        {
+                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeMaskOff : 0);
                         }
                     }
                 }
@@ -397,7 +399,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         imageDrawable->setDataVariance(osg::Object::DYNAMIC);
         imageDrawable->setUserData(dataLayout);
         this->addChild( imageDrawable );
-        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, dataLayout));
+        _drawableList[id].push_back(AnnoInfo(Symbol, this->getNumChildren()-1, dataLayout));
     }
     if (  textDrawable.valid() )
     {
@@ -405,7 +407,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         textDrawable->setDataVariance(osg::Object::DYNAMIC);
         textDrawable->setUserData(dataLayout);
         this->addChild( textDrawable );
-        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, dataLayout, minRange));
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange));
     }
     if ( bboxDrawable.valid() )
     {
@@ -413,7 +415,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         bboxDrawable->setDataVariance(osg::Object::DYNAMIC);
         bboxDrawable->setUserData(dataLayout);
         this->addChild( bboxDrawable );
-        _drawableList[id].push_back(AnnoInfo(this->getNumChildren()-1, dataLayout, minRange));
+        _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange));
     }
     // layout data for screenspace information
     updateLayoutData(dataLayout, style, geom);
