@@ -19,6 +19,7 @@
 #include <osgEarthFeatures/TextSymbolizer>
 #include <osgEarthFeatures/Feature>
 #include <osgEarth/Registry>
+#include <osgDB/ReadFile>
 
 using namespace osgEarth;
 using namespace osgEarth::Features;
@@ -182,7 +183,15 @@ TextSymbolizer::apply(osgText::Text* drawable,
     osg::ref_ptr<osgText::Font> font;
     if ( symbol->font().isSet() )
     {
-        font = osgText::readRefFontFile( *symbol->font() );
+        // give priority to the cache instead of searching in the paths
+        osg::ref_ptr<osgDB::ReaderWriter::Options> localOptions = new osgDB::ReaderWriter::Options;
+        localOptions->setObjectCacheHint(osgDB::ReaderWriter::Options::CACHE_OBJECTS);
+        osg::ref_ptr<osg::Object> object = osgDB::readRefObjectFile(*symbol->font(), localOptions.get());
+        font = dynamic_cast<osgText::Font*>(object.get());
+
+        // if failed then go to the standard local paths
+        if (! font)
+            font = osgText::readRefFontFile( *symbol->font() );
     }
 
     if ( !font )
