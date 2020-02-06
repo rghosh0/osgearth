@@ -39,7 +39,8 @@ _maxSizeX(rhs._maxSizeX),
 _maxSizeY(rhs._maxSizeY),
 _scaleX( rhs._scaleX ),
 _scaleY( rhs._scaleY ),
-_scaleZ( rhs._scaleZ )
+_scaleZ( rhs._scaleZ ),
+_modelType(rhs._modelType)
 {
     // nop
 }
@@ -56,7 +57,8 @@ _maxSizeX ( FLT_MAX ),
 _maxSizeY ( FLT_MAX ),
 _scaleX    ( NumericExpression(1.0) ),
 _scaleY    ( NumericExpression(1.0) ),
-_scaleZ    ( NumericExpression(1.0) )
+_scaleZ    ( NumericExpression(1.0) ),
+_modelType ( TYPE_3D_MODEL )
 {
     mergeConfig( conf );
 }
@@ -83,6 +85,9 @@ ModelSymbol::getConfig() const
     conf.set( "scale_y", _scaleY );
     conf.set( "scale_z", _scaleZ );
 
+    conf.set( "model_type", "3dmodel", _modelType, TYPE_3D_MODEL );
+    conf.set( "model_type", "image", _modelType, TYPE_IMAGE );
+
     conf.setNonSerializable( "ModelSymbol::node", _node.get() );
     return conf;
 }
@@ -107,6 +112,9 @@ ModelSymbol::mergeConfig( const Config& conf )
     conf.get( "scale_y", _scaleY );
     conf.get( "scale_z", _scaleZ );
 
+    conf.get( "model_type", "3dmodel", _modelType, TYPE_3D_MODEL );
+    conf.get( "model_type", "image", _modelType, TYPE_IMAGE );
+
     _node = conf.getNonSerializable<osg::Node>( "ModelSymbol::node" );
 }
 
@@ -122,7 +130,14 @@ ModelSymbol::parseSLD(const Config& c, Style& style)
     if ( match(c.key(), "model") ) {
         style.getOrCreate<ModelSymbol>()->url() = c.value();
         style.getOrCreate<ModelSymbol>()->url()->setURIContext( c.referrer() );
-    }    
+    }
+    else if ( match(c.key(), "model-type") )
+    {
+        if ( match(c.value(), "3dmodel") )
+            style.getOrCreate<ModelSymbol>()->modelType() = ModelSymbol::TYPE_3D_MODEL;
+        else if ( match(c.value(), "image") )
+            style.getOrCreate<ModelSymbol>()->modelType() = ModelSymbol::TYPE_IMAGE;
+    }
     else if ( match(c.key(),"model-library") ) {
         style.getOrCreate<ModelSymbol>()->library() = StringExpression(c.value());
     }

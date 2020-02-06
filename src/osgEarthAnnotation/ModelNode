@@ -79,12 +79,17 @@ namespace osgEarth { namespace Annotation
 
         void setAutoScale(bool autoScale, double minAutoScale, double maxAutoScale);
 
+        osg::ref_ptr<osg::Image> getImage() const { return _image; }
+        osg::ref_ptr<osg::Geometry> getImageGeom() const { return _imageGeom; }
+
+
     protected:
 
         Style _style;
         osg::ref_ptr<const osgDB::Options>      _readOptions;
         osg::ref_ptr<osg::Image>                _image;
         osg::observer_ptr<osg::NodeCallback>    _geoPosCallback;
+        osg::ref_ptr<osg::Geometry>             _imageGeom;
 
         void compileModel();
 

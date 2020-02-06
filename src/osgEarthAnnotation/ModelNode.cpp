@@ -48,7 +48,8 @@ ModelNode::ModelNode(MapNode*              mapNode,
 GeoPositionNode(),
 _style( style ),
 _readOptions( readOptions ),
-_image( nullptr )
+_image( nullptr ),
+_imageGeom( nullptr )
 {
     construct();
     setMapNode(mapNode);
@@ -87,21 +88,23 @@ ModelNode::compileModel()
             {
                 URI uri = sym->url()->evalURI();
 
-                if ( sym->uriAliasMap()->empty() )
+                if (sym->modelType() == ModelSymbol::TYPE_3D_MODEL)
                 {
-                    node = uri.getNode( _readOptions.get() );
+                    if ( sym->uriAliasMap()->empty() )
+                    {
+                        node = uri.getNode( _readOptions.get() );
+                    }
+                    else
+                    {
+                        // install an alias map if there's one in the symbology.
+                        osg::ref_ptr<osgDB::Options> tempOptions = Registry::instance()->cloneOrCreateOptions(_readOptions.get());
+                        tempOptions->setReadFileCallback( new URIAliasMapReadCallback(*sym->uriAliasMap(), uri.full()) );
+                        node = uri.getNode( tempOptions.get() );
+                    }
                 }
-                else
+                else if (sym->modelType() == ModelSymbol::TYPE_IMAGE)
                 {
-                    // install an alias map if there's one in the symbology.
-                    osg::ref_ptr<osgDB::Options> tempOptions = Registry::instance()->cloneOrCreateOptions(_readOptions.get());
-                    tempOptions->setReadFileCallback( new URIAliasMapReadCallback(*sym->uriAliasMap(), uri.full()) );
-                    node = uri.getNode( tempOptions.get() );
-                }
-
-                //try to load an image from the uri provided
-                if ( !node.valid() && ! _image.valid() )
-                {
+                    //try to load an image from the uri provided
                     OE_DEBUG << LC << "try to load image " << uri.full() << std::endl;
                     _image = uri.getImage();
 
@@ -113,12 +116,12 @@ ModelNode::compileModel()
 
                         //try to create a geometry for this image (same geom as Placenode)
                         osg::Vec2s offset(0.0,0.0);
-                        osg::Geometry* imageGeom = AnnotationUtils::createImageGeometry( _image.get(), offset, 0, 0.0, 1.0 );
-                        if ( imageGeom )
+                        _imageGeom = AnnotationUtils::createImageGeometry( _image.get(), offset, 0, 0.0, 1.0 );
+                        if ( _imageGeom )
                         {
-                            imageGeom->setName( "Image Geometry" );
+                            _imageGeom->setName( "Image Geometry" );
                             OE_DEBUG << LC << "adding image geometry to scenegraph " << uri.full() << std::endl;
-                            geode->addDrawable( imageGeom );
+                            geode->addDrawable( _imageGeom );
                             geode->getOrCreateStateSet()->setMode( GL_CULL_FACE, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE );
                             node = geode;
                         }
@@ -131,7 +134,6 @@ ModelNode::compileModel()
                     {
                         OE_WARN << LC << "Could not load model as image " << uri.full() << std::endl;
                     }
-
                 }
 
                 if ( !node.valid() )
