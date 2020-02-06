@@ -53,14 +53,15 @@ public:
 
     /** Constructor */
     ScreenSpaceLayoutData() :
-                              _priority(0.0f),
+                              _priority(0.f),
+                              _originalPriority(0.f),
                               _pixelOffset(0, 0),
                               _autoRotate(false),
                               _autoFollowLine(false),
                               _id(-1) { }
 
     /** Decluttering priority - FLT_MAX means don't declutter */
-    void setPriority(float value) { _priority = value; }
+    void setPriority(float value) { _originalPriority = _priority = value; }
     float getPriority() const     { return _priority; }
 
     /** Offset from geoposition in screen pixels */
@@ -100,6 +101,7 @@ public:
     const osg::BoundingBox& getBBoxSymetric() const { return _bboxSymetric; }
 
 public:
+    float      _originalPriority;
     float      _priority;
     osg::Vec2s _pixelOffset;
     bool       _autoRotate, _autoFollowLine;

@@ -57,14 +57,23 @@ public:
         typeDrawable type;
         // index in the parent list
         unsigned int index{0};
+
         // min range for displaying the drawable
         double minRange{DBL_MAX};
+
         // ScreenSpaceLayoutData
         osg::ref_ptr<ScreenSpaceLayoutData> globalSsld;
+
+        // highlight ?
+        bool highlight{false};
     };
 
     // Add an annotation (list of drawables corresponding to one feature)
     long addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions);
+
+    // Highlight an Annotation
+    void setHighlight( long id, bool highlight = true );
+    void clearHighlight();
 
     std::vector<AnnoInfo>& getDrawableList(long id) { return _drawableList[id]; }
     std::map<long, std::vector<AnnoInfo>>& getDrawableList() { return _drawableList; }

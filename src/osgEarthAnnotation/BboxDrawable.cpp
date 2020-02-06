@@ -133,6 +133,7 @@ osg::Geometry()
 
     if ( bboxSymbol.border().isSet() )
     {
+        _withBorder = true;
         _originalStrokeColor = bboxSymbol.border()->color();
         c->push_back( _originalStrokeColor );
         if ( bboxSymbol.border()->width().isSet() )
@@ -152,14 +153,33 @@ BboxDrawable::setHighlight( bool highlight )
     if ( _isHighlight == highlight )
         return;
 
+    _isHighlight = highlight;
+
     osg::Vec4Array* c = static_cast<osg::Vec4Array*>(getColorArray());
 
     // update bbox fill color
     (*c)[0] = _isHighlight ? _highlightFillColor : _originalFillColor;
 
-    // update the stroke color if drawn
-    if ( c->size() == 2 )
+    // update the stroke color
+    if ( _withBorder )
+    {
         (*c)[1] = _isHighlight ? _highlightStrokeColor : _originalStrokeColor;
+    }
+
+    // add the stroke
+    else if ( _isHighlight )
+    {
+        c->push_back( _highlightStrokeColor );
+        //getOrCreateStateSet()->setAttribute( new osg::LineWidth( 4 ));
+        addPrimitiveSet( new osg::DrawArrays(GL_LINE_LOOP, 0, static_cast<int>(getVertexArray()->getNumElements())) );
+    }
+
+    // remove the stroke
+    else
+    {
+        c->pop_back();
+        removePrimitiveSet(getNumPrimitiveSets()-1);
+    }
 
     _isHighlight = highlight;
 }

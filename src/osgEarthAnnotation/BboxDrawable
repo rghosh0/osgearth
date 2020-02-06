@@ -49,6 +49,7 @@ namespace osgEarth { namespace Annotation
         osgEarth::Symbology::Color _highlightStrokeColor{ 0x4B96FFFF };
         osgEarth::Symbology::Color _originalStrokeColor;
         bool _isHighlight{false};
+        bool _withBorder {false};
 
         float _widthReduction;
         unsigned int _indexEndRightSide;

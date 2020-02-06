@@ -17,8 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#include "MPAnnotationGroup"
-
+#include <osgEarthAnnotation/MPAnnotationGroup>
 #include <osgEarthAnnotation/AnnotationUtils>
 #include <osgEarthAnnotation/BboxDrawable>
 #include <osgEarth/VirtualProgram>
@@ -568,4 +567,28 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
     // global BBox
     for ( auto i : _drawableList[dataLayout->getId()] )
         dataLayout->expandBboxBy(this->getChild(i.index)->asDrawable()->getBoundingBox());
+}
+
+
+void
+MPAnnotationGroup::setHighlight( long id, bool highlight )
+{
+    for ( auto anno : getDrawableList()[id] )
+        if (anno.type == MPAnnotationGroup::Bbox)
+        {
+            BboxDrawable* bbox = static_cast<BboxDrawable*>(getChild(anno.index));
+            if ( bbox && bbox->isHighlight() != highlight )
+            {
+                anno.globalSsld->_priority = highlight ? FLT_MAX - 1 : anno.globalSsld->_originalPriority;
+                bbox->setHighlight(highlight);
+            }
+        }
+}
+
+
+void
+MPAnnotationGroup::clearHighlight()
+{
+    for ( auto const &anno : getDrawableList() )
+        setHighlight(anno.first, false);
 }
