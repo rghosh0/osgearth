@@ -303,6 +303,10 @@ Like icons, models are typically used for:
 | model                   | URI of the 3D model (uri-string). Use this *OR* the                |
 |                         | ``model-library`` property, but not both.                          |
 +-------------------------+--------------------------------------------------------------------+
+| model-type              | Type of model : specifies the type of model used in ``model``      |
+|                         | 3dmodel                                                            |
+|                         | image                                                              |
++-------------------------+--------------------------------------------------------------------+
 | model-library           | Name of a *resource library* containing the model. Use this *OR*   |
 |                         | the ``model`` property, but not both.                              |
 +-------------------------+--------------------------------------------------------------------+

@@ -38,6 +38,15 @@ namespace osgEarth { namespace Symbology
     public:
         META_Object(osgEarthSymbology, ModelSymbol);
 
+        /**
+         * Type of model.
+         */
+        enum ModelType
+        {
+            TYPE_3D_MODEL,
+            TYPE_IMAGE
+        };
+
         ModelSymbol(const ModelSymbol& rhs,const osg::CopyOp& copyop=osg::CopyOp::SHALLOW_COPY);
         ModelSymbol( const Config& conf =Config() );
 
@@ -92,6 +101,9 @@ namespace osgEarth { namespace Symbology
         optional<NumericExpression>& scaleZ() { return _scaleZ; }
         const optional<NumericExpression>& scaleZ() const { return _scaleZ; }
 
+        /** Type of model in the url */
+        optional<ModelType>& modelType() { return _modelType; }
+        const optional<ModelType>& modelType() const { return _modelType; }
         
         
     public: // non-serialized properties (for programmatic use only)
@@ -123,6 +135,7 @@ namespace osgEarth { namespace Symbology
         optional<NumericExpression>  _scaleX;
         optional<NumericExpression>  _scaleY;
         optional<NumericExpression>  _scaleZ;
+        optional<ModelType>          _modelType;
     };
 
 } } // namespace osgEarth::Symbology

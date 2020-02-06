@@ -48,7 +48,8 @@ ModelNode::ModelNode(MapNode*              mapNode,
 GeoPositionNode(),
 _style( style ),
 _readOptions( readOptions ),
-_image( nullptr )
+_image( nullptr ),
+_imageGeom( nullptr )
 {
     construct();
     setMapNode(mapNode);
@@ -87,51 +88,56 @@ ModelNode::compileModel()
             {
                 URI uri = sym->url()->evalURI();
 
-                if ( sym->uriAliasMap()->empty() )
+                if (sym->modelType() == ModelSymbol::TYPE_3D_MODEL)
                 {
-                    node = uri.getNode( _readOptions.get() );
-                }
-                else
-                {
-                    // install an alias map if there's one in the symbology.
-                    osg::ref_ptr<osgDB::Options> tempOptions = Registry::instance()->cloneOrCreateOptions(_readOptions.get());
-                    tempOptions->setReadFileCallback( new URIAliasMapReadCallback(*sym->uriAliasMap(), uri.full()) );
-                    node = uri.getNode( tempOptions.get() );
-                }
-
-                //try to load an image from the uri provided
-                if ( !node.valid() && ! _image.valid() )
-                {
-                    OE_DEBUG << LC << "try to load image " << uri.full() << std::endl;
-                    _image = uri.getImage();
-
-                    if( _image.valid() )
+                    if ( sym->uriAliasMap()->empty() )
                     {
-                        OE_DEBUG << LC << "creating single sided image geometry " << std::endl;
-                        osg::ref_ptr<osg::Geode> geode = new osg::Geode();
-                        geode->setName( "Image Geode" );
-
-                        //try to create a geometry for this image (same geom as Placenode)
-                        osg::Vec2s offset(0.0,0.0);
-                        osg::Geometry* imageGeom = AnnotationUtils::createImageGeometry( _image.get(), offset, 0, 0.0, 1.0 );
-                        if ( imageGeom )
-                        {
-                            imageGeom->setName( "Image Geometry" );
-                            OE_DEBUG << LC << "adding image geometry to scenegraph " << uri.full() << std::endl;
-                            geode->addDrawable( imageGeom );
-                            geode->getOrCreateStateSet()->setMode( GL_CULL_FACE, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE );
-                            node = geode;
-                        }
-                        else
-                        {
-                            OE_WARN << LC << "Could not create geometry for the image " << uri.full() << std::endl;
-                        }
+                        node = uri.getNode( _readOptions.get() );
                     }
                     else
                     {
-                        OE_WARN << LC << "Could not load model as image " << uri.full() << std::endl;
+                        // install an alias map if there's one in the symbology.
+                        osg::ref_ptr<osgDB::Options> tempOptions = Registry::instance()->cloneOrCreateOptions(_readOptions.get());
+                        tempOptions->setReadFileCallback( new URIAliasMapReadCallback(*sym->uriAliasMap(), uri.full()) );
+                        node = uri.getNode( tempOptions.get() );
                     }
+                }
+                else if (sym->modelType() == ModelSymbol::TYPE_IMAGE)
+                {
+                    //try to load an image from the uri provided
+                    if ( !node.valid() && ! _image.valid() )
+                    {
+                        OE_DEBUG << LC << "try to load image " << uri.full() << std::endl;
+                        _image = uri.getImage();
 
+                        if( _image.valid() )
+                        {
+                            OE_DEBUG << LC << "creating single sided image geometry " << std::endl;
+                            osg::ref_ptr<osg::Geode> geode = new osg::Geode();
+                            geode->setName( "Image Geode" );
+
+                            //try to create a geometry for this image (same geom as Placenode)
+                            osg::Vec2s offset(0.0,0.0);
+                            _imageGeom = AnnotationUtils::createImageGeometry( _image.get(), offset, 0, 0.0, 1.0 );
+                            if ( _imageGeom )
+                            {
+                                _imageGeom->setName( "Image Geometry" );
+                                OE_DEBUG << LC << "adding image geometry to scenegraph " << uri.full() << std::endl;
+                                geode->addDrawable( _imageGeom );
+                                geode->getOrCreateStateSet()->setMode( GL_CULL_FACE, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE );
+                                node = geode;
+                            }
+                            else
+                            {
+                                OE_WARN << LC << "Could not create geometry for the image " << uri.full() << std::endl;
+                            }
+                        }
+                        else
+                        {
+                            OE_WARN << LC << "Could not load model as image " << uri.full() << std::endl;
+                        }
+
+                    }
                 }
 
                 if ( !node.valid() )
