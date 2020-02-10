@@ -116,6 +116,10 @@ in vec3 oe_LineDrawable_next;
 flat out int oe_LineDrawable_draw;
 flat out vec2 oe_LineDrawable_rv;
 
+// Highlight management
+uniform uint objectid_to_highlight;
+uint oe_index_objectid;      // Stage global containing object id
+flat out int selected;
 
 // Shared stage globals
 vec4 oe_LineDrawable_prevView;
@@ -141,7 +145,10 @@ void oe_LineDrawable_VS_CLIP(inout vec4 currClip)
     
     if (oe_LineDrawable_draw == 0)
         return;
-    
+
+    // Case this line is highlighted
+    selected = (objectid_to_highlight > 1u && objectid_to_highlight == oe_index_objectid) ? 1 : 0;
+
     // Transform the prev and next points in clip space.
     vec4 prevClip = gl_ProjectionMatrix * oe_LineDrawable_prevView;
     vec4 nextClip = gl_ProjectionMatrix * oe_LineDrawable_nextView;
@@ -280,6 +287,9 @@ in float oe_LineDrawable_backFaceCulled_Frag;
 in float oe_LineDrawable_lateral;
 #endif
 
+// highlight management
+flat in int selected;
+
 #ifdef MP_PATTERN
 // MissionPlus line pattern with one part of the line having full alpha and the other part a lesser value
 uniform float oe_MPPatternAlpha; // value of the target decreased alpha
@@ -289,9 +299,13 @@ uniform float oe_MPPatternThreshold; // where on the line the alpha decrease sta
 void oe_LineDrawable_Stippler_FS(inout vec4 color)
 {
     //fragment is discarded if it is backface culled
-    if (oe_LineDrawable_draw == 0 || oe_LineDrawable_backFaceCulled_Frag<0.0 )
+    if (oe_LineDrawable_draw == 0 || oe_LineDrawable_backFaceCulled_Frag < 0.0 )
         discard;
-    
+
+    // TODO make it customizable
+    if ( selected == 1 )
+        color.rgb = vec3(1. / 75., 1. / 150.f, 1.);
+
     if (oe_GL_LineStipplePattern != 0xffff)
     {
         // coordinate of the fragment, shifted to 0:
