@@ -81,12 +81,16 @@ TextSymbolizer::apply(osgText::Text* drawable,
     static TextSymbol s_defaultSymbol;
     const TextSymbol* symbol = _symbol.valid() ? _symbol.get() : &s_defaultSymbol;
 
-    osgText::String::Encoding encoding = convertEncoding(symbol->encoding().get());
-    if (symbol->content().isSet())
+    // use the text from the symbol only if the text has not already been set
+    if (drawable->getText().empty())
     {
-        StringExpression temp(symbol->content().get());
-        std::string content = feature ? feature->eval(temp, context) : symbol->content()->eval();
-        drawable->setText(content, encoding);
+        osgText::String::Encoding encoding = convertEncoding(symbol->encoding().get());
+        if (symbol->content().isSet())
+        {
+            StringExpression temp(symbol->content().get());
+            std::string content = feature ? feature->eval(temp, context) : symbol->content()->eval();
+            drawable->setText(content, encoding);
+        }
     }
 
     // osgText::Text turns on depth writing by default, even if you turned it off.
@@ -109,6 +113,9 @@ TextSymbolizer::apply(osgText::Text* drawable,
         }
     }
 
+    // margin between the items
+    double margin = symbol->predefinedOrganisationMargin().isSet() ? symbol->predefinedOrganisationMargin().get() : 4.;
+
     // calculate the text position relative to the alignment box.
     static osg::BoundingBox s_defaultbbox(0,0,0,0,0,0);
     const osg::BoundingBox& box = box_in? *box_in : s_defaultbbox;
@@ -122,22 +129,29 @@ TextSymbolizer::apply(osgText::Text* drawable,
     switch( align )
     {
     case osgText::Text::LEFT_TOP:
-        pos.x() = box.xMax();
+//        pos.x() = box.xMax();
+        pos.x() = box.center().x() + margin;
         pos.y() = box.yMin();
         break;
     case osgText::Text::LEFT_CENTER:
-        pos.x() = box.xMax();
+        pos.x() = box.xMax() + margin;
         pos.y() = box.center().y();
         break;
     case osgText::Text::LEFT_BOTTOM:
-    case osgText::Text::LEFT_BOTTOM_BASE_LINE:
     case osgText::Text::LEFT_BASE_LINE:
-        pos.x() = box.xMax();
+//        pos.x() = box.xMax();
+        pos.x() = box.center().x() + margin;
         pos.y() = box.yMax();
         break;
 
+    case osgText::Text::LEFT_BOTTOM_BASE_LINE:
+        pos.x() = box.xMax() + margin;
+        pos.y() = margin;
+        break;
+
     case osgText::Text::RIGHT_TOP:
-        pos.x() = box.xMin();
+        //pos.x() = box.xMin();
+        pos.x() = box.center().x() - margin;
         pos.y() = box.yMin();
         break;
     case osgText::Text::RIGHT_CENTER:
@@ -145,10 +159,15 @@ TextSymbolizer::apply(osgText::Text* drawable,
         pos.y() = box.center().y();
         break;
     case osgText::Text::RIGHT_BOTTOM:
-    case osgText::Text::RIGHT_BOTTOM_BASE_LINE:
     case osgText::Text::RIGHT_BASE_LINE:
-        pos.x() = box.xMin();
+//        pos.x() = box.xMin();
+        pos.x() = box.center().x() - margin;
         pos.y() = box.yMax();
+        break;
+
+    case osgText::Text::RIGHT_BOTTOM_BASE_LINE:
+        pos.x() = box.xMin() - margin;
+        pos.y() = margin;
         break;
 
     case osgText::Text::CENTER_TOP:
@@ -174,7 +193,7 @@ TextSymbolizer::apply(osgText::Text* drawable,
     drawable->setAutoRotateToScreen(false);
     drawable->setCharacterSizeMode( osgText::Text::OBJECT_COORDS );
     
-    float size = symbol->size().isSet() ? (float)(symbol->size()->eval()) : 16.0f;    
+    float size = symbol->size().isSet() ? (float)(symbol->size()->eval()) : 16.0f;
 
     drawable->setCharacterSize( size * Registry::instance()->getDevicePixelRatio() );
 

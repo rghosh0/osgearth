@@ -184,9 +184,21 @@ public:
     inline optional<double>& attachedLabelDecimationTolerance() { return _attachedLabelDecimationTolerance; }
     inline const optional<double>& attachedLabelDecimationTolerance() const { return _attachedLabelDecimationTolerance; }
 
-    /** The minimum range altitude for the text and its bbox to display */
+    /** The minimum range altitude for the central text and bbox to be display */
     optional<double>& minRange() { return _minRange; }
     const optional<double>& minRange() const { return _minRange; }
+
+    /** The minimum range altitude for the other elements to be displayed */
+    optional<double>& minRange2ndlevel() { return _minRange2ndlevel; }
+    const optional<double>& minRange2ndlevel() const { return _minRange2ndlevel; }
+
+    /** A free text that the annotation builder will use to know what texts orginisation must be used */
+    optional<std::string>& predefinedOrganisation() { return _predefinedOrganisation; }
+    const optional<std::string>& predefinedOrganisation() const { return _predefinedOrganisation; }
+
+    /** The padding between all items */
+    optional<double>& predefinedOrganisationMargin() { return _predefinedOrganisationMargin; }
+    const optional<double>& predefinedOrganisationMargin() const { return _predefinedOrganisationMargin; }
 
 public:
     virtual Config getConfig() const;
@@ -219,6 +231,9 @@ protected:
     optional<bool>              _attachedLabel;
     optional<double>            _attachedLabelDecimationTolerance;
     optional<double>            _minRange;
+    optional<double>            _minRange2ndlevel;
+    optional<std::string>       _predefinedOrganisation;
+    optional<double>            _predefinedOrganisationMargin;
 };
 
 } } // namespace osgEarth::Symbology

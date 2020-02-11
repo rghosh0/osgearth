@@ -53,7 +53,10 @@ TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _autoOffsetGeomWKT(rhs._autoOffsetGeomWKT),
                                                                            _attachedLabel(rhs._attachedLabel),
                                                                            _attachedLabelDecimationTolerance(rhs._attachedLabelDecimationTolerance),
-                                                                           _minRange(rhs._minRange)
+                                                                           _minRange(rhs._minRange),
+                                                                           _minRange2ndlevel(rhs._minRange2ndlevel),
+                                                                           _predefinedOrganisation(rhs._predefinedOrganisation),
+                                                                           _predefinedOrganisationMargin( rhs._predefinedOrganisationMargin )
 {
 }
 
@@ -77,7 +80,9 @@ TextSymbol::TextSymbol( const Config& conf ) :
                                              _autoRotateAlongLine  ( false ),
                                              _attachedLabel        ( false ),
                                              _attachedLabelDecimationTolerance( false ),
-                                             _minRange             ( DBL_MAX )
+                                             _minRange             ( DBL_MAX ),
+                                             _minRange2ndlevel     ( DBL_MAX ),
+                                             _predefinedOrganisationMargin( 4. )
 {
     mergeConfig(conf);
 }
@@ -158,6 +163,10 @@ TextSymbol::getConfig() const
     conf.set( "attached-label-decimation-tolerance", _attachedLabelDecimationTolerance );
 
     conf.set( "text-min-range", _minRange );
+    conf.set( "text-min-range-2ndlevel", _minRange2ndlevel );
+
+    conf.set( "predefined-organisation", _predefinedOrganisation );
+    conf.set( "predefined-organisation-margin", _predefinedOrganisationMargin );
 
     return conf;
 }
@@ -236,6 +245,10 @@ TextSymbol::mergeConfig( const Config& conf )
     conf.get( "attached-label-decimation-tolerance", _attachedLabelDecimationTolerance );
 
     conf.get( "min-range", _minRange );
+    conf.get( "min-range-2ndlevel", _minRange2ndlevel );
+
+    conf.get( "predefined-organisation", _predefinedOrganisation );
+    conf.get( "predefined-organisation-margin", _predefinedOrganisationMargin );
 }
 
 
@@ -400,5 +413,14 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "text-min-range") ) {
         style.getOrCreate<TextSymbol>()->minRange() = as<double>(c.value(), defaults.minRange().get() );
+    }
+    else if ( match(c.key(), "text-min-range-2ndlevel") ) {
+        style.getOrCreate<TextSymbol>()->minRange2ndlevel() = as<double>(c.value(), defaults.minRange2ndlevel().get() );
+    }
+    else if ( match(c.key(), "text-predefined-organisation") ) {
+        style.getOrCreate<TextSymbol>()->predefinedOrganisation() = c.value();
+    }
+    else if ( match(c.key(), "text-predefined-organisation-margin") ) {
+        style.getOrCreate<TextSymbol>()->predefinedOrganisationMargin() = as<double>(c.value(), defaults.predefinedOrganisationMargin().get() );
     }
 }

@@ -105,19 +105,19 @@ public:
                         ssld->_cull_rotationRadOnScreen = atan2(anchorToProj.y(), anchorToProj.x());
                     }
 
-                    static const osg::Node::NodeMask nodeMaskOff = 0xffffffff;
+                    static const osg::Node::NodeMask nodeNoMask = 0xffffffff;
                     for (auto iAnno : anno.second)
                     {
-                        if (iAnno.type == MPAnnotationGroup::Bbox)
+                        if (iAnno.type == MPAnnotationGroup::BboxGroup)
                         {
                             osg::Node* child = annoGroup->getChild(iAnno.index);
                             BboxDrawable* bbox = static_cast<BboxDrawable*>(child);
-                            bbox->setNodeMask(nodeMaskOff);
+                            bbox->setNodeMask(nodeNoMask);
                             bbox->setReducedSize(alt >= iAnno.minRange);
                         }
                         else
                         {
-                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeMaskOff : 0);
+                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeNoMask : 0);
                         }
                     }
                 }
@@ -190,6 +190,11 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     static long id{0};
     osg::ref_ptr<ScreenSpaceLayoutData> dataLayout = new ScreenSpaceLayoutData();
     dataLayout->setId(++id);
+
+    // check if there is a predefined organization
+    const TextSymbol* textSymbol = style.get<TextSymbol>();
+    bool predefinedOrganisation = textSymbol && textSymbol->predefinedOrganisation().isSet();
+    StringVector textList;
 
     // ----------------------
     // Build image
@@ -315,7 +320,6 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     // Build text
 
     osg::ref_ptr<osgText::Text> textDrawable;
-    const TextSymbol* textSymbol = style.get<TextSymbol>();
     if ( textSymbol )
     {
         TextSymbol::Alignment textAlignment = TextSymbol::Alignment::ALIGN_LEFT_CENTER;
@@ -332,6 +336,13 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         }
 
         std::string text = textSymbol->content()->eval();
+        if ( predefinedOrganisation )
+        {
+            StringTokenizer splitter( ";", "" );
+            splitter.tokenize( text, textList );
+            if (! textList.empty() )
+                text = textList[0];
+        }
         if ( ! text.empty() )
             textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBoxWithMargin );
     }
@@ -389,9 +400,83 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     }
 
     // ----------------------
+    // Create the other texts if needed
+    // only airway organisation treated for now
+
+    osg::NodeList textsDrawable;
+    if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() == 7 && bboxDrawable.valid())
+    {
+        double margin = textSymbol->predefinedOrganisationMargin().get();
+        if ( bboxsymbol && bboxsymbol->border().isSet() && bboxsymbol->border().get().width().isSet() )
+            margin += bboxsymbol->border().get().width().get();
+        else
+            margin += 1.;
+        osg::Vec3 marginVec(margin, margin, margin);
+        osg::BoundingBox refBBox( bboxDrawable->getBoundingBox()._min - marginVec, bboxDrawable->getBoundingBox()._max + marginVec);
+
+        //------> TODO This part should be out of MPAnnotationGroup ...
+        TextSymbol::Alignment alignList[] = { TextSymbol::ALIGN_LEFT_BOTTOM, TextSymbol::ALIGN_LEFT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_LEFT_TOP,
+                                             TextSymbol::ALIGN_RIGHT_TOP, TextSymbol::ALIGN_RIGHT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_RIGHT_BOTTOM };
+
+        float fontSizeOrg = textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.f;
+        float fontSizeSmaller = fontSizeOrg / 18.f * 15.f;
+        float fontSizeList[] = {fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeOrg};
+
+        static const Color magenta(1., 135./255., 195./255.);
+        Color colorOrg = textSymbol->fill().isSet() ? textSymbol->fill().get().color() : Color::White;
+        Color colorList[] = {colorOrg, colorOrg, colorOrg, magenta, colorOrg, colorOrg};
+
+        bool nativeBBox[] = {true, false, false, false, false, false};
+        //<------
+
+        // for each text (except the first one)
+        for ( unsigned int i=1 ; i<textList.size() ; ++i )
+        {
+            if ( textList[i].empty() || textList[i] == "°" )
+                continue;
+
+            // specific treatments
+
+            // F: means that the value must be expressed in FL
+            StringVector textSplit;
+            StringTokenizer splitter( ":", "" );
+            splitter.tokenize( textList[i], textSplit );
+            if ( textSplit.size() == 2 )
+            {
+                // convert to int
+                int val;
+                std::istringstream(textSplit[1]) >> val;
+                // than add the FL symbol if required
+                if ( textSplit[0] == "F" )
+                    textList[i] = "FL" + std::to_string(val/100);
+                else
+                    textList[i] = textSplit[1];
+            }
+
+            // make sure that degrees are always displayed with 3 digits
+            if ( textList[i].find("°") != std::string::npos )
+            {
+                if ( textList[i].size() == 3 ) textList[i] = "00" + textList[i];
+                else if ( textList[i].size() == 4 ) textList[i] = "0" + textList[i];
+            }
+
+            // initialiaze the symbol by copy (to copy the font for example)
+            TextSymbol* subTextSym = new TextSymbol(*textSymbol);
+            subTextSym->alignment() = alignList[i-1];
+            subTextSym->size() = fontSizeList[i-1];
+            subTextSym->fill() = colorList[i-1];
+
+            osgText::Text* subText = AnnotationUtils::createTextDrawable( textList[i], subTextSym, refBBox, nativeBBox[i-1] );
+            textsDrawable.push_back( subText );
+        }
+    }
+
+
+    // ----------------------
     // Common settings
 
     double minRange = textSymbol->minRange().isSet() ? textSymbol->minRange().value() : DBL_MAX;
+    double minRange2ndlevel = textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : DBL_MAX;
     if ( imageDrawable.valid() )
     {
         imageDrawable->setCullingActive(false);
@@ -414,7 +499,17 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         bboxDrawable->setDataVariance(osg::Object::DYNAMIC);
         bboxDrawable->setUserData(dataLayout);
         this->addChild( bboxDrawable );
-        _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange));
+        typeDrawable type = bboxsymbol && bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT ? BboxGroup : Bbox;
+        _drawableList[id].push_back(AnnoInfo(type, this->getNumChildren()-1, dataLayout, minRange));
+    }
+    for ( auto node : textsDrawable )
+    {
+        node->setCullingActive(false);
+        node->setDataVariance(osg::Object::DYNAMIC);
+        node->setUserData(dataLayout);
+        this->addChild( node );
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange2ndlevel));
+
     }
     // layout data for screenspace information
     updateLayoutData(dataLayout, style, geom);

@@ -55,10 +55,9 @@ namespace osgEarth { namespace Annotation
          * of RIGHT_TOP, that means the text origin is at the upper-right corner of
          * the box.
          */
-        static osgText::Text* createTextDrawable(
-            const std::string& text,
+        static osgText::Text* createTextDrawable(const std::string& text,
             const TextSymbol*  symbol,
-            const osg::BoundingBox& alignmentBox);
+            const osg::BoundingBox& alignmentBox, bool nativeBBox = false);
         
         static osg::Drawable* createTextDrawable(
             const std::string& text,

@@ -78,15 +78,23 @@ namespace
 osgText::Text*
 AnnotationUtils::createTextDrawable(const std::string& text,
                                     const TextSymbol*  symbol,
-                                    const osg::BoundingBox& box)
+                                    const osg::BoundingBox& box,
+                                    bool nativeBBox)
 {
     osgText::Text* drawable = new osgEarth::Text();
 
+    if ( nativeBBox )
+    {
+        drawable->setDrawMode( osgText::TextBase::DrawModeMask::TEXT |
+                              osgText::TextBase::DrawModeMask::FILLEDBOUNDINGBOX | osgText::TextBase::DrawModeMask::BOUNDINGBOX );
+        // TODO make that stuff customizable
+        drawable->setBoundingBoxMargin(2.);
+        drawable->setBoundingBoxColor( osg::Vec4(0., 0., 0., 1.) );
+    }
+
     osgText::String::Encoding text_encoding = osgText::String::ENCODING_UNDEFINED;
     if ( symbol && symbol->encoding().isSet() )
-    {
         text_encoding = convertTextSymbolEncoding(symbol->encoding().value());
-    }
 
     drawable->setText( text, text_encoding );
 

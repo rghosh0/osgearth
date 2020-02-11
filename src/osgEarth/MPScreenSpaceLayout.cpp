@@ -467,11 +467,13 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             // (use parent bbox for line following algorithm)
             osg::BoundingBox box = layoutData->isAutoFollowLine() ? layoutData->getBBox() : drawable->getBoundingBox();
 
-            bool isText = dynamic_cast<const osgText::Text*>(drawable) != nullptr;
+            const osgText::Text* asText = dynamic_cast<const osgText::Text*>(drawable);
+            bool isText = asText != nullptr;
             long drawableFid = layoutData->getId();
             double angle = 0;
             osg::Quat rot;
             osg::Vec3d to;
+            osg::Vec3f pos(layoutData->_cull_anchorOnScreen);
             bool visible = true;
 
             // local transformation data
@@ -485,14 +487,23 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             {
                 // avoid the label characters to be inverted:
                 // use a symetric translation and adapt the rotation to be in the desired angles
-                offset.set( -layoutData->_pixelOffset.x() - box.xMax() - box.xMin(),
-                            -layoutData->_pixelOffset.y() - box.yMax() - box.yMin(), 0. );
+                if ( asText->getAlignment() == osgText::TextBase::AlignmentType::LEFT_BOTTOM_BASE_LINE
+                     || asText->getAlignment() == osgText::TextBase::AlignmentType::RIGHT_BOTTOM_BASE_LINE )
+                    offset.set( layoutData->_pixelOffset.x() - (box.xMax()+box.xMin()), layoutData->_pixelOffset.y(), 0. );
+                else
+                    offset.set( layoutData->_pixelOffset.x(), layoutData->_pixelOffset.y(), 0. );
                 angle += angle < -osg::PI_2 ? osg::PI : -osg::PI; // JD #1029
             }
             else
             {
                 offset.set( layoutData->_pixelOffset.x(), layoutData->_pixelOffset.y(), 0. );
             }
+
+            // handle the local translation
+            box.xMin() += offset.x();
+            box.xMax() += offset.x();
+            box.yMin() += offset.y();
+            box.yMax() += offset.y();
 
             // handle the local rotation
             if ( angle != 0. )
@@ -502,7 +513,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 osg::Vec3f lu = rot * ( osg::Vec3f(box.xMin(), box.yMax(), 0.) );
                 osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
                 osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
-                if ( angle > - osg::PI / 2. && angle < osg::PI / 2.)
+                if ( angle > - osg::PI / 2. && angle < osg::PI / 2. )
                     box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
                              osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
                 else
@@ -510,16 +521,15 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                             osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0);
             }
 
-
             // adapt the offset for auto sliding label
             if (layoutData->isAutoFollowLine())
-                updateOffsetForAutoLabelOnLine(box, vp, layoutData->_cull_anchorOnScreen, layoutData, camVPW, offset, to);
+            {
+                osg::Vec3f slidingOffset;
+                updateOffsetForAutoLabelOnLine(box, vp, pos, layoutData, camVPW, slidingOffset, to);
+                pos += slidingOffset;
+            }
 
-            // handle the local translation
-            box.xMin() += offset.x();
-            box.xMax() += offset.x();
-            box.yMin() += offset.y();
-            box.yMax() += offset.y();
+
 
 //            // Expand the box if this object is currently not visible, so that it takes a little
 //            // more room for it to before visible once again.
@@ -549,7 +559,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 //                layoutData->_cull_anchorOnScreen.y() = floor(layoutData->_cull_anchorOnScreen.y()) + 0.5;
 //            }
 
-            box.set( box._min + layoutData->_cull_anchorOnScreen - buffer, box._max + layoutData->_cull_anchorOnScreen + buffer);
+            box.set( box._min + pos - buffer, box._max + pos + buffer);
 
             int mapStartX,  mapStartY, mapEndX, mapEndY;
 
@@ -659,9 +669,10 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             }
 
             osg::Matrix newModelView;
-            newModelView.makeTranslate(static_cast<double>(layoutData->_cull_anchorOnScreen.x() + offset.x()), static_cast<double>(layoutData->_cull_anchorOnScreen.y() + offset.y()), 0);
+            newModelView.makeTranslate(static_cast<double>(pos.x()/* + offset.x()*/), static_cast<double>(pos.y()/* + offset.y()*/), 0);
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);
+            newModelView.preMultTranslate(offset);
 
             // Leaf modelview matrixes are shared (by objects in the traversal stack) so we
             // cannot just replace it unfortunately. Have to make a new one. Perhaps a nice

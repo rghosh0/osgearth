@@ -43,7 +43,9 @@ public:
     {
         Symbol = 0,
         Text,
-        Bbox
+        Bbox,
+        BboxGroup,
+        Text2ndlevel
     } typeDrawable;
 
     MPAnnotationGroup();
