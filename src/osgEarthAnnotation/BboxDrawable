@@ -44,9 +44,9 @@ namespace osgEarth { namespace Annotation
         void setReducedSize(bool b);
 
     protected:
-        osgEarth::Symbology::Color _highlightFillColor{ 0x3A6CAAFF };
+        osgEarth::Symbology::Color _highlightFillColor{ 0x3a6caaff };
         osgEarth::Symbology::Color _originalFillColor;
-        osgEarth::Symbology::Color _highlightStrokeColor{ 0x4B96FFFF };
+        osgEarth::Symbology::Color _highlightStrokeColor{ 0x4b96ffff };
         osgEarth::Symbology::Color _originalStrokeColor;
         bool _isHighlight{false};
         bool _withBorder {false};

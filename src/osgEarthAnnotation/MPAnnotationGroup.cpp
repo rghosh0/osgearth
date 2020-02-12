@@ -461,12 +461,12 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             }
 
             // initialiaze the symbol by copy (to copy the font for example)
-            TextSymbol* subTextSym = new TextSymbol(*textSymbol);
+            osg::ref_ptr<TextSymbol> subTextSym = new TextSymbol(*textSymbol);
             subTextSym->alignment() = alignList[i-1];
             subTextSym->size() = fontSizeList[i-1];
             subTextSym->fill() = colorList[i-1];
 
-            osgText::Text* subText = AnnotationUtils::createTextDrawable( textList[i], subTextSym, refBBox, nativeBBox[i-1] );
+            osgText::Text* subText = AnnotationUtils::createTextDrawable( textList[i], subTextSym.get(), refBBox, nativeBBox[i-1] );
             textsDrawable.push_back( subText );
         }
     }

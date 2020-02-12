@@ -180,8 +180,6 @@ BboxDrawable::setHighlight( bool highlight )
         c->pop_back();
         removePrimitiveSet(getNumPrimitiveSets()-1);
     }
-
-    _isHighlight = highlight;
 }
 
 void BboxDrawable::setReducedSize(bool b)

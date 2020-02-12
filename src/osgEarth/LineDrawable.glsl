@@ -304,7 +304,7 @@ void oe_LineDrawable_Stippler_FS(inout vec4 color)
 
     // TODO make it customizable
     if ( selected == 1 )
-        color.rgb = vec3(1. / 75., 1. / 150.f, 1.);
+        color.rgb = vec3(75.f / 255.f, 150.f / 255.f, 1.f);
 
     if (oe_GL_LineStipplePattern != 0xffff)
     {
