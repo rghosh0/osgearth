@@ -669,7 +669,7 @@ void
 MPAnnotationGroup::setHighlight( long id, bool highlight )
 {
     for ( auto anno : getDrawableList()[id] )
-        if (anno.type == MPAnnotationGroup::Bbox)
+        if (anno.type == MPAnnotationGroup::Bbox || anno.type == MPAnnotationGroup::BboxGroup)
         {
             BboxDrawable* bbox = static_cast<BboxDrawable*>(getChild(anno.index));
             if ( bbox && bbox->isHighlight() != highlight )

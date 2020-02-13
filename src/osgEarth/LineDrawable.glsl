@@ -278,6 +278,8 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 uniform int oe_GL_LineStippleFactor;
 uniform int oe_GL_LineStipplePattern;
 
+uniform vec4 oe_LineDrawable_highlight_color;
+
 flat in vec2 oe_LineDrawable_rv;
 flat in int oe_LineDrawable_draw;
 
@@ -302,9 +304,8 @@ void oe_LineDrawable_Stippler_FS(inout vec4 color)
     if (oe_LineDrawable_draw == 0 || oe_LineDrawable_backFaceCulled_Frag < 0.0 )
         discard;
 
-    // TODO make it customizable
     if ( selected == 1 )
-        color.rgb = vec3(75.f / 255.f, 150.f / 255.f, 1.f);
+        color = oe_LineDrawable_highlight_color;
 
     if (oe_GL_LineStipplePattern != 0xffff)
     {

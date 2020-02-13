@@ -1203,6 +1203,8 @@ LineDrawable::setupShaders()
                 vp->addBindAttribLocation("oe_LineDrawable_prev", LineDrawable::PreviousVertexAttrLocation);
                 vp->addBindAttribLocation("oe_LineDrawable_next", LineDrawable::NextVertexAttrLocation);
                 s_gpuStateSet->getOrCreateUniform("oe_LineDrawable_limits", osg::Uniform::FLOAT_VEC2)->set(osg::Vec2f(-1, -1));
+                // TODO make the highlight color customizable
+                s_gpuStateSet->getOrCreateUniform("oe_LineDrawable_highlight_color", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4f(75.f / 255.f, 150.f / 255.f, 1.f, 1.f));
                 s_gpuStateSet->setMode(GL_CULL_FACE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED);
             }
         }
