@@ -436,28 +436,40 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
                 continue;
 
             // specific treatments
-
-            // F: means that the value must be expressed in FL
-            StringVector textSplit;
-            StringTokenizer splitter( ":", "" );
-            splitter.tokenize( textList[i], textSplit );
-            if ( textSplit.size() == 2 )
+            if ( textList[i].find(":") == 1)
             {
-                // convert to int
-                int val;
-                std::istringstream(textSplit[1]) >> val;
-                // than add the FL symbol if required
-                if ( textSplit[0] == "F" )
-                    textList[i] = "FL" + std::to_string(val/100);
+                // F: means that the value must be expressed in FL
+                // D: means that the value must be expressed in °
+                StringVector textSplit;
+                StringTokenizer splitter( ":", "" );
+                splitter.tokenize( textList[i], textSplit );
+                if ( textSplit.size() == 2 )
+                {
+                    // convert to int
+                    int val;
+                    std::istringstream(textSplit[1]) >> val;
+
+                    // add the FL symbol if required
+                    if ( textSplit[0] == "F" )
+                    {
+                        textList[i] = "FL" + std::to_string(val/100);
+                    }
+                    // add the ° symbol if required and make sure it has always three digits
+                    else if ( textSplit[0] == "D" )
+                    {
+                        if ( val < 10 ) textList[i] = "00" + textSplit[1] + "°";
+                        else if ( val < 100 ) textList[i] = "0" + textSplit[1] + "°";
+                        else textList[i] = textSplit[1] + "°";
+                    }
+                    else
+                    {
+                        textList[i] = textSplit[1];
+                    }
+                }
                 else
-                    textList[i] = textSplit[1];
-            }
-
-            // make sure that degrees are always displayed with 3 digits
-            if ( textList[i].find("°") != std::string::npos )
-            {
-                if ( textList[i].size() == 3 ) textList[i] = "00" + textList[i];
-                else if ( textList[i].size() == 4 ) textList[i] = "0" + textList[i];
+                {
+                    continue;
+                }
             }
 
             // initialiaze the symbol by copy (to copy the font for example)
@@ -465,6 +477,12 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             subTextSym->alignment() = alignList[i-1];
             subTextSym->size() = fontSizeList[i-1];
             subTextSym->fill() = colorList[i-1];
+            if (subTextSym->font().isSet())
+            {
+                std::string font(subTextSym->font().get());
+                replaceIn(font, "Bold", "Regular"); // all sub items must be regular font
+                subTextSym->font() = font;
+            }
 
             osgText::Text* subText = AnnotationUtils::createTextDrawable( textList[i], subTextSym.get(), refBBox, nativeBBox[i-1] );
             textsDrawable.push_back( subText );
