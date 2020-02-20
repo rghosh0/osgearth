@@ -26,8 +26,8 @@
 using namespace osgEarth;
 
 PagedLODwithVisibilityAltitude::PagedLODwithVisibilityAltitude()
-    : _visibilityMaxAltitude(FLT_MAX), _currentAltitude(FLT_MAX),
-      _isVisible(true) {
+    : _visibilityMaxAltitude(FLT_MAX), _currentAltitude(FLT_MAX)
+{
   // nop
 }
 
@@ -77,33 +77,38 @@ bool PagedLODwithVisibilityAltitude::replaceChild(osg::Node *oldChild,
   return ok;
 }
 
-void PagedLODwithVisibilityAltitude::traverse(osg::NodeVisitor &nv) {
-  if (_visibilityMaxAltitude != FLT_MAX &&
-      nv.getVisitorType() == osg::NodeVisitor::CULL_VISITOR) {
-    osgUtil::CullVisitor *cv = Culling::asCullVisitor(nv);
-    osg::Camera *camera = cv->getCurrentCamera();
+void PagedLODwithVisibilityAltitude::traverse(osg::NodeVisitor &nv)
+{
+    if (_visibilityMaxAltitude != FLT_MAX &&
+            nv.getVisitorType() == osg::NodeVisitor::CULL_VISITOR
+            && getNumChildren() > 0)
+    {
+        osgUtil::CullVisitor *cv = Culling::asCullVisitor(nv);
+        osg::Camera *camera = cv->getCurrentCamera();
 
-    // work only on reference camera
-    if (camera && !camera->isRenderToTextureCamera()) {
-      double alt;
-      if (camera->getUserValue("altitude", alt) && _currentAltitude != alt) {
-        _currentAltitude = alt;
-        if (_currentAltitude > _visibilityMaxAltitude) {
-          if (_isVisible && getNumChildren() > 0) {
-            getChild(0)->setNodeMask(0);
-            _isVisible = false;
-          }
-        } else {
-          if (!_isVisible && getNumChildren() > 0) {
-            getChild(0)->setNodeMask(~0);
-            _isVisible = true;
-          }
+        // work only on reference camera
+        if (camera && !camera->isRenderToTextureCamera())
+        {
+            double alt;
+            if (camera->getUserValue("altitude", alt) && _currentAltitude != alt)
+            {
+                _currentAltitude = alt;
+                if (_currentAltitude > _visibilityMaxAltitude)
+                {
+                    if (getChild(0)->getNodeMask() != 0)
+                        getChild(0)->setNodeMask(0);
+                }
+                else
+                {
+                    if (getChild(0)->getNodeMask() == 0 )
+                        getChild(0)->setNodeMask(~0);
+
+                }
+            }
         }
-      }
     }
-  }
 
-  osg::PagedLOD::traverse(nv);
+    osg::PagedLOD::traverse(nv);
 }
 
 //...................................................................
