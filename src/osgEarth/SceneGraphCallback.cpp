@@ -87,22 +87,23 @@ void PagedLODwithVisibilityAltitude::traverse(osg::NodeVisitor &nv)
         osg::Camera *camera = cv->getCurrentCamera();
 
         // work only on reference camera
-        if (camera && !camera->isRenderToTextureCamera())
+        if (camera != nullptr && !camera->isRenderToTextureCamera())
         {
-            double alt;
+            double alt = 0.;
             if (camera->getUserValue("altitude", alt) && _currentAltitude != alt)
             {
                 _currentAltitude = alt;
+
+                osg::Node* child = getChild(0);
                 if (_currentAltitude > _visibilityMaxAltitude)
                 {
-                    if (getChild(0)->getNodeMask() != 0)
-                        getChild(0)->setNodeMask(0);
+                    if (child->getNodeMask() != 0)
+                        child->setNodeMask(0);
                 }
                 else
                 {
-                    if (getChild(0)->getNodeMask() == 0 )
-                        getChild(0)->setNodeMask(~0);
-
+                    if (child->getNodeMask() == 0 )
+                        child->setNodeMask(~0);
                 }
             }
         }
