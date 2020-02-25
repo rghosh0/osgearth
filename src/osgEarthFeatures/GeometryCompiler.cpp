@@ -343,7 +343,7 @@ GeometryCompiler::compile(FeatureList&          workingSet,
             altitude->script().isSet() );    
 
     // instance substitution (replaces marker)
-    if ( model )
+    if ( model && (! text || ! text->provider().isSet()) )
     {
         const InstanceSymbol* instance = (const InstanceSymbol*)model;
 
@@ -377,28 +377,25 @@ GeometryCompiler::compile(FeatureList&          workingSet,
             if ( trackHistory ) history.push_back( "altitude" );
         }
 
-        if (model->modelType() == ModelSymbol::TYPE_3D_MODEL)
+        SubstituteModelFilter sub( style );
+
+        // activate clustering
+        sub.setClustering( *_options.clustering() );
+
+        // activate draw-instancing
+        sub.setUseDrawInstanced( *_options.instancing() );
+
+        // activate feature naming
+        if ( _options.featureName().isSet() )
+            sub.setFeatureNameExpr( *_options.featureName() );
+
+
+        osg::Node* node = sub.push( workingSet, localCX );
+        if ( node )
         {
-            SubstituteModelFilter sub( style );
+            if ( trackHistory ) history.push_back( "substitute" );
 
-            // activate clustering
-            sub.setClustering( *_options.clustering() );
-
-            // activate draw-instancing
-            sub.setUseDrawInstanced( *_options.instancing() );
-
-            // activate feature naming
-            if ( _options.featureName().isSet() )
-                sub.setFeatureNameExpr( *_options.featureName() );
-
-
-            osg::Node* node = sub.push( workingSet, localCX );
-            if ( node )
-            {
-                if ( trackHistory ) history.push_back( "substitute" );
-
-                resultGroup->addChild( node );
-            }
+            resultGroup->addChild( node );
         }
     }
 

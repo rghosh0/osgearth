@@ -88,7 +88,7 @@ ModelNode::compileModel()
             {
                 URI uri = sym->url()->evalURI();
 
-                if (sym->modelType() == ModelSymbol::TYPE_3D_MODEL)
+                if (! sym->modelType().isSetTo(ModelSymbol::TYPE_IMAGE))
                 {
                     if ( sym->uriAliasMap()->empty() )
                     {
@@ -102,7 +102,7 @@ ModelNode::compileModel()
                         node = uri.getNode( tempOptions.get() );
                     }
                 }
-                else if (sym->modelType() == ModelSymbol::TYPE_IMAGE)
+                else
                 {
                     //try to load an image from the uri provided
                     OE_DEBUG << LC << "try to load image " << uri.full() << std::endl;
