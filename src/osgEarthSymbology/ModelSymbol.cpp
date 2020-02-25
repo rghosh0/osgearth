@@ -127,7 +127,8 @@ ModelSymbol::createResource() const
 void
 ModelSymbol::parseSLD(const Config& c, Style& style)
 {
-    if ( match(c.key(), "model") ) {
+    if ( match(c.key(), "model") )
+    {
         style.getOrCreate<ModelSymbol>()->url() = c.value();
         style.getOrCreate<ModelSymbol>()->url()->setURIContext( c.referrer() );
     }
@@ -138,10 +139,12 @@ ModelSymbol::parseSLD(const Config& c, Style& style)
         else if ( match(c.value(), "image") )
             style.getOrCreate<ModelSymbol>()->modelType() = ModelSymbol::TYPE_IMAGE;
     }
-    else if ( match(c.key(),"model-library") ) {
+    else if ( match(c.key(),"model-library") )
+    {
         style.getOrCreate<ModelSymbol>()->library() = StringExpression(c.value());
     }
-    else if ( match(c.key(), "model-placement") ) {
+    else if ( match(c.key(), "model-placement") )
+    {
         if      ( match(c.value(), "vertex") )   
             style.getOrCreate<ModelSymbol>()->placement() = ModelSymbol::PLACEMENT_VERTEX;
         else if ( match(c.value(), "interval") ) 
@@ -151,46 +154,59 @@ ModelSymbol::parseSLD(const Config& c, Style& style)
         else if ( match(c.value(), "centroid") ) 
             style.getOrCreate<ModelSymbol>()->placement() = ModelSymbol::PLACEMENT_CENTROID;
     }
-    else if ( match(c.key(), "model-density") ) {
+    else if ( match(c.key(), "model-density") )
+    {
         style.getOrCreate<ModelSymbol>()->density() = as<float>(c.value(), 1.0f);
     }
-    else if ( match(c.key(), "model-random-seed") ) {
+    else if ( match(c.key(), "model-random-seed") )
+    {
         style.getOrCreate<ModelSymbol>()->randomSeed() = as<unsigned>(c.value(), 0);
     }
-    else if ( match(c.key(), "model-scale") ) {
+    else if ( match(c.key(), "model-scale") )
+    {
         if ( match(c.value(), "auto") )
             style.getOrCreate<ModelSymbol>()->autoScale() = true;
         else
             style.getOrCreate<ModelSymbol>()->scale() = NumericExpression(c.value());
     }
-	else if (match(c.key(), "model-min-auto-scale")) {
+    else if (match(c.key(), "model-min-auto-scale"))
+    {
 		style.getOrCreate<ModelSymbol>()->minAutoScale() = as<double>(c.value(), 0.0f);
 	}
-	else if (match(c.key(), "model-max-auto-scale")) {
+    else if (match(c.key(), "model-max-auto-scale"))
+    {
 		style.getOrCreate<ModelSymbol>()->maxAutoScale() = as<double>(c.value(), DBL_MAX);
 	}
-    else if ( match(c.key(), "model-scale-x") ) {
+    else if ( match(c.key(), "model-scale-x") )
+    {
         style.getOrCreate<ModelSymbol>()->scaleX() = NumericExpression(c.value());
     }
-    else if ( match(c.key(), "model-scale-y") ) {
+    else if ( match(c.key(), "model-scale-y") )
+    {
         style.getOrCreate<ModelSymbol>()->scaleY() = NumericExpression(c.value());
     }
-    else if ( match(c.key(), "model-scale-z") ) {
+    else if ( match(c.key(), "model-scale-z") )
+    {
         style.getOrCreate<ModelSymbol>()->scaleZ() = NumericExpression(c.value());
     }
-    else if ( match(c.key(), "model-heading") ) {
+    else if ( match(c.key(), "model-heading") )
+    {
         style.getOrCreate<ModelSymbol>()->heading() = NumericExpression(c.value());
     }
-    else if ( match(c.key(), "model-script") ) {
+    else if ( match(c.key(), "model-script") )
+    {
         style.getOrCreate<ModelSymbol>()->script() = StringExpression(c.value());
     }
-    else if ( match(c.key(), "model-name") ) {
+    else if ( match(c.key(), "model-name") )
+    {
         style.getOrCreate<ModelSymbol>()->name() = StringExpression(c.value());
     }
-    else if ( match(c.key(), "model-max-size-x") ) {
+    else if ( match(c.key(), "model-max-size-x") )
+    {
         style.getOrCreate<ModelSymbol>()->maxSizeX() = as<float>(c.value(), FLT_MAX);
     }
-    else if ( match(c.key(), "model-max-size-y") ) {
+    else if ( match(c.key(), "model-max-size-y") )
+    {
         style.getOrCreate<ModelSymbol>()->maxSizeY() = as<float>(c.value(), FLT_MAX);
     }
 }

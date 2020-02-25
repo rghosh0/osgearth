@@ -343,7 +343,7 @@ GeometryCompiler::compile(FeatureList&          workingSet,
             altitude->script().isSet() );    
 
     // instance substitution (replaces marker)
-    if ( model )
+    if ( model && (! text || ! text->provider().isSet()) )
     {
         const InstanceSymbol* instance = (const InstanceSymbol*)model;
 
@@ -388,7 +388,6 @@ GeometryCompiler::compile(FeatureList&          workingSet,
         // activate feature naming
         if ( _options.featureName().isSet() )
             sub.setFeatureNameExpr( *_options.featureName() );
-        
 
         osg::Node* node = sub.push( workingSet, localCX );
         if ( node )
