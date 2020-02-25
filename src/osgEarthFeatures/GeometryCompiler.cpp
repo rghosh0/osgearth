@@ -377,25 +377,28 @@ GeometryCompiler::compile(FeatureList&          workingSet,
             if ( trackHistory ) history.push_back( "altitude" );
         }
 
-        SubstituteModelFilter sub( style );
-
-        // activate clustering
-        sub.setClustering( *_options.clustering() );
-
-        // activate draw-instancing
-        sub.setUseDrawInstanced( *_options.instancing() );
-
-        // activate feature naming
-        if ( _options.featureName().isSet() )
-            sub.setFeatureNameExpr( *_options.featureName() );
-        
-
-        osg::Node* node = sub.push( workingSet, localCX );
-        if ( node )
+        if (model->modelType() == ModelSymbol::TYPE_3D_MODEL)
         {
-            if ( trackHistory ) history.push_back( "substitute" );
+            SubstituteModelFilter sub( style );
 
-            resultGroup->addChild( node );
+            // activate clustering
+            sub.setClustering( *_options.clustering() );
+
+            // activate draw-instancing
+            sub.setUseDrawInstanced( *_options.instancing() );
+
+            // activate feature naming
+            if ( _options.featureName().isSet() )
+                sub.setFeatureNameExpr( *_options.featureName() );
+
+
+            osg::Node* node = sub.push( workingSet, localCX );
+            if ( node )
+            {
+                if ( trackHistory ) history.push_back( "substitute" );
+
+                resultGroup->addChild( node );
+            }
         }
     }
 
