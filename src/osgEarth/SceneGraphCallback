@@ -112,7 +112,6 @@ public: // osg::Group
 private:
   float _visibilityMaxAltitude;
   float _currentAltitude;
-  bool _isVisible;
 };
 
 /**
