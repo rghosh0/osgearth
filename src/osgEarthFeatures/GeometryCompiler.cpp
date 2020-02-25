@@ -389,7 +389,6 @@ GeometryCompiler::compile(FeatureList&          workingSet,
         if ( _options.featureName().isSet() )
             sub.setFeatureNameExpr( *_options.featureName() );
 
-
         osg::Node* node = sub.push( workingSet, localCX );
         if ( node )
         {
