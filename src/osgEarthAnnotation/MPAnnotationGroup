@@ -46,17 +46,17 @@ public:
         Bbox,
         BboxGroup,
         Text2ndlevel
-    } typeDrawable;
+    } TypeDrawable;
 
     MPAnnotationGroup();
 
     struct AnnoInfo
     {
-        AnnoInfo(typeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld) : type{t}, index{i}, globalSsld{ssld} {}
-        AnnoInfo(typeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange} {}
+        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld) : type{t}, index{i}, globalSsld{ssld} {}
+        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange} {}
 
         // Type of Drawable
-        typeDrawable type;
+        TypeDrawable type;
         // index in the parent list
         unsigned int index{0};
 

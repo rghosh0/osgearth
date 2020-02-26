@@ -353,50 +353,14 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     // The bounding box can enclose either the text, or the image, or both
     osg::ref_ptr<osg::Drawable> bboxDrawable;
     const BBoxSymbol* bboxsymbol = style.get<BBoxSymbol>();
-    if ( bboxsymbol && (bboxsymbol->group() != BBoxSymbol::BboxGroup::GROUP_NONE)
-         && (textDrawable.valid() || imageDrawable.valid()) )
+    if ( bboxsymbol )
     {
-        osg::BoundingBox groupBBox{};
-        float reducedWidth = 0.f;
-
-        if ( imageDrawable.valid() && (bboxsymbol->geom() == BBoxSymbol::BboxGeom::GEOM_BOX_ROUNDED) &&
-             ((bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY) ||
-              (!textDrawable.valid() && (bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT))) )
-        {
-            // This is the case where only the image should have a rounded
-            // background, either by choice or because the text is not
-            // available. The way rounded boxes are drawn is basically by
-            // adding two semicircles on each side of the original bounding
-            // box. The result is a pill shape instead of a circle shape for an
-            // original square bounding box. To bypass this behavior, the
-            // original bounding box is transformed to have a width of zero and
-            // a height equal to the diagonal of the image.
-
-            const osg::BoundingBox imageBB{imageDrawable->getBoundingBox()};
-
-            groupBBox.expandBy( {imageBB.center().x(), imageBB.center().y() - imageBB.radius(), imageBB.center().z(),
-                                 imageBB.center().x(), imageBB.center().y() + imageBB.radius(), imageBB.center().z()} );
-            reducedWidth = imageBB.xMax() - imageBB.xMin();
-        }
-        else
-        {
-            // Enclose text
-            if ( textDrawable.valid() && (bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_TEXT_ONLY ||
-                                  bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT) )
-            {
-                groupBBox.expandBy( textDrawable->getBoundingBox() );
-            }
-
-            // Enclose image
-            if ( imageDrawable.valid() && (bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY ||
-                                   bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT) )
-            {
-                groupBBox.expandBy( imageDrawable->getBoundingBox() );
-                reducedWidth = imageDrawable->getBoundingBox().xMax() - imageDrawable->getBoundingBox().xMin();
-            }
-        }
-
-        bboxDrawable = new BboxDrawable( groupBBox, *bboxsymbol, reducedWidth );
+        if ( bboxsymbol->group() == BBoxSymbol::GROUP_ICON_ONLY && imageDrawable.valid() )
+            bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(), *bboxsymbol );
+        else if ( bboxsymbol->group() == BBoxSymbol::GROUP_TEXT_ONLY && textDrawable.valid() )
+            bboxDrawable = new BboxDrawable( textDrawable->getBoundingBox(), *bboxsymbol );
+        else if ( bboxsymbol->group() == BBoxSymbol::GROUP_ICON_AND_TEXT && textDrawable.valid() && imageDrawable.valid() )
+            bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(), textDrawable->getBoundingBox(), *bboxsymbol );
     }
 
     // ----------------------
@@ -517,8 +481,13 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         bboxDrawable->setDataVariance(osg::Object::DYNAMIC);
         bboxDrawable->setUserData(dataLayout);
         this->addChild( bboxDrawable );
-        typeDrawable type = bboxsymbol && bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT ? BboxGroup : Bbox;
-        _drawableList[id].push_back(AnnoInfo(type, this->getNumChildren()-1, dataLayout, minRange));
+        if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT )
+            _drawableList[id].push_back(AnnoInfo(BboxGroup, this->getNumChildren()-1, dataLayout, minRange));
+        else if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY )
+            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout));
+        else
+            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange));
+
     }
     for ( auto node : textsDrawable )
     {

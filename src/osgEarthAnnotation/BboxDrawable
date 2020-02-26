@@ -36,14 +36,18 @@ namespace osgEarth { namespace Annotation
     class OSGEARTHANNO_EXPORT BboxDrawable : public osg::Geometry
     {
     public:
-        BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol& boxSymbol, const float& symbolWidth = 0.f );
+        BboxDrawable(const osg::BoundingBox& box, const BBoxSymbol& boxSymbol);
+        BboxDrawable(const osg::BoundingBox &boxImg, const osg::BoundingBox &boxText, const BBoxSymbol& boxSymbol );
 
         void setHighlight( bool highlight = true );
         bool isHighlight() { return _isHighlight; }
 
-        void setReducedSize(bool b);
+        void setReducedSize(bool sizeReduced);
 
     protected:
+
+        void build(const osg::BoundingBox& box, const BBoxSymbol& boxSymbol);
+
         osgEarth::Symbology::Color _highlightFillColor{ 0x3a6caaff };
         osgEarth::Symbology::Color _originalFillColor;
         osgEarth::Symbology::Color _highlightStrokeColor{ 0x4b96ffff };
@@ -51,9 +55,9 @@ namespace osgEarth { namespace Annotation
         bool _isHighlight{false};
         bool _withBorder {false};
 
-        float _widthReduction;
-        unsigned int _indexEndRightSide;
-        bool _sizeReduced;
+        float _widthReduction{0.f};
+        unsigned int _indexEndRightSide{0u};
+        bool _sizeReduced{false};
     };
 
 } } // namespace osgEarth::Annotation

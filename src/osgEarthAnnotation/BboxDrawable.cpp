@@ -30,51 +30,163 @@ using namespace osgEarth::Annotation;
 
 //------------------------------------------------------------------------
 
-BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol, const float& symbolWidth ) :
+BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol ) :
 osg::Geometry()
 {
-    _widthReduction = symbolWidth < box.xMax() - box.xMin() ? box.xMax() - box.xMin() - symbolWidth : 0;
-    _indexEndRightSide = 0;
-    _sizeReduced = false;
+    build(box, bboxSymbol);
+}
 
+
+BboxDrawable::BboxDrawable( const osg::BoundingBox& boxImg, const osg::BoundingBox& boxText, const BBoxSymbol& boxSymbol )
+{
+    if ( boxSymbol.group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY )
+    {
+        build(boxImg, boxSymbol);
+    }
+
+    else if ( boxSymbol.group() == BBoxSymbol::BboxGroup::GROUP_TEXT_ONLY )
+    {
+        build(boxText, boxSymbol);
+    }
+
+    else if ( boxSymbol.group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT )
+    {
+        osg::BoundingBox groupBBox;
+        groupBBox.expandBy( boxImg );
+        groupBBox.expandBy( boxText );
+        _widthReduction = boxText.xMax() - boxImg.xMax();
+        _sizeReduced = false;
+        build(groupBBox, boxSymbol);
+    }
+}
+
+
+void
+BboxDrawable::setHighlight( bool highlight )
+{
+    if ( _isHighlight == highlight )
+        return;
+
+    _isHighlight = highlight;
+
+    osg::Vec4Array* c = static_cast<osg::Vec4Array*>(getColorArray());
+
+    // update bbox fill color
+    (*c)[0] = _isHighlight ? _highlightFillColor : _originalFillColor;
+
+    // update the stroke color
+    if ( _withBorder )
+    {
+        (*c)[1] = _isHighlight ? _highlightStrokeColor : _originalStrokeColor;
+    }
+
+    // add the stroke
+    else if ( _isHighlight )
+    {
+        c->push_back( _highlightStrokeColor );
+        //getOrCreateStateSet()->setAttribute( new osg::LineWidth( 4 ));
+        addPrimitiveSet( new osg::DrawArrays(GL_LINE_LOOP, 0, static_cast<int>(getVertexArray()->getNumElements())) );
+    }
+
+    // remove the stroke
+    else
+    {
+        c->pop_back();
+        removePrimitiveSet(getNumPrimitiveSets()-1);
+    }
+}
+
+void
+BboxDrawable::setReducedSize(bool sizeReduced)
+{
+    if (sizeReduced == _sizeReduced) return;
+
+    osg::Vec3Array* v = static_cast<osg::Vec3Array*>(getVertexArray());
+
+    // case move the right part of the box to the left
+    if (sizeReduced)
+    {
+        if ( v->size() == 4 )
+        {
+            v->at(0).x() -= _widthReduction;
+            v->at(3).x() -= _widthReduction;
+        }
+        else
+        {
+            for (unsigned int it = 0; it <= _indexEndRightSide; it++)
+            {
+                v->at(it).x() -= _widthReduction;
+            }
+        }
+        _sizeReduced = true;
+    }
+
+    // case move the right part of the box to the right
+    else
+    {
+        if ( v->size() == 4 )
+        {
+            v->at(0).x() += _widthReduction;
+            v->at(3).x() += _widthReduction;
+        }
+        else
+        {
+            for (unsigned int it = 0; it <= _indexEndRightSide; it++)
+            {
+                v->at(it).x() += _widthReduction;
+            }
+        }
+        _sizeReduced = false;
+    }
+    v->dirty();
+    dirtyBound();
+}
+
+
+void
+BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
+{
     setUseVertexBufferObjects(true);
 
     float margin = bboxSymbol.margin().isSet() ? bboxSymbol.margin().value() : 2.f;
-    float shiftRight = 0.f;
     osg::Vec3Array* v = new osg::Vec3Array();
 
-    if ( bboxSymbol.geom().isSet() &&
-         ( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ROUNDED ))
+    if ( bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_BOX_ROUNDED) || bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_BOX_ROUNDED_INNER) )
     {
         osg::Vec3 dump;
-        float nbStep = 5.f;
-        int sizeBeforePush = 0;
-        float radius = ((box.yMax()-box.yMin())/2)+margin;
-        osg::Vec3 center (box.xMax(),(box.yMax()+box.yMin())/2,0);
-        v->push_back( osg::Vec3(box.xMax(), box.yMin()-margin, 0) );
-        for (float angle = (3*osg::PI/2.f)+(osg::PI/2.f)/nbStep; angle <2.f*osg::PI ; angle += (osg::PI/2.f)/nbStep)
-        {
-            v->push_back(center + osg::Vec3((cosf(angle)*radius),sinf(angle)*radius,0));
-        }
-        v->push_back(center + osg::Vec3((cosf(2.f*osg::PI)*radius),sinf(2.f*osg::PI)*radius,0));
-        sizeBeforePush = v->size();
+        const int nbSteps = 9;
+        float angleStep = osg::PI / nbSteps;
+        float radius = ((box.yMax()-box.yMin())/2.f) + margin;
+        float boxSemiHeight = (box.yMax() - box.yMin()) / 2.f/* + margin*/;
+        osg::Vec3 center (box.xMax(), (box.yMax()+box.yMin())/2.f, 0.f);
+        if ( bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_BOX_ROUNDED_INNER) )
+            center.x() -= boxSemiHeight;
 
-        for (int iterator = sizeBeforePush-2; iterator >= sizeBeforePush-nbStep-1; --iterator)
+        v->push_back( osg::Vec3(center.x(), box.yMin()-margin, 0) );
+        float angle = - osg::PIf / 2.f;
+        for (int step = 1 ; step < nbSteps ; step++ )
         {
-            dump = v->at(iterator);
-            v->push_back(osg::Vec3(dump.x(), 2*center.y()-dump.y(), dump.z()));
+            angle += angleStep;
+            v->push_back(center + osg::Vec3((cosf(angle)*radius), sinf(angle)*radius, 0.f));
         }
-        sizeBeforePush = v->size();
+        v->push_back( osg::Vec3(center.x(), box.yMax()+margin, 0.f) );
+
+        int sizeBeforePush = v->size();
         _indexEndRightSide = v->size() - 1;
+        float leftShift = box.xMax()-box.xMin();
+        if (bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_BOX_ROUNDED_INNER))
+            leftShift -= 2.f * boxSemiHeight;
 
-        for (int iterator = sizeBeforePush-1; iterator >= sizeBeforePush-nbStep*2-1; --iterator)
+        for (int i = sizeBeforePush-1; i >= 0; --i)
         {
-            dump = v->at(iterator);
-            v->push_back(osg::Vec3(2*center.x()-dump.x()-(box.xMax()-box.xMin()), dump.y(), dump.z()));
+            dump = v->at(i);
+            v->push_back(osg::Vec3(2*center.x()-dump.x()-leftShift, dump.y(), 0.f));
         }
     }
-    else  {
 
+    else
+    {
+        float shiftRight = 0.f;
         if ( bboxSymbol.geom().isSet() && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM) )
         {
             float hMed = (box.yMax()-box.yMin()+2.f*margin) * 0.5f;
@@ -145,81 +257,4 @@ osg::Geometry()
 
     // Disable culling since this bounding box will eventually be drawn in screen space.
     setCullingActive(false);
-}
-
-void
-BboxDrawable::setHighlight( bool highlight )
-{
-    if ( _isHighlight == highlight )
-        return;
-
-    _isHighlight = highlight;
-
-    osg::Vec4Array* c = static_cast<osg::Vec4Array*>(getColorArray());
-
-    // update bbox fill color
-    (*c)[0] = _isHighlight ? _highlightFillColor : _originalFillColor;
-
-    // update the stroke color
-    if ( _withBorder )
-    {
-        (*c)[1] = _isHighlight ? _highlightStrokeColor : _originalStrokeColor;
-    }
-
-    // add the stroke
-    else if ( _isHighlight )
-    {
-        c->push_back( _highlightStrokeColor );
-        //getOrCreateStateSet()->setAttribute( new osg::LineWidth( 4 ));
-        addPrimitiveSet( new osg::DrawArrays(GL_LINE_LOOP, 0, static_cast<int>(getVertexArray()->getNumElements())) );
-    }
-
-    // remove the stroke
-    else
-    {
-        c->pop_back();
-        removePrimitiveSet(getNumPrimitiveSets()-1);
-    }
-}
-
-void BboxDrawable::setReducedSize(bool b)
-{
-    if (b == _sizeReduced) return;
-
-    osg::Vec3Array* v = static_cast<osg::Vec3Array*>(getVertexArray());
-
-    if (b)
-    {
-        if ( v->size() == 4 )
-        {
-            v->at(0).x() -= _widthReduction;
-            v->at(3).x() -= _widthReduction;
-        }
-        else
-        {
-            for (unsigned int it = 0; it <= _indexEndRightSide; it++)
-            {
-                v->at(it).x() -= _widthReduction;
-            }
-        }
-        _sizeReduced = true;
-    }
-    else
-    {
-        if ( v->size() == 4 )
-        {
-            v->at(0).x() += _widthReduction;
-            v->at(3).x() += _widthReduction;
-        }
-        else
-        {
-            for (unsigned int it = 0; it <= _indexEndRightSide; it++)
-            {
-                v->at(it).x() += _widthReduction;
-            }
-        }
-        _sizeReduced = false;
-    }
-    v->dirty();
-    dirtyBound();
 }
