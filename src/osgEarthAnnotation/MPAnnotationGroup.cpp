@@ -377,6 +377,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             margin += 1.;
         osg::Vec3 marginVec(margin, margin, margin);
         osg::BoundingBox refBBox( bboxDrawable->getBoundingBox()._min - marginVec, bboxDrawable->getBoundingBox()._max + marginVec);
+        static const std::string undef = "-32765";
 
         //------> TODO This part should be out of MPAnnotationGroup ...
         TextSymbol::Alignment alignList[] = { TextSymbol::ALIGN_LEFT_BOTTOM, TextSymbol::ALIGN_LEFT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_LEFT_TOP,
@@ -384,7 +385,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
 
         float fontSizeOrg = textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.f;
         float fontSizeSmaller = fontSizeOrg / 18.f * 15.f;
-        float fontSizeList[] = {fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeOrg};
+        float fontSizeList[] = {fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller};
 
         static const Color magenta(1., 135./255., 195./255.);
         Color colorOrg = textSymbol->fill().isSet() ? textSymbol->fill().get().color() : Color::White;
@@ -396,18 +397,19 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         // for each text (except the first one)
         for ( unsigned int i=1 ; i<textList.size() ; ++i )
         {
-            if ( textList[i].empty() || textList[i] == "°" )
+            if ( textList[i].empty() || textList[i] == undef)
                 continue;
 
             // specific treatments
-            if ( textList[i].find(":") == 1)
+            if ( textList[i].find(":") == 1 )
             {
-                // F: means that the value must be expressed in FL
-                // D: means that the value must be expressed in °
+                // F: means that the value must be display with format FLxxx
+                // D: means that the value must be display with format xxx°
+                // R: means that the value must be display with format Rxxx
                 StringVector textSplit;
                 StringTokenizer splitter( ":", "" );
                 splitter.tokenize( textList[i], textSplit );
-                if ( textSplit.size() == 2 )
+                if ( textSplit.size() == 2 && textSplit[1] != undef)
                 {
                     // convert to int
                     int val;
@@ -417,6 +419,11 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
                     if ( textSplit[0] == "F" )
                     {
                         textList[i] = "FL" + std::to_string(val/100);
+                    }
+                    // add the R symbol if required
+                    else if ( textSplit[0] == "R" )
+                    {
+                        textList[i] = "R" + std::to_string(val);
                     }
                     // add the ° symbol if required and make sure it has always three digits
                     else if ( textSplit[0] == "D" )

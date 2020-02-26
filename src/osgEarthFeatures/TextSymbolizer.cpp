@@ -114,7 +114,7 @@ TextSymbolizer::apply(osgText::Text* drawable,
     }
 
     // margin between the items
-    double margin = symbol->predefinedOrganisationMargin().isSet() ? symbol->predefinedOrganisationMargin().get() : 4.;
+    double margin = symbol->predefinedOrganisationMargin().isSet() ? symbol->predefinedOrganisationMargin().get() : 5.;
 
     // calculate the text position relative to the alignment box.
     static osg::BoundingBox s_defaultbbox(0,0,0,0,0,0);

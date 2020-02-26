@@ -22,7 +22,7 @@
 #include <osgEarthFeatures/FeatureSourceIndexNode>
 #include <osgEarthFeatures/FilterContext>
 
-#define LC "[MPAnnoLabelSource] "
+#define LC "[MPAnnotationLabelSource] "
 
 using namespace osgEarth;
 using namespace osgEarth::Annotation;
@@ -54,6 +54,11 @@ public:
     {
         if ( style.get<TextSymbol>() == nullptr && style.get<IconSymbol>() == nullptr )
             return nullptr;
+
+        // provide some performance info
+        osg::Timer_t t_start;
+        if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
+            t_start = osg::Timer::instance()->tick();
 
         // copy the style so we can (potentially) modify the text symbol.
         Style styleCopy = style;
@@ -152,6 +157,17 @@ public:
 
         // may be unnecessary
         root->dirtyBound();
+
+        // provide some performance info
+        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+        {
+            osg::Timer_t t_end = osg::Timer::instance()->tick();
+            double t = osg::Timer::instance()->delta_s(t_start, t_end);
+            OE_DEBUG << LC << "Profiling:\n";
+            OE_DEBUG << LC << "    time to build " << t << "s\n";
+            OE_DEBUG << LC << "    num features " << std::dec << input.size() << "\n";
+            OE_DEBUG << LC << "    num drawables " << std::dec << root->getNumChildren() << "\n";
+        }
 
         return root;
     }
