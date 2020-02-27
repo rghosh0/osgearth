@@ -107,6 +107,9 @@ BBoxSymbol::parseSLD(const Config& c, Style& style)
     else if ( match(c.key(), "text-bbox-border-width") ) {
         style.getOrCreate<BBoxSymbol>()->border()->width() = as<float>( c.value(), 1.0f );
     }
+    else if ( match(c.key(), "text-bbox-border-smooth") ) {
+        style.getOrCreate<BBoxSymbol>()->border()->smooth() = as<bool>(c.value(), false);
+    }
     else if ( match(c.key(), "text-bbox-margin") ) {
         style.getOrCreate<BBoxSymbol>()->margin() = as<float>(c.value(), 3.0f);
     }

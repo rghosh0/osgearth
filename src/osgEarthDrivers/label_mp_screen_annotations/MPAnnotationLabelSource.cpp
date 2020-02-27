@@ -68,7 +68,7 @@ public:
         AltitudeSymbol* alt = styleCopy.get<AltitudeSymbol>();
 
         // attach point for all drawables
-        MPAnnotationGroup* root = new MPAnnotationGroup();
+        MPAnnotationGroup* root = new MPAnnotationGroup(bbox && bbox->border().isSet() && bbox->border()->smooth().isSetTo(true));
 
         StringExpression  textContentExpr ( text ? *text->content()  : StringExpression() );
         NumericExpression textPriorityExpr( text ? *text->priority() : NumericExpression() );

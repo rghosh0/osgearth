@@ -24,6 +24,7 @@
 #include <osgEarth/Lighting>
 #include <osgEarth/ShaderGenerator>
 #include <osgEarth/GeoMath>
+#include <osgEarth/GLUtils>
 #include <osgEarthFeatures/GeometryUtils>
 #include <osg/Depth>
 
@@ -33,7 +34,6 @@ using namespace osgEarth;
 using namespace osgEarth::Annotation;
 
 
-osg::observer_ptr<osg::StateSet> MPAnnotationGroup::s_rootStateSet;
 std::map<std::string, osg::observer_ptr<osg::StateSet>> MPAnnotationGroup::s_imageStateSet;
 
 namespace
@@ -54,6 +54,11 @@ const char* iconFS =
                                      "{ \n"
                                      "    color = texture(oe_PlaceNode_tex, oe_PlaceNode_texcoord); \n"
                                      "} \n";
+
+const osg::Node::NodeMask nodeNoMask = 0xffffffff;
+const std::string undef = "-32765";
+const Color magenta(1., 135./255., 195./255.);
+
 }
 
 
@@ -105,7 +110,6 @@ public:
                         ssld->_cull_rotationRadOnScreen = atan2(anchorToProj.y(), anchorToProj.x());
                     }
 
-                    static const osg::Node::NodeMask nodeNoMask = 0xffffffff;
                     for (auto iAnno : anno.second)
                     {
                         if (iAnno.type == MPAnnotationGroup::BboxGroup)
@@ -129,30 +133,20 @@ public:
 };
 
 
-MPAnnotationGroup::MPAnnotationGroup() : osg::Group()
+MPAnnotationGroup::MPAnnotationGroup( bool lineSmooth ) : osg::Group()
 {
-    // build one unique StateSet for all MPAnnotationGroup
-    if (! s_rootStateSet.lock(_rootStateSet))
-    {
-        static Threading::Mutex s_mutex;
-        Threading::ScopedMutexLock lock(s_mutex);
+    _rootStateSet = getOrCreateStateSet();
 
-        if (! s_rootStateSet.lock(_rootStateSet))
-        {
-            s_rootStateSet = _rootStateSet = new osg::StateSet();
+    // draw in the screen-space bin
+    MPScreenSpaceLayout::activate(_rootStateSet.get());
 
-            // draw in the screen-space bin
-            MPScreenSpaceLayout::activate(_rootStateSet.get());
-
-            // stateset stuff
-            _rootStateSet->setAttributeAndModes(new osg::Depth(osg::Depth::ALWAYS, 0, 1, false), 1);
-            _rootStateSet->setDefine( OE_LIGHTING_DEFINE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
-            _rootStateSet->setMode( GL_CULL_FACE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED );
-            _rootStateSet->setMode( GL_BLEND, osg::StateAttribute::ON );
-        }
-    }
-
-    setStateSet(_rootStateSet.get());
+    // stateset stuff
+    _rootStateSet->setAttributeAndModes(new osg::Depth(osg::Depth::ALWAYS, 0, 1, false), 1);
+    _rootStateSet->setDefine( OE_LIGHTING_DEFINE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE );
+    _rootStateSet->setMode( GL_CULL_FACE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED );
+    _rootStateSet->setMode( GL_BLEND, osg::StateAttribute::ON );
+    if ( lineSmooth )
+        _rootStateSet->setMode( GL_LINE_SMOOTH, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE );
 
     addCullCallback(new AnnotationNodeGroupCullCallback());
 
@@ -376,8 +370,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         else
             margin += 1.;
         osg::Vec3 marginVec(margin, margin, margin);
-        osg::BoundingBox refBBox( bboxDrawable->getBoundingBox()._min - marginVec, bboxDrawable->getBoundingBox()._max + marginVec);
-        static const std::string undef = "-32765";
+        osg::BoundingBox refBBox( bboxDrawable->getBoundingBox()._min - marginVec, bboxDrawable->getBoundingBox()._max + marginVec);       
 
         //------> TODO This part should be out of MPAnnotationGroup ...
         TextSymbol::Alignment alignList[] = { TextSymbol::ALIGN_LEFT_BOTTOM, TextSymbol::ALIGN_LEFT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_LEFT_TOP,
@@ -387,7 +380,6 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         float fontSizeSmaller = fontSizeOrg / 18.f * 15.f;
         float fontSizeList[] = {fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller};
 
-        static const Color magenta(1., 135./255., 195./255.);
         Color colorOrg = textSymbol->fill().isSet() ? textSymbol->fill().get().color() : Color::White;
         Color colorList[] = {colorOrg, colorOrg, colorOrg, magenta, colorOrg, colorOrg};
 

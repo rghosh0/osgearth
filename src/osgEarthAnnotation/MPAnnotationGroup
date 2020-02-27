@@ -48,7 +48,7 @@ public:
         Text2ndlevel
     } TypeDrawable;
 
-    MPAnnotationGroup();
+    MPAnnotationGroup(bool lineSmooth = false);
 
     struct AnnoInfo
     {
@@ -94,7 +94,6 @@ protected:
 
     std::map<long, std::vector<AnnoInfo>> _drawableList;
 
-    static osg::observer_ptr<osg::StateSet> s_rootStateSet;
     osg::ref_ptr<osg::StateSet> _rootStateSet;
     static std::map<std::string, osg::observer_ptr<osg::StateSet>> s_imageStateSet;
 };
