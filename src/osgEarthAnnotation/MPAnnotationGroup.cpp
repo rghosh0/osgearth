@@ -113,11 +113,11 @@ public:
                             osg::Node* child = annoGroup->getChild(iAnno.index);
                             BboxDrawable* bbox = static_cast<BboxDrawable*>(child);
                             bbox->setNodeMask(nodeNoMask);
-                            bbox->setReducedSize(alt >= iAnno.minRange);
+                            //bbox->setReducedSize(alt >= iAnno.minRange);
                         }
                         else
                         {
-                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeNoMask : 0);
+                            //annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeNoMask : 0);
                         }
                     }
                 }
