@@ -187,22 +187,31 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
     else
     {
         float shiftRight = 0.f;
-        if ( bboxSymbol.geom().isSet() && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM) )
+        float hMed = (box.yMax()-box.yMin()+2.f*margin) * 0.5f;
+        float arrowEdgeX = hMed / 1.375f;
+        // possible values for the direction are 'F' (forward), 'B' (Backward) or Blank (Both directions)
+        // backward and forward are threaded the same way because the orientation will be automatically computed from the line orientation
+        bool drawBothWays = bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_2WAYS
+                && (!bboxSymbol.direction().isSet() || bboxSymbol.direction()->eval().empty());
+
+        // draw arrow to the right
+        if ( bboxSymbol.geom().isSet() && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED
+                || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM
+                || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_2WAYS ) )
         {
-            float hMed = (box.yMax()-box.yMin()+2.f*margin) * 0.5f;
             if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
-                shiftRight = - hMed;
+                shiftRight = - arrowEdgeX;
 
-            v->push_back( osg::Vec3(box.xMax()+margin+hMed+shiftRight, box.yMax()+margin-hMed, 0) );
-
-            if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
-                shiftRight *= 0.5f; // 22.5 angle instead of 45
+            v->push_back( osg::Vec3(box.xMax()+margin+arrowEdgeX+shiftRight, box.yMax()+margin-hMed, 0.f) );
         }
 
-        v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMax()+margin, 0) );
-        v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0) );
-        v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0) );
-        v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMin()-margin, 0) );
+        v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMax()+margin, 0.f) );
+        v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0.f) );
+        // draw arrow to the left if required
+        if( drawBothWays )
+            v->push_back( osg::Vec3(box.xMin()-margin-arrowEdgeX, box.yMax()+margin-hMed, 0.f) );
+        v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0.f) );
+        v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMin()-margin, 0.f) );
     }
 
     setVertexArray(v);

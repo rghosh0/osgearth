@@ -41,7 +41,8 @@ BBoxSymbol::BBoxSymbol(const BBoxSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _border               ( rhs._border ),
                                                                            _margin               ( rhs._margin ),
                                                                            _bboxGeom             ( rhs._bboxGeom ),
-                                                                           _bboxGroup            ( rhs._bboxGroup)
+                                                                           _bboxGroup            ( rhs._bboxGroup ),
+                                                                           _direction            ( rhs._direction )
 {
 
 }
@@ -58,6 +59,7 @@ BBoxSymbol::getConfig() const
     conf.set( "geom", "box", _bboxGeom, GEOM_BOX );
     conf.set( "geom", "box_oriented", _bboxGeom, GEOM_BOX_ORIENTED );
     conf.set( "geom", "box_oriented_symetric", _bboxGeom, GEOM_BOX_ORIENTED_SYM );
+    conf.set( "geom", "box_oriented_2ways", _bboxGeom, GEOM_BOX_ORIENTED_2WAYS );
     conf.set( "geom", "box_rounded", _bboxGeom, GEOM_BOX_ROUNDED );
     conf.set( "geom", "box_rounded_inner", _bboxGeom, GEOM_BOX_ROUNDED_INNER );
 
@@ -65,6 +67,8 @@ BBoxSymbol::getConfig() const
     conf.set( "group", "text-only", _bboxGroup, GROUP_TEXT_ONLY );
     conf.set( "group", "icon-only", _bboxGroup, GROUP_ICON_ONLY );
     conf.set( "group", "icon-and-text", _bboxGroup, GROUP_ICON_AND_TEXT );
+
+    conf.set( "direction", _direction );
 
     return conf;
 }
@@ -79,6 +83,7 @@ BBoxSymbol::mergeConfig( const Config& conf )
     conf.get( "geom", "box", _bboxGeom, GEOM_BOX );
     conf.get( "geom", "box_oriented", _bboxGeom, GEOM_BOX_ORIENTED );
     conf.get( "geom", "box_oriented_symetric", _bboxGeom, GEOM_BOX_ORIENTED_SYM );
+    conf.get( "geom", "box_oriented_2ways", _bboxGeom, GEOM_BOX_ORIENTED_2WAYS );
     conf.get( "geom", "box_rounded", _bboxGeom, GEOM_BOX_ROUNDED );
     conf.get( "geom", "box_rounded_inner", _bboxGeom, GEOM_BOX_ROUNDED_INNER );
 
@@ -86,6 +91,8 @@ BBoxSymbol::mergeConfig( const Config& conf )
     conf.get( "group", "text-only", _bboxGroup, GROUP_TEXT_ONLY );
     conf.get( "group", "icon-only", _bboxGroup, GROUP_ICON_ONLY );
     conf.get( "group", "icon-and-text", _bboxGroup, GROUP_ICON_AND_TEXT );
+
+    conf.get( "direction", _direction );
 }
 
 void
@@ -113,6 +120,9 @@ BBoxSymbol::parseSLD(const Config& c, Style& style)
         else if ( match(c.value(), "box_oriented_symetric") ) {
             style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ORIENTED_SYM;
         }
+        else if ( match(c.value(), "box_oriented_2ways") ) {
+            style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ORIENTED_2WAYS;
+        }
         else if ( match(c.value(), "box_rounded") ) {
             style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ROUNDED;
         }
@@ -133,5 +143,8 @@ BBoxSymbol::parseSLD(const Config& c, Style& style)
         else if ( match(c.value(), "icon-and-text") ) {
             style.getOrCreate<BBoxSymbol>()->group() = GROUP_ICON_AND_TEXT;
         }
+    }
+    else if ( match(c.key(),"text-bbox-direction") ) {
+        style.getOrCreate<BBoxSymbol>()->direction() = StringExpression(c.value());
     }
 }

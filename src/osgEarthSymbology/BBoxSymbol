@@ -38,6 +38,7 @@ namespace osgEarth { namespace Symbology
             GEOM_BOX,
             GEOM_BOX_ORIENTED,
             GEOM_BOX_ORIENTED_SYM,
+            GEOM_BOX_ORIENTED_2WAYS,
             GEOM_BOX_ROUNDED,
             GEOM_BOX_ROUNDED_INNER
         };
@@ -77,6 +78,10 @@ namespace osgEarth { namespace Symbology
         optional<BboxGroup>& group() { return _bboxGroup; }
         const optional<BboxGroup>& group() const { return _bboxGroup; }
 
+        /** The direction of the arrow (for GEOM_BOX_ORIENTED_* geometries) */
+        optional<StringExpression>& direction() { return _direction; }
+        const optional<StringExpression>& direction() const { return _direction; }
+
     public:
         virtual Config getConfig() const;
         virtual void mergeConfig( const Config& conf );
@@ -88,6 +93,7 @@ namespace osgEarth { namespace Symbology
         optional<float>             _margin;
         optional<BboxGeom>          _bboxGeom;
         optional<BboxGroup>         _bboxGroup;
+        optional<StringExpression>  _direction;
     };
 
 } } // namespace osgEarth::Symbology

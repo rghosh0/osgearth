@@ -63,6 +63,7 @@ public:
         // copy the style so we can (potentially) modify the text symbol.
         Style styleCopy = style;
         TextSymbol* text = styleCopy.get<TextSymbol>();
+        BBoxSymbol* bbox = styleCopy.get<BBoxSymbol>();
         IconSymbol* icon = styleCopy.get<IconSymbol>();
         AltitudeSymbol* alt = styleCopy.get<AltitudeSymbol>();
 
@@ -75,6 +76,7 @@ public:
         NumericExpression textRotationExpr( text ? *text->onScreenRotation() : NumericExpression() );
         NumericExpression textCourseExpr  ( text ? *text->geographicCourse() : NumericExpression() );
         StringExpression  textOffsetSupportExpr ( text ? *text->autoOffsetGeomWKT()  : StringExpression() );
+        StringExpression  bboxDirectionExpr     ( bbox ? *bbox->direction()  : StringExpression() );
         StringExpression  iconUrlExpr     ( icon ? *icon->url()      : StringExpression() );
         NumericExpression iconScaleExpr   ( icon ? *icon->scale()    : NumericExpression() );
         NumericExpression iconHeadingExpr ( icon ? *icon->heading()  : NumericExpression() );
@@ -131,6 +133,12 @@ public:
                     tempStyle.get<TextSymbol>()->autoOffsetGeomWKT()->setLiteral( feature->eval( textOffsetSupportExpr, &context ) );
             }
 
+            if ( bbox )
+            {
+                if ( bbox->direction().isSet() )
+                    tempStyle.get<BBoxSymbol>()->direction()->setLiteral( feature->eval(bboxDirectionExpr, &context) );
+            }
+
             if ( icon )
             {
                 if ( icon->url().isSet() )
@@ -163,7 +171,7 @@ public:
         {
             osg::Timer_t t_end = osg::Timer::instance()->tick();
             double t = osg::Timer::instance()->delta_s(t_start, t_end);
-            OE_DEBUG << LC << "Profiling:\n";
+            OE_DEBUG << LC << "Profiling the Annotation group factory:\n";
             OE_DEBUG << LC << "    time to build " << t << "s\n";
             OE_DEBUG << LC << "    num features " << std::dec << input.size() << "\n";
             OE_DEBUG << LC << "    num drawables " << std::dec << root->getNumChildren() << "\n";
