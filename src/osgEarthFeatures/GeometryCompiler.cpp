@@ -343,7 +343,7 @@ GeometryCompiler::compile(FeatureList&          workingSet,
             altitude->script().isSet() );    
 
     // instance substitution (replaces marker)
-    if ( model && (! text || ! text->provider().isSet()) )
+    if ( model )
     {
         const InstanceSymbol* instance = (const InstanceSymbol*)model;
 
