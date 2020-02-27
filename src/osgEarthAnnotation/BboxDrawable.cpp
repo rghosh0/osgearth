@@ -189,15 +189,17 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
         float shiftRight = 0.f;
         float hMed = (box.yMax()-box.yMin()+2.f*margin) * 0.5f;
         float arrowEdgeX = hMed / 1.375f;
+        std::string dir = bboxSymbol.direction().isSet() ? bboxSymbol.direction()->eval() : "";
         // possible values for the direction are 'F' (forward), 'B' (Backward) or Blank (Both directions)
-        // backward and forward are threaded the same way because the orientation will be automatically computed from the line orientation
-        bool drawBothWays = bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_2WAYS
-                && (!bboxSymbol.direction().isSet() || bboxSymbol.direction()->eval().empty());
+        bool drawRightDir = bboxSymbol.geom().isSet()
+                        && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED
+                          || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM
+                          || ( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_2WAYS && dir != "B") );
+        bool drawLeftDir = bboxSymbol.geom().isSet()
+                        && bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_2WAYS && (dir.empty() || dir == "B");
 
         // draw arrow to the right
-        if ( bboxSymbol.geom().isSet() && (bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED
-                || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM
-                || bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_2WAYS ) )
+        if ( drawRightDir )
         {
             if( bboxSymbol.geom().value() == BBoxSymbol::GEOM_BOX_ORIENTED_SYM )
                 shiftRight = - arrowEdgeX;
@@ -208,7 +210,7 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
         v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMax()+margin, 0.f) );
         v->push_back( osg::Vec3(box.xMin()-margin, box.yMax()+margin, 0.f) );
         // draw arrow to the left if required
-        if( drawBothWays )
+        if( drawLeftDir )
             v->push_back( osg::Vec3(box.xMin()-margin-arrowEdgeX, box.yMax()+margin-hMed, 0.f) );
         v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0.f) );
         v->push_back( osg::Vec3(box.xMax()+margin+shiftRight, box.yMin()-margin, 0.f) );
