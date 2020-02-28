@@ -146,7 +146,7 @@ MPAnnotationGroup::MPAnnotationGroup( bool lineSmooth ) : osg::Group()
     _rootStateSet->setMode( GL_CULL_FACE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED );
     _rootStateSet->setMode( GL_BLEND, osg::StateAttribute::ON );
     if ( lineSmooth )
-        _rootStateSet->setMode( GL_LINE_SMOOTH, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE );
+        GLUtils::setLineSmooth(_rootStateSet, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE );
 
     addCullCallback(new AnnotationNodeGroupCullCallback());
 

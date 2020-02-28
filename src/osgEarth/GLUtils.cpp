@@ -90,7 +90,7 @@ GLUtils::setLineStipple(osg::StateSet* stateSet, int factor, unsigned short patt
 void
 GLUtils::setLineSmooth(osg::StateSet* stateSet, osg::StateAttribute::OverrideValue ov)
 {
-#ifdef OSG_GL_FIXED_FUNCTION_AVAILABLE
+#if !(defined(OSG_GLES2_AVAILABLE) || defined(OSG_GLES3_AVAILABLE) || defined(OSG_GL3_AVAILABLE) )
     stateSet->setMode(GL_LINE_SMOOTH, ov);
 #endif
 
