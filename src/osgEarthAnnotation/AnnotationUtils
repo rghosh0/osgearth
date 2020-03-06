@@ -79,6 +79,12 @@ namespace osgEarth { namespace Annotation
             double            scale );
 
         /**
+         * Creates the geometry to draw an image texture-mapped to
+         * a quad in pixel space from a given url path and Style
+         */
+        static osg::Geometry* createImageGeometry(const std::string& urlPath, const IconSymbol* iconSym, const osgDB::Options* readOptions, float shiftRight = 0.f);
+
+        /**
          * Builds a graph on top of the specified that that implements a 2-pass
          * rendering scheme for self-occluding or self-intersecting geometies that
          * would not otherwise properly blend. The scheme renders the back faces
@@ -145,6 +151,8 @@ namespace osgEarth { namespace Annotation
 
     private:
         AnnotationUtils() { }
+
+        static std::map<std::string, osg::observer_ptr<osg::StateSet>> s_imageStateSet;
     };
 
     

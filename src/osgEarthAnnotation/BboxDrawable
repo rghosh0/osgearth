@@ -36,8 +36,8 @@ namespace osgEarth { namespace Annotation
     class OSGEARTHANNO_EXPORT BboxDrawable : public osg::Geometry
     {
     public:
-        BboxDrawable(const osg::BoundingBox& box, const BBoxSymbol& boxSymbol);
-        BboxDrawable(const osg::BoundingBox &boxImg, const osg::BoundingBox &boxText, const BBoxSymbol& boxSymbol );
+        BboxDrawable(const osg::BoundingBox& box, const BBoxSymbol& boxSymbol, float sideMargin = 0.f);
+        BboxDrawable(const osg::BoundingBox &boxImg, const osg::BoundingBox &boxText, const BBoxSymbol& boxSymbol, float sideMargin = 0.f);
 
         void setHighlight( bool highlight = true );
         bool isHighlight() { return _isHighlight; }

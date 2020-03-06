@@ -34,31 +34,11 @@ using namespace osgEarth;
 using namespace osgEarth::Annotation;
 
 
-std::map<std::string, osg::observer_ptr<osg::StateSet>> MPAnnotationGroup::s_imageStateSet;
-
 namespace
 {
-const char* iconVS =
-        "#version " GLSL_VERSION_STR "\n"
-                                     "out vec2 oe_PlaceNode_texcoord; \n"
-                                     "void oe_PlaceNode_icon_VS(inout vec4 vertex) \n"
-                                     "{ \n"
-                                     "    oe_PlaceNode_texcoord = gl_MultiTexCoord0.st; \n"
-                                     "} \n";
-
-const char* iconFS =
-        "#version " GLSL_VERSION_STR "\n"
-                                     "in vec2 oe_PlaceNode_texcoord; \n"
-                                     "uniform sampler2D oe_PlaceNode_tex; \n"
-                                     "void oe_PlaceNode_icon_FS(inout vec4 color) \n"
-                                     "{ \n"
-                                     "    color = texture(oe_PlaceNode_tex, oe_PlaceNode_texcoord); \n"
-                                     "} \n";
-
-const osg::Node::NodeMask nodeNoMask = 0xffffffff;
-const std::string undef = "-32765";
-const Color magenta(1., 135./255., 195./255.);
-
+    const osg::Node::NodeMask nodeNoMask = 0xffffffff;
+    const std::string undef = "-32765";
+    const Color magenta(1., 135./255., 195./255.);
 }
 
 
@@ -192,123 +172,32 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
 
     // ----------------------
     // Build image
+
     osg::ref_ptr<osg::Geometry> imageDrawable;
+    osg::BoundingBox imageBox(0, 0, 0, 0, 0, 0);
+    StringVector iconList;
     osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
     const IconSymbol* icon = nullptr;
     if (instance.valid())
         icon = instance->asIcon();
 
-    URI imageURI;
-    std::string iconfile;
-    osg::ref_ptr<osg::Image> image;
-    if ( icon )
+    if (icon && icon->url().isSet())
     {
-        if ( icon->url().isSet() )
+        // check if there is a list of icons
+        std::string iconTxt = icon->url()->eval();
+        if ( iconTxt.find(";") != std::string::npos )
         {
-            imageURI = icon->url()->evalURI();
-            iconfile = icon->url().value().eval();
-        }
-        else if (icon->getImage())
-        {
-            image = icon->getImage();
-        }
-    }
-    if ( !imageURI.empty() )
-    {
-        image = imageURI.getImage( readOptions );
-    }
-
-    osg::BoundingBox imageBox(0,0,0,0,0,0);
-
-    // found an image; now format it:
-    if ( image.get() )
-    {
-        // Scale the icon if necessary
-        double scale = 1.0;
-        if ( icon && icon->scale().isSet() )
-            scale = icon->scale()->eval();
-
-        double s = scale * image->s();
-        double t = scale * image->t();
-
-        // position te icon
-        osg::Vec2s offset;
-        if ( !icon || !icon->alignment().isSet() )
-        {
-            // default to bottom center
-            offset.set(0.0, t / 2.0);
-        }
-        else
-        {
-            switch (icon->alignment().value())
-            {
-            case IconSymbol::ALIGN_LEFT_TOP:
-                offset.set((s / 2.0), -(t / 2.0));
-                break;
-            case IconSymbol::ALIGN_LEFT_CENTER:
-                offset.set((s / 2.0), 0.0);
-                break;
-            case IconSymbol::ALIGN_LEFT_BOTTOM:
-                offset.set((s / 2.0), (t / 2.0));
-                break;
-            case IconSymbol::ALIGN_CENTER_TOP:
-                offset.set(0.0, -(t / 2.0));
-                break;
-            case IconSymbol::ALIGN_CENTER_CENTER:
-                offset.set(0.0, 0.0);
-                break;
-            case IconSymbol::ALIGN_CENTER_BOTTOM:
-            default:
-                offset.set(0.0, (t / 2.0));
-                break;
-            case IconSymbol::ALIGN_RIGHT_TOP:
-                offset.set(-(s / 2.0), -(t / 2.0));
-                break;
-            case IconSymbol::ALIGN_RIGHT_CENTER:
-                offset.set(-(s / 2.0), 0.0);
-                break;
-            case IconSymbol::ALIGN_RIGHT_BOTTOM:
-                offset.set(-(s / 2.0), (t / 2.0));
-                break;
-            }
+            StringTokenizer splitter( ";", "" );
+            splitter.tokenize( iconTxt, iconList );
+            if (! iconList.empty() )
+                iconTxt = iconList[0];
         }
 
-        // Apply a rotation to the marker if requested:
-        double heading = 0.0;
-        if ( icon && icon->heading().isSet() )
-            heading = osg::DegreesToRadians( icon->heading()->eval() );
-
-        //We must actually rotate the geometry itself and not use a MatrixTransform b/c the
-        //decluttering doesn't respect Transforms above the drawable.
-        imageDrawable = AnnotationUtils::createImageGeometry(image.get(), offset, 0, heading, scale);
+        imageDrawable = AnnotationUtils::createImageGeometry(iconTxt, icon, readOptions);
         if (imageDrawable.valid())
-        {
-            // shared image stateset
-            osg::ref_ptr<osg::StateSet> imageStateSet;
-            if ( ! iconfile.empty() )
-            {
-                osg::observer_ptr<osg::StateSet> &sImageStateSet = s_imageStateSet[iconfile];
-                if (! sImageStateSet.lock(imageStateSet))
-                {
-                    static Threading::Mutex s_mutex;
-                    Threading::ScopedMutexLock lock(s_mutex);
-
-                    if (! sImageStateSet.lock(imageStateSet))
-                    {
-                        sImageStateSet = imageStateSet = imageDrawable->getOrCreateStateSet();
-                        VirtualProgram* vp = VirtualProgram::getOrCreate(imageStateSet.get());
-                        vp->setName("PlaceNode::imageStateSet");
-                        vp->setFunction("oe_PlaceNode_icon_VS", iconVS, ShaderComp::LOCATION_VERTEX_MODEL);
-                        vp->setFunction("oe_PlaceNode_icon_FS", iconFS, ShaderComp::LOCATION_FRAGMENT_COLORING);
-                        imageStateSet->addUniform(new osg::Uniform("oe_PlaceNode_tex", 0));
-                    }
-                }
-            }
-
-            imageDrawable->setStateSet(s_imageStateSet[iconfile].get());
             imageBox = imageDrawable->getBoundingBox();
-        }
     }
+
 
     // ----------------------
     // Build text
@@ -317,7 +206,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     if ( textSymbol )
     {
         TextSymbol::Alignment textAlignment = TextSymbol::Alignment::ALIGN_LEFT_CENTER;
-        if ( image.valid() && textSymbol->alignment().isSet() )
+        if ( imageDrawable.valid() && textSymbol->alignment().isSet() )
             textAlignment = textSymbol->alignment().value();
 
         osg::BoundingBox imageBoxWithMargin{imageBox};
@@ -341,6 +230,26 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBoxWithMargin );
     }
 
+
+    // ----------------------
+    // Create the other images if needed
+    // and organize them left to right
+
+    osg::NodeList imagesDrawable;
+    if ( iconList.size() > 1 && ( textDrawable.valid() || imageDrawable.valid() ) )
+    {
+        float xOffset = textDrawable.valid() ? textDrawable->getBoundingBox().xMax() : imageDrawable->getBoundingBox().xMax();
+        for ( unsigned int i=1 ; i<iconList.size() ; ++i )
+        {
+            if ( osg::Geometry* subImageDrawable = AnnotationUtils::createImageGeometry(iconList[i], icon, readOptions, xOffset) )
+            {
+                imagesDrawable.push_back( subImageDrawable );
+                xOffset = subImageDrawable->getBoundingBox().xMax();
+            }
+        }
+    }
+
+
     // ----------------------
     // Build BBox
 
@@ -349,12 +258,20 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     const BBoxSymbol* bboxsymbol = style.get<BBoxSymbol>();
     if ( bboxsymbol )
     {
+        float sideMargin = icon && icon->margin().isSet() ? icon->margin().value() : 5.f;
+
         if ( bboxsymbol->group() == BBoxSymbol::GROUP_ICON_ONLY && imageDrawable.valid() )
             bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(), *bboxsymbol );
         else if ( bboxsymbol->group() == BBoxSymbol::GROUP_TEXT_ONLY && textDrawable.valid() )
-            bboxDrawable = new BboxDrawable( textDrawable->getBoundingBox(), *bboxsymbol );
+            bboxDrawable = new BboxDrawable( textDrawable->getBoundingBox(), *bboxsymbol, sideMargin );
         else if ( bboxsymbol->group() == BBoxSymbol::GROUP_ICON_AND_TEXT && textDrawable.valid() && imageDrawable.valid() )
-            bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(), textDrawable->getBoundingBox(), *bboxsymbol );
+        {
+            if ( imagesDrawable.empty() )
+                bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(), textDrawable->getBoundingBox(), *bboxsymbol, sideMargin );
+            else
+                bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(),
+                                                 static_cast<osg::Drawable*>(imagesDrawable.back().get())->getBoundingBox(), *bboxsymbol, sideMargin );
+        }
     }
 
     // ----------------------
@@ -466,6 +383,14 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         this->addChild( imageDrawable );
         _drawableList[id].push_back(AnnoInfo(Symbol, this->getNumChildren()-1, dataLayout));
     }
+    for ( auto node : imagesDrawable )
+    {
+        node->setCullingActive(false);
+        node->setDataVariance(osg::Object::DYNAMIC);
+        node->setUserData(dataLayout);
+        this->addChild( node );
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange));
+    }
     if (  textDrawable.valid() )
     {
         textDrawable->setCullingActive(false);
@@ -473,6 +398,14 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         textDrawable->setUserData(dataLayout);
         this->addChild( textDrawable );
         _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange));
+    }
+    for ( auto node : textsDrawable )
+    {
+        node->setCullingActive(false);
+        node->setDataVariance(osg::Object::DYNAMIC);
+        node->setUserData(dataLayout);
+        this->addChild( node );
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange2ndlevel));
     }
     if ( bboxDrawable.valid() )
     {
@@ -486,17 +419,8 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout));
         else
             _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange));
-
     }
-    for ( auto node : textsDrawable )
-    {
-        node->setCullingActive(false);
-        node->setDataVariance(osg::Object::DYNAMIC);
-        node->setUserData(dataLayout);
-        this->addChild( node );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange2ndlevel));
 
-    }
     // layout data for screenspace information
     updateLayoutData(dataLayout, style, geom);
 

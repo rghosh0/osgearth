@@ -30,14 +30,17 @@ using namespace osgEarth::Annotation;
 
 //------------------------------------------------------------------------
 
-BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol ) :
+BboxDrawable::BboxDrawable( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol, float sideMargin ) :
 osg::Geometry()
 {
-    build(box, bboxSymbol);
+    osg::BoundingBox boxBBox(box);
+    boxBBox.xMin() -= sideMargin;
+    boxBBox.xMax() += sideMargin;
+    build(boxBBox, bboxSymbol);
 }
 
 
-BboxDrawable::BboxDrawable( const osg::BoundingBox& boxImg, const osg::BoundingBox& boxText, const BBoxSymbol& boxSymbol )
+BboxDrawable::BboxDrawable( const osg::BoundingBox& boxImg, const osg::BoundingBox& boxText, const BBoxSymbol& boxSymbol, float sideMargin )
 {
     if ( boxSymbol.group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY )
     {
@@ -46,7 +49,10 @@ BboxDrawable::BboxDrawable( const osg::BoundingBox& boxImg, const osg::BoundingB
 
     else if ( boxSymbol.group() == BBoxSymbol::BboxGroup::GROUP_TEXT_ONLY )
     {
-        build(boxText, boxSymbol);
+        osg::BoundingBox box(boxText);
+        box.xMin() -= sideMargin;
+        box.xMax() += sideMargin;
+        build(box, boxSymbol);
     }
 
     else if ( boxSymbol.group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT )
@@ -54,7 +60,8 @@ BboxDrawable::BboxDrawable( const osg::BoundingBox& boxImg, const osg::BoundingB
         osg::BoundingBox groupBBox;
         groupBBox.expandBy( boxImg );
         groupBBox.expandBy( boxText );
-        _widthReduction = boxText.xMax() - boxImg.xMax();
+        groupBBox.xMax() += sideMargin;
+        _widthReduction = groupBBox.xMax() - boxImg.xMax();
         _sizeReduced = false;
         build(groupBBox, boxSymbol);
     }

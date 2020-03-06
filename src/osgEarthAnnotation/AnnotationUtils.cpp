@@ -45,6 +45,31 @@ using namespace osgEarth;
 using namespace osgEarth::Annotation;
 using namespace osgEarth::Features;
 
+
+std::map<std::string, osg::observer_ptr<osg::StateSet>> AnnotationUtils::s_imageStateSet;
+
+
+namespace
+{
+const char* iconVS =
+        "#version " GLSL_VERSION_STR "\n"
+                                     "out vec2 oe_PlaceNode_texcoord; \n"
+                                     "void oe_PlaceNode_icon_VS(inout vec4 vertex) \n"
+                                     "{ \n"
+                                     "    oe_PlaceNode_texcoord = gl_MultiTexCoord0.st; \n"
+                                     "} \n";
+
+const char* iconFS =
+        "#version " GLSL_VERSION_STR "\n"
+                                     "in vec2 oe_PlaceNode_texcoord; \n"
+                                     "uniform sampler2D oe_PlaceNode_tex; \n"
+                                     "void oe_PlaceNode_icon_FS(inout vec4 color) \n"
+                                     "{ \n"
+                                     "    color = texture(oe_PlaceNode_tex, oe_PlaceNode_texcoord); \n"
+                                     "} \n";
+}
+
+
 osgText::String::Encoding
 AnnotationUtils::convertTextSymbolEncoding (const TextSymbol::Encoding encoding) {
     osgText::String::Encoding text_encoding = osgText::String::ENCODING_UNDEFINED;
@@ -175,6 +200,114 @@ AnnotationUtils::createImageGeometry(osg::Image*       image,
     geom->addPrimitiveSet( new osg::DrawElementsUShort( GL_TRIANGLES, 6, indices ) );
 
     return geom;
+}
+
+osg::Geometry*
+AnnotationUtils::createImageGeometry(const std::string& urlPath, const IconSymbol* iconSym, const osgDB::Options* readOptions, float shiftRight)
+{
+    osg::Geometry* imageDrawable = nullptr;
+
+    URI imageURI(urlPath, iconSym->url().isSet() ? iconSym->url()->uriContext() : URIContext());
+    osg::ref_ptr<osg::Image> image;
+
+    if ( !imageURI.empty() )
+        image = imageURI.getImage( readOptions );
+
+    // found an image; now format it:
+    if ( image.get() )
+    {
+        // Scale the icon if necessary
+        double scale = 1.0;
+        if ( iconSym && iconSym->scale().isSet() )
+            scale = iconSym->scale()->eval();
+
+        double s = scale * image->s();
+        double t = scale * image->t();
+
+        // position te icon
+        osg::Vec2s offset;
+        if ( !iconSym || !iconSym->alignment().isSet() )
+        {
+            // default to bottom center
+            offset.set(0.0, t / 2.0);
+        }
+        else
+        {
+            switch (iconSym->alignment().value())
+            {
+            case IconSymbol::ALIGN_LEFT_TOP:
+                offset.set((s / 2.0), -(t / 2.0));
+                break;
+            case IconSymbol::ALIGN_LEFT_CENTER:
+                offset.set((s / 2.0), 0.0);
+                break;
+            case IconSymbol::ALIGN_LEFT_BOTTOM:
+                offset.set((s / 2.0), (t / 2.0));
+                break;
+            case IconSymbol::ALIGN_CENTER_TOP:
+                offset.set(0.0, -(t / 2.0));
+                break;
+            case IconSymbol::ALIGN_CENTER_CENTER:
+                offset.set(0.0, 0.0);
+                break;
+            case IconSymbol::ALIGN_CENTER_BOTTOM:
+            default:
+                offset.set(0.0, (t / 2.0));
+                break;
+            case IconSymbol::ALIGN_RIGHT_TOP:
+                offset.set(-(s / 2.0), -(t / 2.0));
+                break;
+            case IconSymbol::ALIGN_RIGHT_CENTER:
+                offset.set(-(s / 2.0), 0.0);
+                break;
+            case IconSymbol::ALIGN_RIGHT_BOTTOM:
+                offset.set(-(s / 2.0), (t / 2.0));
+                break;
+            }
+        }
+
+        // Align icons to the right of a given x value
+        float margin = iconSym->margin().isSet() ? iconSym->margin().value() : 5.f;
+        if ( shiftRight != 0.f )
+            offset.x() += shiftRight + (s / 2.f) + margin;
+
+        // Apply a rotation to the marker if requested:
+        double heading = 0.0;
+        if ( iconSym && iconSym->heading().isSet() )
+            heading = osg::DegreesToRadians( iconSym->heading()->eval() );
+
+        //We must actually rotate the geometry itself and not use a MatrixTransform b/c the
+        //decluttering doesn't respect Transforms above the drawable.
+        imageDrawable = createImageGeometry(image.get(), offset, 0, heading, scale);
+        if (imageDrawable)
+        {
+            // shared image stateset
+            osg::ref_ptr<osg::StateSet> imageStateSet;
+            if ( ! urlPath.empty() )
+            {
+                osg::observer_ptr<osg::StateSet> &sImageStateSet = s_imageStateSet[urlPath];
+                if (! sImageStateSet.lock(imageStateSet))
+                {
+                    static Threading::Mutex s_mutex;
+                    Threading::ScopedMutexLock lock(s_mutex);
+
+                    if (! sImageStateSet.lock(imageStateSet))
+                    {
+                        sImageStateSet = imageStateSet = imageDrawable->getOrCreateStateSet();
+                        VirtualProgram* vp = VirtualProgram::getOrCreate(imageStateSet.get());
+                        vp->setName("PlaceNode::imageStateSet");
+                        vp->setFunction("oe_PlaceNode_icon_VS", iconVS, ShaderComp::LOCATION_VERTEX_MODEL);
+                        vp->setFunction("oe_PlaceNode_icon_FS", iconFS, ShaderComp::LOCATION_FRAGMENT_COLORING);
+                        imageStateSet->addUniform(new osg::Uniform("oe_PlaceNode_tex", 0));
+                    }
+                }
+            }
+
+            imageDrawable->setStateSet(s_imageStateSet[urlPath].get());
+        }
+    }
+
+    return imageDrawable;
 }
 
 osg::Node*
