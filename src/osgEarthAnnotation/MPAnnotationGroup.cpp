@@ -597,3 +597,20 @@ MPAnnotationGroup::clearHighlight()
     for ( auto const &anno : getDrawableList() )
         setHighlight(anno.first, false);
 }
+
+void MPAnnotationGroup::setIconColor(long id, Color color){
+    
+    for ( auto anno : getDrawableList()[id] )
+        if (anno.type == MPAnnotationGroup::Symbol)
+        {
+               osg::Geometry* icon = static_cast<osg::Geometry*>(getChild(anno.index));
+               osg::Vec4Array* c = static_cast<osg::Vec4Array*>(icon->getColorArray());
+               
+               (*c)[0]=color;
+               
+               
+            
+        }
+    
+    
+}

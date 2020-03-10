@@ -76,7 +76,10 @@ public:
     // Highlight an Annotation
     void setHighlight( long id, bool highlight = true );
     void clearHighlight();
-
+    
+    // change icon color
+    void setIconColor(long id, Color color);
+    
     std::vector<AnnoInfo>& getDrawableList(long id) { return _drawableList[id]; }
     std::map<long, std::vector<AnnoInfo>>& getDrawableList() { return _drawableList; }
 
