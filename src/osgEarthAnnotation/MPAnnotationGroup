@@ -52,8 +52,8 @@ public:
 
     struct AnnoInfo
     {
-        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld) : type{t}, index{i}, globalSsld{ssld} {}
-        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange} {}
+        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld,bool visible) : type{t}, index{i}, globalSsld{ssld}, isVisible{visible}{}
+        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange,bool visible) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange}, isVisible{visible} {}
 
         // Type of Drawable
         TypeDrawable type;
@@ -62,12 +62,15 @@ public:
 
         // min range for displaying the drawable
         double minRange{DBL_MAX};
+        
 
         // ScreenSpaceLayoutData
         osg::ref_ptr<ScreenSpaceLayoutData> globalSsld;
 
         // highlight ?
         bool highlight{false};
+        // whether the feature should be drawn
+        bool isVisible{true};
     };
 
     // Add an annotation (list of drawables corresponding to one feature)
@@ -82,8 +85,10 @@ public:
     
     std::vector<AnnoInfo>& getDrawableList(long id) { return _drawableList[id]; }
     std::map<long, std::vector<AnnoInfo>>& getDrawableList() { return _drawableList; }
+    
+    AnnoInfo & getAnnoInfo(long id,long idx){ return _drawableList[id].at(idx);}
 
-    // Need a custom bounding sphere for the culling process
+    // Need a custom bounding sphere for the culling processmp_update
     virtual osg::BoundingSphere computeBound () const override;
 
 protected:
