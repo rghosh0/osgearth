@@ -88,7 +88,7 @@ public:
     
     AnnoInfo & getAnnoInfo(long id,long idx){ return _drawableList[id].at(idx);}
 
-    // Need a custom bounding sphere for the culling processmp_update
+    // Need a custom bounding sphere for the culling process
     virtual osg::BoundingSphere computeBound () const override;
 
 protected:

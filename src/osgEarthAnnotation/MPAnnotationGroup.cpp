@@ -50,7 +50,7 @@ public:
     {
         osgUtil::CullVisitor* cullVisitor = nv->asCullVisitor();
         if(! cullVisitor->isCulled(node->getBound()))
-        {  OE_DEBUG << LC <<"AnnotationNodeGroupCullCallback"<<std::endl;
+        { 
             const osg::Matrix& MVPW = *(cullVisitor->getMVPW());
             double vpXmin = cullVisitor->getViewport()->x();
             double vpXmax = cullVisitor->getViewport()->x() + cullVisitor->getViewport()->width();
@@ -105,8 +105,7 @@ public:
                             annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? (iAnno.isVisible?nodeNoMask:0) : 0);
                         }
                         
-                            OE_DEBUG << LC << "annoGroup->getChild(iAnno.index)->getNodeMask():"<<annoGroup->getChild(iAnno.index)<<iAnno.index<<iAnno.isVisible<<"mask"<< annoGroup->getChild(iAnno.index)->getNodeMask()<<std::endl;
-                    }
+                     }
                 }
             }
 
