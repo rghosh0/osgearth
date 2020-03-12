@@ -107,9 +107,7 @@ void
 GLUtils::setLineMPPatternThreshold(osg::StateSet* stateSet, float value, osg::StateAttribute::OverrideValue ov)
 {
     // input value is between 0 and 1
-    // shader value must be between -1 and 1
-    float shaderThreshold = (value * 2.f) - 1.f;
-    stateSet->addUniform(new osg::Uniform("oe_MPPatternThreshold", shaderThreshold), ov);
+    stateSet->addUniform(new osg::Uniform("oe_MPPatternThreshold", value), ov);
 }
 
 void

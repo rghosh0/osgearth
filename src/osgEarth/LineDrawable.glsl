@@ -132,6 +132,9 @@ out float oe_LineDrawable_lateral;
 #else
 float oe_LineDrawable_lateral;
 #endif
+#ifdef MP_PATTERN
+uniform float oe_MPPatternThreshold;
+#endif
 
 void oe_LineDrawable_VS_CLIP(inout vec4 currClip)
 {
@@ -224,6 +227,13 @@ void oe_LineDrawable_VS_CLIP(inout vec4 currClip)
     
     // calculate the extrusion vector in pixels
     // note: seems like it should be len/2, BUT remember we are in [-w..w] space
+#ifdef MP_PATTERN
+    const float aliasWidth = 0.1;
+    float thicksize = oe_MPPatternThreshold + aliasWidth;
+    len *= 2.0 - thicksize;
+    oe_LineDrawable_lateral = clamp(oe_LineDrawable_lateral, -thicksize, 1.0);
+#endif
+
     vec2 extrudePixel = vec2(-dir.y, dir.x) * len;
     
     // and convert to unit space:
@@ -332,29 +342,39 @@ void oe_LineDrawable_Stippler_FS(inout vec4 color)
     }
     
 #ifdef MP_PATTERN
+
 # ifdef OE_LINE_SMOOTH
-    const float aliasWidth = 0.25f;
+    const float aliasWidth = 0.1;
     
     // middle-line anti-aliasing
     float limit = oe_MPPatternThreshold + aliasWidth;
-    float alphaInverse = 1.f - oe_MPPatternAlpha;
-    if (oe_LineDrawable_lateral > oe_MPPatternThreshold)
+    float alphaInverse = 1.0 - oe_MPPatternAlpha;
+    float L = abs(oe_LineDrawable_lateral);
+    if (L > oe_MPPatternThreshold)
     {
-        color.a = 1.f - ((alphaInverse) * smoothstep(oe_MPPatternThreshold, limit, oe_LineDrawable_lateral));
+        color.a = 1.0 - ((alphaInverse) * smoothstep(oe_MPPatternThreshold, limit, L));
     }
+    if(oe_LineDrawable_lateral < 0.0)
+    {
+        L /= limit;
+    }
+    // anti aliasing
+    color.a = color.a * (1.0 - smoothstep(1.0 - aliasWidth, 1.0, L));
+
 # else // OE_LINE_SMOOTH == 0
     if (oe_LineDrawable_lateral > oe_MPPatternThreshold)
     {
         color.a = oe_MPPatternAlpha;
     }
 # endif // OE_LINE_SMOOTH
-#endif // MP_PATTERN
+
+#else // MP_PATTERN
     
-#ifdef OE_LINE_SMOOTH
+# ifdef OE_LINE_SMOOTH
     // anti-aliasing
     float L = abs(oe_LineDrawable_lateral);
     color.a = color.a * smoothstep(0.0, 1.0, 1.0-(L*L));
+# endif // OE_LINE_SMOOTH
 
-    
-#endif // OE_LINE_SMOOTH
+#endif //MP_PATTERN
 }
