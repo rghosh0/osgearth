@@ -52,8 +52,8 @@ public:
 
     struct AnnoInfo
     {
-        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld,bool visible) : type{t}, index{i}, globalSsld{ssld}, isVisible{visible}{}
-        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange,bool visible) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange}, isVisible{visible} {}
+        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, bool visible) : type{t}, index{i}, globalSsld{ssld}, isVisible{visible} {}
+        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange, bool visible) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange}, isVisible{visible} {}
 
         // Type of Drawable
         TypeDrawable type;
@@ -69,7 +69,7 @@ public:
 
         // highlight ?
         bool highlight{false};
-        // whether the feature should be drawn
+        // whether the feature should be drawn when it is not culled 
         bool isVisible{true};
     };
 
@@ -81,7 +81,7 @@ public:
     void clearHighlight();
     
     // change icon color
-    void setIconColor(long id, Color color);
+    void setIconColor( long id, Color color );
     
     std::vector<AnnoInfo>& getDrawableList(long id) { return _drawableList[id]; }
     std::map<long, std::vector<AnnoInfo>>& getDrawableList() { return _drawableList; }
