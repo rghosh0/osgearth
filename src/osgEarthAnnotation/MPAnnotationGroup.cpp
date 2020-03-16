@@ -50,7 +50,7 @@ public:
     {
         osgUtil::CullVisitor* cullVisitor = nv->asCullVisitor();
         if(! cullVisitor->isCulled(node->getBound()))
-        { 
+        {
             const osg::Matrix& MVPW = *(cullVisitor->getMVPW());
             double vpXmin = cullVisitor->getViewport()->x();
             double vpXmax = cullVisitor->getViewport()->x() + cullVisitor->getViewport()->width();
@@ -383,7 +383,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         imageDrawable->setDataVariance(osg::Object::DYNAMIC);
         imageDrawable->setUserData(dataLayout);
         this->addChild( imageDrawable );
-        _drawableList[id].push_back(AnnoInfo(Symbol, this->getNumChildren()-1, dataLayout,true));
+        _drawableList[id].push_back(AnnoInfo(Symbol, this->getNumChildren()-1, dataLayout, true));
     }
     for ( auto node : imagesDrawable )
     {
@@ -391,7 +391,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         node->setDataVariance(osg::Object::DYNAMIC);
         node->setUserData(dataLayout);
         this->addChild( node );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange,true));
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
     }
     if (  textDrawable.valid() )
     {
@@ -399,7 +399,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         textDrawable->setDataVariance(osg::Object::DYNAMIC);
         textDrawable->setUserData(dataLayout);
         this->addChild( textDrawable );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange,true));
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
     }
     for ( auto node : textsDrawable )
     {
@@ -407,7 +407,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         node->setDataVariance(osg::Object::DYNAMIC);
         node->setUserData(dataLayout);
         this->addChild( node );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange2ndlevel,true));
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange2ndlevel, true));
     }
     if ( bboxDrawable.valid() )
     {
@@ -416,7 +416,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         bboxDrawable->setUserData(dataLayout);
         this->addChild( bboxDrawable );
         if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT )
-            _drawableList[id].push_back(AnnoInfo(BboxGroup, this->getNumChildren()-1, dataLayout, minRange,true));
+            _drawableList[id].push_back(AnnoInfo(BboxGroup, this->getNumChildren()-1, dataLayout, minRange, true));
         else if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY )
             _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout,true));
         else
