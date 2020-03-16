@@ -418,9 +418,9 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT )
             _drawableList[id].push_back(AnnoInfo(BboxGroup, this->getNumChildren()-1, dataLayout, minRange, true));
         else if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY )
-            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout,true));
+            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, true));
         else
-            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange,true));
+            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange, true));
     }
 
     // layout data for screenspace information
@@ -609,10 +609,5 @@ void MPAnnotationGroup::setIconColor(long id, Color color){
                osg::Vec4Array* c = static_cast<osg::Vec4Array*>(icon->getColorArray());
                
                (*c)[0]=color;
-               
-               
-            
-        }
-    
-    
+        }    
 }
