@@ -65,9 +65,9 @@ const char* iconFS =
                                      "uniform sampler2D oe_PlaceNode_tex; \n"
                                      "void oe_PlaceNode_icon_FS(inout vec4 color) \n"
                                      "{ \n"
-                                          "vec4 texColor =texture(oe_PlaceNode_tex, oe_PlaceNode_texcoord);\n"
-                                          "color.a =texColor.a;  \n"
-                                          "color.rgb =color.rgb*texColor.rgb;  \n"
+                                          "vec4 texColor = texture(oe_PlaceNode_tex, oe_PlaceNode_texcoord);\n"
+                                          "color.a = texColor.a;\n"
+                                          "color.rgb = color.rgb*texColor.rgb;\n"
                                      "} \n";
 }
 
