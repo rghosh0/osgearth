@@ -97,12 +97,12 @@ public:
                             osg::Node* child = annoGroup->getChild(iAnno.index);
                             BboxDrawable* bbox = static_cast<BboxDrawable*>(child);
                             
-                            bbox->setNodeMask(iAnno.isVisible?nodeNoMask:0);
+                            bbox->setNodeMask( iAnno.isVisible ? nodeNoMask : 0 );
                             bbox->setReducedSize(alt >= iAnno.minRange);
                         }
                         else
                         {
-                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? (iAnno.isVisible?nodeNoMask:0) : 0);
+                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? ( iAnno.isVisible ? nodeNoMask : 0 ) : 0);
                         }
                         
                      }
