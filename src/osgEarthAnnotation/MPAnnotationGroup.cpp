@@ -375,8 +375,8 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     // ----------------------
     // Common settings
 
-    double minRange = textSymbol->minRange().isSet() ? textSymbol->minRange().value() : DBL_MAX;
-    double minRange2ndlevel = textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : DBL_MAX;
+    double minRange = textSymbol && textSymbol->minRange().isSet() ? textSymbol->minRange().value() : DBL_MAX;
+    double minRange2ndlevel = textSymbol && textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : DBL_MAX;
     if ( imageDrawable.valid() )
     {
         imageDrawable->setCullingActive(false);
@@ -457,7 +457,7 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
     // orientation
     // technic is to create a at 2500m from the anchor with the given bearing
     // then the projection in screenspace of both points will be used to compute the screen-space angle
-    if (ts->geographicCourse().isSet() || (ts->autoRotateAlongLine().isSetTo(true) && ! ts->autoOffsetGeomWKT().isSet() ) )
+    if (ts && (ts->geographicCourse().isSet() || (ts->autoRotateAlongLine().isSetTo(true) && ! ts->autoOffsetGeomWKT().isSet() )) )
     {
         double labelRotationRad = DBL_MAX;
         if (ts->geographicCourse().isSet())
@@ -501,7 +501,7 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
     Geometry* geomSupport = nullptr;
     LineString* geomLineString = nullptr;
 
-    if( ts->autoOffsetAlongLine().get() )
+    if( ts && ts->autoOffsetAlongLine().get() )
     {
         if( ts->autoOffsetGeomWKT().isSet() )
         {
@@ -515,7 +515,7 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
         }
     }
 
-    if( (ts->autoOffsetGeomWKT().isSet() || ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get())
+    if( ts && (ts->autoOffsetGeomWKT().isSet() || ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get())
             && geomSupport && geomSupport->getComponentType() == Geometry::TYPE_LINESTRING )
     {
         if( geomSupport->getType() == Geometry::TYPE_LINESTRING)
@@ -530,7 +530,7 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
         }
     }
 
-    if ( geomLineString &&  (ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get()) )
+    if ( ts && geomLineString &&  (ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get()) )
     {
         osg::Vec3d p1, p2;
 
