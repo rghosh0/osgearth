@@ -96,14 +96,16 @@ public:
                         {
                             osg::Node* child = annoGroup->getChild(iAnno.index);
                             BboxDrawable* bbox = static_cast<BboxDrawable*>(child);
-                            bbox->setNodeMask(nodeNoMask);
+                            
+                            bbox->setNodeMask( iAnno.isVisible ? nodeNoMask : 0 );
                             bbox->setReducedSize(alt >= iAnno.minRange);
                         }
                         else
                         {
-                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? nodeNoMask : 0);
+                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? ( iAnno.isVisible ? nodeNoMask : 0 ) : 0);
                         }
-                    }
+                        
+                     }
                 }
             }
 
@@ -381,7 +383,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         imageDrawable->setDataVariance(osg::Object::DYNAMIC);
         imageDrawable->setUserData(dataLayout);
         this->addChild( imageDrawable );
-        _drawableList[id].push_back(AnnoInfo(Symbol, this->getNumChildren()-1, dataLayout));
+        _drawableList[id].push_back(AnnoInfo(Symbol, this->getNumChildren()-1, dataLayout, true));
     }
     for ( auto node : imagesDrawable )
     {
@@ -389,7 +391,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         node->setDataVariance(osg::Object::DYNAMIC);
         node->setUserData(dataLayout);
         this->addChild( node );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange));
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
     }
     if (  textDrawable.valid() )
     {
@@ -397,7 +399,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         textDrawable->setDataVariance(osg::Object::DYNAMIC);
         textDrawable->setUserData(dataLayout);
         this->addChild( textDrawable );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange));
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
     }
     for ( auto node : textsDrawable )
     {
@@ -405,7 +407,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         node->setDataVariance(osg::Object::DYNAMIC);
         node->setUserData(dataLayout);
         this->addChild( node );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange2ndlevel));
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange2ndlevel, true));
     }
     if ( bboxDrawable.valid() )
     {
@@ -414,11 +416,11 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         bboxDrawable->setUserData(dataLayout);
         this->addChild( bboxDrawable );
         if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT )
-            _drawableList[id].push_back(AnnoInfo(BboxGroup, this->getNumChildren()-1, dataLayout, minRange));
+            _drawableList[id].push_back(AnnoInfo(BboxGroup, this->getNumChildren()-1, dataLayout, minRange, true));
         else if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY )
-            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout));
+            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, true));
         else
-            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange));
+            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange, true));
     }
 
     // layout data for screenspace information
@@ -596,4 +598,16 @@ MPAnnotationGroup::clearHighlight()
 {
     for ( auto const &anno : getDrawableList() )
         setHighlight(anno.first, false);
+}
+
+void MPAnnotationGroup::setIconColor(long id, Color color){
+    
+    for ( auto anno : getDrawableList()[id] )
+        if (anno.type == MPAnnotationGroup::Symbol)
+        {
+               osg::Geometry* icon = static_cast<osg::Geometry*>(getChild(anno.index));
+               osg::Vec4Array* c = static_cast<osg::Vec4Array*>(icon->getColorArray());
+               
+               (*c)[0]=color;
+        }    
 }
