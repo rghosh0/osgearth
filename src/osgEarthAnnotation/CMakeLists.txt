@@ -16,7 +16,7 @@ set(LIB_PUBLIC_HEADERS
     AnnotationNode
     AnnotationRegistry
     AnnotationUtils
-	BboxDrawable
+    BboxDrawable
     AttachedLabelNode
     CircleNode
     Common
@@ -35,9 +35,26 @@ set(LIB_PUBLIC_HEADERS
     PlaceNode
     RectangleNode
     TrackNode
-	
-	MPAnnotationGroup
+    Shaders
+
+    MPStateSetFontAltas
+    MPAnnotationDrawable
+    MPAnnotationGroup
 )
+
+set(TARGET_GLSL
+    MPAnno.vert.glsl
+    MPAnno.frag.glsl )
+
+set(SHADERS_CPP "${CMAKE_CURRENT_BINARY_DIR}/AutoGenShaders.cpp")
+
+set(TARGET_IN
+    Shaders.cpp.in)
+
+configure_shaders(
+    Shaders.cpp.in
+    ${SHADERS_CPP}
+    ${TARGET_GLSL} )
 
 set(LIB_COMMON_FILES
     AnnotationEditing.cpp
@@ -47,7 +64,7 @@ set(LIB_COMMON_FILES
     AnnotationNode.cpp
     AnnotationRegistry.cpp
     AnnotationUtils.cpp
-	BboxDrawable.cpp
+    BboxDrawable.cpp
     AttachedLabelNode.cpp
     CircleNode.cpp
     Draggers.cpp
@@ -64,8 +81,11 @@ set(LIB_COMMON_FILES
     ModelNode.cpp
     PlaceNode.cpp
     TrackNode.cpp
-	
-	MPAnnotationGroup.cpp
+
+    MPStateSetFontAltas.cpp
+    MPAnnotationDrawable.cpp
+    MPAnnotationGroup.cpp
+    ${SHADERS_CPP}
 )
 
 IF (GEOS_FOUND)
@@ -75,6 +95,8 @@ ENDIF(GEOS_FOUND)
 ADD_LIBRARY( ${LIB_NAME} ${OSGEARTH_USER_DEFINED_DYNAMIC_OR_STATIC}
     ${LIB_PUBLIC_HEADERS}
     ${LIB_COMMON_FILES}
+    ${TARGET_GLSL}
+    ${TARGET_IN}
 )
 
 

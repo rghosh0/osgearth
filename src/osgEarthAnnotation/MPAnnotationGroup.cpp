@@ -18,6 +18,7 @@
  */
 
 #include <osgEarthAnnotation/MPAnnotationGroup>
+#include <osgEarthAnnotation/MPAnnotationDrawable>
 #include <osgEarthAnnotation/AnnotationUtils>
 #include <osgEarthAnnotation/BboxDrawable>
 #include <osgEarth/VirtualProgram>
@@ -172,6 +173,11 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     bool predefinedOrganisation = textSymbol && textSymbol->predefinedOrganisation().isSet();
     StringVector textList;
 
+    // check if the bbox must be merged with the text geom
+    const BBoxSymbol* bboxsymbol = style.get<BBoxSymbol>();
+    bool nativeBBox = bboxsymbol ? bboxsymbol->technique().isSetTo(BBoxSymbol::TECHNIQUE_MERGE_WITH_TEXT_GEOM) : false;
+
+
     // ----------------------
     // Build image
 
@@ -183,28 +189,30 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     if (instance.valid())
         icon = instance->asIcon();
 
-    if (icon && icon->url().isSet())
-    {
-        // check if there is a list of icons
-        std::string iconTxt = icon->url()->eval();
-        if ( iconTxt.find(";") != std::string::npos )
-        {
-            StringTokenizer splitter( ";", "" );
-            splitter.tokenize( iconTxt, iconList );
-            if (! iconList.empty() )
-                iconTxt = iconList[0];
-        }
+//    if (icon && icon->url().isSet())
+//    {
+//        // check if there is a list of icons
+//        std::string iconTxt = icon->url()->eval();
+//        if ( iconTxt.find(";") != std::string::npos )
+//        {
+//            StringTokenizer splitter( ";", "" );
+//            splitter.tokenize( iconTxt, iconList );
+//            if (! iconList.empty() )
+//                iconTxt = iconList[0];
+//        }
 
-        imageDrawable = AnnotationUtils::createImageGeometry(iconTxt, icon, readOptions);
-        if (imageDrawable.valid())
-            imageBox = imageDrawable->getBoundingBox();
-    }
+//        imageDrawable = AnnotationUtils::createImageGeometry(iconTxt, icon, readOptions);
+//        if (imageDrawable.valid())
+//            imageBox = imageDrawable->getBoundingBox();
+//    }
 
 
     // ----------------------
     // Build text
 
-    osg::ref_ptr<osgText::Text> textDrawable;
+    //osg::ref_ptr<osgText::TextBase> textDrawable;
+    osg::ref_ptr<osgText::TextBase> textDrawable;
+    osg::ref_ptr<osg::Geometry> annoDrawable;
     if ( textSymbol )
     {
         TextSymbol::Alignment textAlignment = TextSymbol::Alignment::ALIGN_LEFT_CENTER;
@@ -228,8 +236,15 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             if (! textList.empty() )
                 text = textList[0];
         }
+
         if ( ! text.empty() )
-            textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBoxWithMargin );
+        {
+//            textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBoxWithMargin, nativeBBox );
+//            textDrawable = new MPText( text );
+            OE_WARN << "BUILD " << text << "\n";
+            annoDrawable = new MPAnnotationDrawable(style, readOptions);
+
+        }
     }
 
 
@@ -257,8 +272,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
 
     // The bounding box can enclose either the text, or the image, or both
     osg::ref_ptr<osg::Drawable> bboxDrawable;
-    const BBoxSymbol* bboxsymbol = style.get<BBoxSymbol>();
-    if ( bboxsymbol )
+    if ( bboxsymbol && ! nativeBBox)
     {
         float sideMargin = icon && icon->margin().isSet() ? icon->margin().value() : 5.f;
 
@@ -281,7 +295,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     // only airway organisation treated for now
 
     osg::NodeList textsDrawable;
-    if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() == 7 && bboxDrawable.valid())
+    if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() == 7 )//&& bboxDrawable.valid())
     {
         double margin = textSymbol->predefinedOrganisationMargin().get();
         if ( bboxsymbol && bboxsymbol->border().isSet() && bboxsymbol->border().get().width().isSet() )
@@ -289,7 +303,8 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         else
             margin += 1.;
         osg::Vec3 marginVec(margin, margin, margin);
-        osg::BoundingBox refBBox( bboxDrawable->getBoundingBox()._min - marginVec, bboxDrawable->getBoundingBox()._max + marginVec);       
+        //osg::BoundingBox refBBox( bboxDrawable->getBoundingBox()._min - marginVec, bboxDrawable->getBoundingBox()._max + marginVec);
+        osg::BoundingBox refBBox( textDrawable->getBoundingBox()._min - marginVec, textDrawable->getBoundingBox()._max + marginVec);
 
         //------> TODO This part should be out of MPAnnotationGroup ...
         TextSymbol::Alignment alignList[] = { TextSymbol::ALIGN_LEFT_BOTTOM, TextSymbol::ALIGN_LEFT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_LEFT_TOP,
@@ -366,8 +381,9 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
                 subTextSym->font() = font;
             }
 
-            osgText::Text* subText = AnnotationUtils::createTextDrawable( textList[i], subTextSym.get(), refBBox, nativeBBox[i-1] );
-            textsDrawable.push_back( subText );
+            //osgText::TextBase* subText = AnnotationUtils::createTextDrawable( textList[i], subTextSym.get(), refBBox, nativeBBox[i-1] );
+//            osg::Geometry* subText = new MPText( textList[i] );
+//            textsDrawable.push_back( subText );
         }
     }
 
@@ -400,6 +416,15 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         textDrawable->setUserData(dataLayout);
         this->addChild( textDrawable );
         _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
+    }
+    if (  annoDrawable.valid() )
+    {
+        annoDrawable->setCullingActive(false);
+        annoDrawable->setDataVariance(osg::Object::DYNAMIC);
+        annoDrawable->setUserData(dataLayout);
+        this->addChild( annoDrawable );
+        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
+        OE_WARN << "push to the scenegraph\n";
     }
     for ( auto node : textsDrawable )
     {
@@ -530,7 +555,7 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
         }
     }
 
-    if ( ts && geomLineString &&  (ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get()) )
+    if ( ts && geomLineString && (ts->autoOffsetAlongLine().get() || ts->autoRotateAlongLine().get()) )
     {
         osg::Vec3d p1, p2;
 

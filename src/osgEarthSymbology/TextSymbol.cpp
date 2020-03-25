@@ -35,6 +35,7 @@ TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _haloBackdropType(rhs._haloBackdropType),
                                                                            _haloImplementation(rhs._haloImplementation),
                                                                            _font(rhs._font),
+                                                                           _fontAltas(rhs._fontAltas),
                                                                            _size(rhs._size),
                                                                            _content(rhs._content),
                                                                            _priority(rhs._priority),
@@ -111,6 +112,7 @@ TextSymbol::getConfig() const
     conf.set( "halo_implementation", "stencil_buffer",       _haloImplementation, osgText::Text::STENCIL_BUFFER );
     conf.set( "halo_implementation", "delayed_depth_writes", _haloImplementation, osgText::Text::DELAYED_DEPTH_WRITES );
     conf.set( "font", _font );
+    conf.set( "font-altas", _fontAltas );
     conf.set( "size", _size );
     conf.set( "content", _content );
     conf.set( "priority", _priority );
@@ -193,6 +195,7 @@ TextSymbol::mergeConfig( const Config& conf )
     conf.get( "halo_implementation", "stencil_buffer",       _haloImplementation, osgText::Text::STENCIL_BUFFER );
     conf.get( "halo_implementation", "delayed_depth_writes", _haloImplementation, osgText::Text::DELAYED_DEPTH_WRITES );
     conf.get( "font", _font );
+    conf.get( "font-altas", _fontAltas );
     conf.get( "size", _size );
     conf.get( "content", _content );
     conf.get( "priority", _priority );
@@ -268,6 +271,10 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "text-font") ) {
         style.getOrCreate<TextSymbol>()->font() = c.value();
+    }
+    else if ( match(c.key(), "text-font-altas") ) {
+        style.getOrCreate<TextSymbol>()->fontAltas() = c.value();
+        style.getOrCreate<TextSymbol>()->fontAltas()->setURIContext( c.referrer() );
     }
     else if ( match(c.key(), "text-halo") || match(c.key(), "text-halo-color") ) {
         style.getOrCreate<TextSymbol>()->halo()->color() = htmlColorToVec4f( c.value() );

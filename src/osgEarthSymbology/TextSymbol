@@ -104,6 +104,10 @@ public:
     optional<std::string>& font() { return _font; }
     const optional<std::string>& font() const { return _font; }
 
+    /** Path of the text font altas. */
+    optional<StringExpression>& fontAltas() { return _fontAltas; }
+    const optional<StringExpression>& fontAltas() const { return _fontAltas; }
+
     /** Actual text to render (if applicable) */
     optional<StringExpression>& content() { return _content; }
     const optional<StringExpression>& content() const { return _content; }
@@ -212,6 +216,7 @@ protected:
     optional<osgText::Text::BackdropType> _haloBackdropType;
     optional<osgText::Text::BackdropImplementation> _haloImplementation;
     optional<std::string>       _font;
+    optional<StringExpression>  _fontAltas;
     optional<NumericExpression> _size;
     optional<StringExpression>  _content;
     optional<NumericExpression> _priority;

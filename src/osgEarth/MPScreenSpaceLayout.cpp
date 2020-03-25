@@ -58,8 +58,8 @@ struct SortByPriority : public DeclutterSortFunctor
 {
     bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
-        const ScreenSpaceLayoutData* lhsdata = static_cast<const ScreenSpaceLayoutData*>(lhs->getDrawable()->getUserData());
-        const ScreenSpaceLayoutData* rhsdata = static_cast<const ScreenSpaceLayoutData*>(rhs->getDrawable()->getUserData());
+        const ScreenSpaceLayoutData* lhsdata = static_cast<const ScreenSpaceLayoutData*>(lhs->_drawable->getUserData());
+        const ScreenSpaceLayoutData* rhsdata = static_cast<const ScreenSpaceLayoutData*>(rhs->_drawable->getUserData());
 
         float lhsPriority = lhsdata->_priority ;
         float rhsPriority = rhsdata->_priority;
@@ -460,14 +460,14 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             ++i )
         {
             osgUtil::RenderLeaf* leaf = *i;
-            const osg::Drawable* drawable = leaf->getDrawable();
+            const osg::Drawable* drawable = leaf->_drawable;
             const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
 
             // transform the bounding box of the drawable into window-space.
             // (use parent bbox for line following algorithm)
             osg::BoundingBox box = layoutData->isAutoFollowLine() ? layoutData->getBBox() : drawable->getBoundingBox();
 
-            const osgText::Text* asText = dynamic_cast<const osgText::Text*>(drawable);
+            const osgText::TextBase* asText = dynamic_cast<const osgText::TextBase*>(drawable);
             bool isText = asText != nullptr;
             long drawableFid = layoutData->getId();
             double angle = 0;
@@ -689,7 +689,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             for( osgUtil::RenderBin::RenderLeafList::const_iterator i=local._passed.begin(); i != local._passed.end(); ++i )
             {
                 osgUtil::RenderLeaf* leaf     = *i;
-                const osg::Drawable* drawable = leaf->getDrawable();
+                const osg::Drawable* drawable = leaf->_drawable;
                 const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
                 long drawableFid = layoutData->getId();
 
@@ -729,7 +729,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             for( osgUtil::RenderBin::RenderLeafList::const_iterator i=local._failed.begin(); i != local._failed.end(); ++i )
             {
                 osgUtil::RenderLeaf* leaf =     *i;
-                const osg::Drawable* drawable = leaf->getDrawable();
+                const osg::Drawable* drawable = leaf->_drawable;
 
                 DrawableInfo& info = local._memory[drawable];
 
@@ -738,7 +738,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                     // the drawable is failed but has not reached its out animation
                     if ( info._lastScale > minAnimationScale )
                     {
-                        bool isText = dynamic_cast<const osgText::Text*>(drawable) != nullptr;
+                        bool isText = dynamic_cast<const osgText::TextBase*>(drawable) != nullptr;
                         bool isBbox = dynamic_cast<const osgEarth::Annotation::BboxDrawable*>(drawable) != nullptr;
 
                         // case out animation exists
@@ -766,7 +766,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 }
                 else
                 {
-                    bool isText = dynamic_cast<const osgText::Text*>(drawable) != nullptr;
+                    bool isText = dynamic_cast<const osgText::TextBase*>(drawable) != nullptr;
                     bool isBbox = dynamic_cast<const osgEarth::Annotation::BboxDrawable*>(drawable) != nullptr;
 
                     // prevent first-frame "pop out"

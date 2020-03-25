@@ -1,0 +1,74 @@
+/* -*-c++-*- OpenSceneGraph - Copyright (C) 1998-2006 Robert Osfield
+ *
+ * This library is open source and may be redistributed and/or modified under
+ * the terms of the OpenSceneGraph Public License (OSGPL) version 0.0 or
+ * (at your option) any later version.  The full license is in LICENSE file
+ * included with this distribution, and on the openscenegraph.org website.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * OpenSceneGraph Public License for more details.
+*/
+
+#ifndef OSGEARTH_ANNOTATION_STATESET_FONT_H
+#define OSGEARTH_ANNOTATION_STATESET_FONT_H 1
+
+
+#include <osg/StateSet>
+#include <osgDB/Options>
+#include <osgEarth/URI>
+
+#include <osgEarthAnnotation/Export>
+
+
+namespace osgEarth { namespace Annotation
+{
+
+// vertext position and texture coordinates for one Glyph
+class OSGEARTHANNO_EXPORT GlyphInfo
+{
+public:
+    // build one Glyph info from the altlas configuration file
+    GlyphInfo(double x, double y, double scale, double w, double h, double cursorX, double cursorY, double pAdvance, double textureSize);
+    GlyphInfo() {}
+
+    osg::Vec3 lb_v;
+    osg::Vec3 lt_v;
+    osg::Vec3 rt_v;
+    osg::Vec3 rb_v;
+    osg::Vec2 lb_t;
+    osg::Vec2 lt_t;
+    osg::Vec2 rt_t;
+    osg::Vec2 rb_t;
+    double advance{0};
+};
+
+
+class OSGEARTHANNO_EXPORT MPStateSetFontAltas : public osg::StateSet
+{
+
+public:
+
+    static const int ATTRIB_DRAW_TYPE;
+
+    enum DrawType
+    {
+        TYPE_CHARACTER_MSDF,
+        TYPE_ICON,
+        TYPE_BBOX
+    };
+
+public:
+
+    MPStateSetFontAltas(const std::string& fontAtlasPath, const osgEarth::URIContext& context, const osgDB::Options* readOptions);
+
+    // map that holds all Glyphs
+    std::map<std::string, GlyphInfo> _mapGlyphs;
+
+};
+
+} }
+
+
+#endif

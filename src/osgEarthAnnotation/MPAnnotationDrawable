@@ -1,0 +1,64 @@
+/* -*-c++-*- OpenSceneGraph - Copyright (C) 1998-2006 Robert Osfield
+ *
+ * This library is open source and may be redistributed and/or modified under
+ * the terms of the OpenSceneGraph Public License (OSGPL) version 0.0 or
+ * (at your option) any later version.  The full license is in LICENSE file
+ * included with this distribution, and on the openscenegraph.org website.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * OpenSceneGraph Public License for more details.
+*/
+
+#ifndef OSGEARTH_ANNOTATION_DRAWABLE_H
+#define OSGEARTH_ANNOTATION_DRAWABLE_H 1
+
+
+#include <osg/Geometry>
+
+#include <osgEarthSymbology/Style>
+#include <osgEarthAnnotation/MPStateSetFontAltas>
+
+
+namespace osgEarth { namespace Annotation
+{
+
+class OSGEARTHANNO_EXPORT LODAnno
+{
+public:
+    LODAnno(double alt, const std::vector<GLushort> &pDrawElt);
+    double altitudeMax{DBL_MAX};
+    std::vector<GLushort> drawElts;
+};
+
+class OSGEARTHANNO_EXPORT MPAnnotationDrawable : public osg::Geometry
+{
+
+public:
+
+    MPAnnotationDrawable(const osgEarth::Symbology::Style& style, const osgDB::Options* readOptions);
+
+protected:
+
+    void buildStateSet(const osgEarth::Symbology::Style& style, const osgDB::Options* readOptions);
+
+    void appendIcons(const osgEarth::Symbology::Style &style, const osgDB::Options* readOptions);
+    void appendTexts(const osgEarth::Symbology::Style &style, const osgDB::Options* readOptions);
+
+    void pushDrawElements(double alt, const std::vector<GLushort> &pDrawElt);
+
+    std::vector<LODAnno> _LODlist;
+    static std::map<std::string, osg::observer_ptr<MPStateSetFontAltas>> s_atlasStateSetList;
+
+    osg::ref_ptr<osg::Vec3Array> _v {nullptr};
+    osg::ref_ptr<osg::Vec4Array> _c {nullptr};
+    osg::ref_ptr<osg::Vec2Array> _t {nullptr};
+    osg::ref_ptr<osg::IntArray>  _typeArray {nullptr};
+    osg::ref_ptr<osg::DrawElementsUShort> _d {nullptr};
+};
+
+} }
+
+
+#endif
