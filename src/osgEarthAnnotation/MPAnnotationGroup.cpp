@@ -278,10 +278,29 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
 
     // ----------------------
     // Create the other texts if needed
-    // only airway organisation treated for now
-
+    // predefinedOrganisation can be 'airway' or 'mora'
     osg::NodeList textsDrawable;
-    if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() == 7 && bboxDrawable.valid())
+
+    // build MORA pattern
+    if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("mora") && textList.size() == 2 && textDrawable.valid() )
+    {
+        //double margin = textSymbol->predefinedOrganisationMargin().get();
+        //osg::Vec3 marginVec(margin, margin, margin);
+        //osg::BoundingBox refBBox( textDrawable->getBoundingBox()._min - marginVec, textDrawable->getBoundingBox()._max + marginVec);
+        osg::BoundingBox refBBox( 0., 0., 0., 0., 0., 0.);
+
+        // initialiaze the symbol by copy (to copy the font, the color, ...)
+        osg::ref_ptr<TextSymbol> subTextSym = new TextSymbol(*textSymbol);
+        subTextSym->alignment() = TextSymbol::ALIGN_LEFT_BOTTOM;
+        float fontSizeOrg = textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.f;
+        subTextSym->size() = fontSizeOrg * 0.7;
+
+        osgText::Text* subText = AnnotationUtils::createTextDrawable( textList[1], subTextSym.get(), refBBox );
+        textsDrawable.push_back( subText );
+    }
+
+    // build Airway pattern
+    else if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() == 7 && bboxDrawable.valid())
     {
         double margin = textSymbol->predefinedOrganisationMargin().get();
         if ( bboxsymbol && bboxsymbol->border().isSet() && bboxsymbol->border().get().width().isSet() )
@@ -291,7 +310,6 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         osg::Vec3 marginVec(margin, margin, margin);
         osg::BoundingBox refBBox( bboxDrawable->getBoundingBox()._min - marginVec, bboxDrawable->getBoundingBox()._max + marginVec);       
 
-        //------> TODO This part should be out of MPAnnotationGroup ...
         TextSymbol::Alignment alignList[] = { TextSymbol::ALIGN_LEFT_BOTTOM, TextSymbol::ALIGN_LEFT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_LEFT_TOP,
                                              TextSymbol::ALIGN_RIGHT_TOP, TextSymbol::ALIGN_RIGHT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_RIGHT_BOTTOM };
 
@@ -303,7 +321,6 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
         Color colorList[] = {colorOrg, colorOrg, colorOrg, magenta, colorOrg, colorOrg};
 
         bool nativeBBox[] = {true, false, false, false, false, false};
-        //<------
 
         // for each text (except the first one)
         for ( unsigned int i=1 ; i<textList.size() ; ++i )
