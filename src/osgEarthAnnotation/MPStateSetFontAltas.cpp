@@ -27,11 +27,11 @@
 
 using namespace osgEarth::Annotation;
 
-const int MPStateSetFontAltas::ATTRIB_DRAW_TYPE = osg::Drawable::ATTRIBUTE_7;
+const int MPStateSetFontAltas::ATTRIB_ANNO_INFO = osg::Drawable::ATTRIBUTE_7;
 
 
 GlyphInfo::GlyphInfo(double x, double y, double scale, double w, double h, double cursorX, double cursorY, double pAdvance, double textureSize) :
-    advance(pAdvance/scale)
+    advance(pAdvance/scale), refScale(scale)
 {
     // quad vertexes considering y=0 as baseline and scaled in font native unit
     lb_v.set(-cursorX / scale, -cursorY / scale, 0.);
@@ -44,12 +44,13 @@ GlyphInfo::GlyphInfo(double x, double y, double scale, double w, double h, doubl
     lt_t.set(x / textureSize, y / textureSize);
     rt_t.set( (x+w) / textureSize, y / textureSize);
     rb_t.set( (x+w) / textureSize, (y+h) / textureSize);
+
+    size.set(rt_v.x() - lt_v.x(), rt_v.y() - rb_v.y());
 }
 
 MPStateSetFontAltas::MPStateSetFontAltas(const std::string& fontAtlasPath, const osgEarth::URIContext& context, const osgDB::Options *readOptions) : StateSet()
 {
     // load the image atlas
-    OE_WARN << "LOAD ATLAS IMAGE " << fontAtlasPath << "\n";
     URI imageURI(fontAtlasPath, context);
     if (! osgDB::fileExists(imageURI.full()))
         return;
@@ -73,7 +74,7 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string& fontAtlasPath, const
     double x, y, scale, w, h, advance, cursorX, cursorY;
     while(in >> key >> x >> y >> scale >> w >> h >> cursorX >> cursorY >> advance)
     {
-        _mapGlyphs[key] = GlyphInfo(x, y, scale, w, h, cursorX, cursorY, advance, textureSize);
+        mapGlyphs[key] = GlyphInfo(x, y, scale, w, h, cursorX, cursorY, advance, textureSize);
     }
 
     // set it as a texture
@@ -95,7 +96,7 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string& fontAtlasPath, const
     // shaders
     VirtualProgram* vp = VirtualProgram::getOrCreate(this);
     vp->setName("MPAnnotation::stateSet");
-    vp->addBindAttribLocation( "oe_anno_attr_type", ATTRIB_DRAW_TYPE );
+    vp->addBindAttribLocation( "oe_anno_attr_info", ATTRIB_ANNO_INFO );
     Shaders pkg;
     pkg.load( vp, pkg.MPAnno_Vertex );
     pkg.load( vp, pkg.MPAnno_Fragment );

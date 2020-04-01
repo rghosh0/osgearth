@@ -58,11 +58,11 @@ struct SortByPriority : public DeclutterSortFunctor
 {
     bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
-        const ScreenSpaceLayoutData* lhsdata = static_cast<const ScreenSpaceLayoutData*>(lhs->_drawable->getUserData());
-        const ScreenSpaceLayoutData* rhsdata = static_cast<const ScreenSpaceLayoutData*>(rhs->_drawable->getUserData());
+        const MPScreenSpaceGeometry* lhsanno = static_cast<const MPScreenSpaceGeometry*>(lhs->_drawable.get());
+        const MPScreenSpaceGeometry* rhsanno = static_cast<const MPScreenSpaceGeometry*>(rhs->_drawable.get());
 
-        float lhsPriority = lhsdata->_priority ;
-        float rhsPriority = rhsdata->_priority;
+        float lhsPriority = lhsanno->_priority ;
+        float rhsPriority = rhsanno->_priority;
         if ( lhsPriority != rhsPriority )
             return lhsPriority > rhsPriority;
 
@@ -195,7 +195,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 
     // Update the offset so that the drawable is always visible and constraint on a line
     void updateOffsetForAutoLabelOnLine(const osg::BoundingBox& box, const osg::Viewport* vp,
-                                        const osg::Vec3f& loc, const ScreenSpaceLayoutData* layoutData,
+                                        const osg::Vec3f& loc, const MPScreenSpaceGeometry* layoutData,
                                         const osg::Matrix& camVPW, osg::Vec3f& offset, const osg::Vec3f& to)
     {
         // impossible to work when z greater then 1
@@ -460,27 +460,26 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             ++i )
         {
             osgUtil::RenderLeaf* leaf = *i;
-            const osg::Drawable* drawable = leaf->_drawable;
-            const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
+            const MPScreenSpaceGeometry* annoDrawable = static_cast<const MPScreenSpaceGeometry*>(leaf->_drawable.get());
 
             // transform the bounding box of the drawable into window-space.
             // (use parent bbox for line following algorithm)
-            osg::BoundingBox box = layoutData->isAutoFollowLine() ? layoutData->getBBox() : drawable->getBoundingBox();
+            osg::BoundingBox box = annoDrawable->isAutoFollowLine() ? annoDrawable->getBBox() : annoDrawable->getBoundingBox();
 
-            const osgText::TextBase* asText = dynamic_cast<const osgText::TextBase*>(drawable);
+            const osgText::TextBase* asText = dynamic_cast<const osgText::TextBase*>(annoDrawable);
             bool isText = asText != nullptr;
-            long drawableFid = layoutData->getId();
+            long drawableFid = annoDrawable->getId();
             double angle = 0;
             osg::Quat rot;
             osg::Vec3d to;
-            osg::Vec3f pos(layoutData->_cull_anchorOnScreen);
+            osg::Vec3f pos(annoDrawable->_cull_anchorOnScreen);
             bool visible = true;
 
             // local transformation data
             // and management of the label orientation (must be always readable)
-            if (layoutData->isAutoRotate())
+            if (annoDrawable->isAutoRotate())
             {
-                angle = layoutData->_cull_rotationRadOnScreen;
+                angle = annoDrawable->_cull_rotationRadOnScreen;
             }
 
             if ( isText && (angle < -osg::PI_2 || angle > osg::PI_2) )
@@ -489,14 +488,14 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 // use a symetric translation and adapt the rotation to be in the desired angles
                 if ( asText->getAlignment() == osgText::TextBase::AlignmentType::LEFT_BOTTOM_BASE_LINE
                      || asText->getAlignment() == osgText::TextBase::AlignmentType::RIGHT_BOTTOM_BASE_LINE )
-                    offset.set( layoutData->_pixelOffset.x() - (box.xMax()+box.xMin()), layoutData->_pixelOffset.y(), 0. );
+                    offset.set( annoDrawable->_pixelOffset.x() - (box.xMax()+box.xMin()), annoDrawable->_pixelOffset.y(), 0. );
                 else
-                    offset.set( layoutData->_pixelOffset.x(), layoutData->_pixelOffset.y(), 0. );
+                    offset.set( annoDrawable->_pixelOffset.x(), annoDrawable->_pixelOffset.y(), 0. );
                 angle += angle < -osg::PI_2 ? osg::PI : -osg::PI; // JD #1029
             }
             else
             {
-                offset.set( layoutData->_pixelOffset.x(), layoutData->_pixelOffset.y(), 0. );
+                offset.set( annoDrawable->_pixelOffset.x(), annoDrawable->_pixelOffset.y(), 0. );
             }
 
             // handle the local translation
@@ -522,10 +521,10 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             }
 
             // adapt the offset for auto sliding label
-            if (layoutData->isAutoFollowLine())
+            if (annoDrawable->isAutoFollowLine())
             {
                 osg::Vec3f slidingOffset;
-                updateOffsetForAutoLabelOnLine(box, vp, pos, layoutData, camVPW, slidingOffset, to);
+                updateOffsetForAutoLabelOnLine(box, vp, pos, annoDrawable, camVPW, slidingOffset, to);
                 pos += slidingOffset;
             }
 
@@ -535,7 +534,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
 //            // more room for it to before visible once again.
 //            DrawableInfo& info = local._memory[drawable];
 //            float buffer = info._visible ? 1.0f : 3.0f;
-            DrawableInfo& info = local._memory[drawable];
+            DrawableInfo& info = local._memory[annoDrawable];
             const osg::Vec3d &buffer = info._visible ? offset1px : offset3px;
 
 //            // The "declutter" box is the box we use to reserve screen space.
@@ -574,7 +573,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 else
                 {
                     // A max priority => never occlude.
-                    float priority = layoutData ? layoutData->_priority : 0.0f;
+                    float priority = annoDrawable ? annoDrawable->_priority : 0.0f;
 
                     if ( useScreenGrid )
                     {
@@ -689,13 +688,12 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             for( osgUtil::RenderBin::RenderLeafList::const_iterator i=local._passed.begin(); i != local._passed.end(); ++i )
             {
                 osgUtil::RenderLeaf* leaf     = *i;
-                const osg::Drawable* drawable = leaf->_drawable;
-                const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
-                long drawableFid = layoutData->getId();
+                const MPScreenSpaceGeometry* annoDrawable = static_cast<const MPScreenSpaceGeometry*>(leaf->_drawable.get());
+                long drawableFid = annoDrawable->getId();
 
                 if ( culledParents.find(drawableFid) == culledParents.end() )
                 {
-                    DrawableInfo& info = local._memory[drawable];
+                    DrawableInfo& info = local._memory[annoDrawable];
 
                     bool fullyIn = true;
 

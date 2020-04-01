@@ -87,7 +87,7 @@ public:
     std::map<long, std::vector<AnnoInfo>>& getDrawableList() { return _drawableList; }
     
     //get a reference to the info structure for a specific annotation drawable
-    AnnoInfo & getAnnoInfo(long id,long idx){ return _drawableList[id].at(idx);}
+    AnnoInfo& getAnnoInfo(long id,long idx){ return _drawableList[id].at(idx);}
 
     // Need a custom bounding sphere for the culling process
     virtual osg::BoundingSphere computeBound () const override;
@@ -95,9 +95,6 @@ public:
 protected:
 
     virtual ~MPAnnotationGroup() { }
-
-    void updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, Geometry *geom);
-
 
 protected:
 

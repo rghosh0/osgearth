@@ -23,6 +23,7 @@
 #define OSGEARTH_MP_SCREEN_SPACE_LAYOUT_H 1
 
 #include <osgEarth/ScreenSpaceLayout>
+#include <osg/Geometry>
 
 
 // -----------------------------------------------------------
@@ -35,6 +36,83 @@
 
 namespace osgEarth
 {
+
+/*
+ * Parent geometry class to expose the screen space information
+ * (copied from ScreenSpaceLayout::ScreenSpaceLayoutData)
+ */
+class OSGEARTH_EXPORT MPScreenSpaceGeometry : public osg::Geometry
+{
+public:
+    /** Constructor */
+    MPScreenSpaceGeometry() : osg::Geometry(),
+                              _priority(0.f),
+                              _originalPriority(0.f),
+                              _pixelOffset(0, 0),
+                              _autoRotate(false),
+                              _autoFollowLine(false),
+                              _id(-1) { }
+
+    /** Decluttering priority - FLT_MAX means don't declutter */
+    void setPriority(float value) { _originalPriority = _priority = value; }
+    float getPriority() const     { return _priority; }
+
+    /** Offset from geoposition in screen pixels */
+    void setPixelOffset(const osg::Vec2s& value) { _pixelOffset = value; }
+    const osg::Vec2s& getPixelOffset() const     { return _pixelOffset; }
+
+    /** Wether the label shall follow a given geographic course */
+    void setAutoRotate(bool autoRotate) { _autoRotate = autoRotate; }
+    bool isAutoRotate() const { return _autoRotate; }
+
+    /** World point for label rotation reference */
+    void setAnchorPoint(const osg::Vec3d& value) { _anchorPoint = value; }
+    const osg::Vec3d& getAnchorPoint() const { return _anchorPoint; }
+
+    /** Wether the label shall automatically replace itself along a line */
+    void setAutoFollowLine(bool autoFollowLine) { _autoFollowLine = autoFollowLine; }
+    bool isAutoFollowLine() const { return _autoFollowLine; }
+
+    /** Start world point for automatic placement on a line */
+    void setLineStartPoint(const osg::Vec3d& value) { _lineStart = value; }
+    const osg::Vec3d& getLineStartPoint() const { return _lineStart; }
+
+    /**
+     * Stop world point for automatic placement on a line
+     * also used as projection point for label rotation reference
+     */
+    void setLineEndPoint(const osg::Vec3d& value) { _lineEnd = value; }
+    const osg::Vec3d& getLineEndPoint() const { return _lineEnd; }
+
+    /** Identifier to group drawables that relates to the same feature */
+    void setId(long id) { _id = id; }
+    long getId() const { return _id; }
+
+    /** The global BBox for the whole feature (containing all the drawables) */
+    const osg::BoundingBox& getBBox() const { return _bbox; }
+    //void expandBboxBy ( const osg::BoundingBox& bbox) { _bbox.expandBy(bbox); _bsphere.expandRadiusBy(bbox); _bboxSymetric.expandBy(_bsphere); }
+    const osg::BoundingBox& getBBoxSymetric() const { return _bboxSymetric; }
+
+public:
+    long       _id{1};
+    float      _originalPriority{0.f};
+    float      _priority{0.f};
+    osg::Vec2s _pixelOffset{0, 0};
+    bool       _autoRotate{false}, _autoFollowLine{false};
+    osg::Vec3d _anchorPoint, _lineStart, _lineEnd;
+    osg::BoundingBox    _bbox;
+    osg::BoundingSphere _bsphereInitial {osg::Vec3d(0., 0., 0), 0.};
+    osg::BoundingBox    _bboxSymetric;
+
+    osg::Vec3d          _cull_anchorOnScreen;
+    osg::BoundingBox    _cull_bboxSymetricOnScreen;
+    double              _cull_rotationRadOnScreen;
+
+protected:
+    virtual ~MPScreenSpaceGeometry() { }
+};
+
+
 
 struct OSGEARTH_EXPORT MPScreenSpaceLayout
 {

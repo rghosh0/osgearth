@@ -5,15 +5,15 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 #pragma vp_location   vertex_model
 
 
-in int oe_anno_attr_type;
+in vec4 oe_anno_attr_info;
 out vec2 oe_anno_texcoord;
 
-flat out int oe_anno_type;
+flat out vec4 oe_anno_info;
 
 
 void oe_anno_VS(inout vec4 vertex)
 {
     oe_anno_texcoord = gl_MultiTexCoord0.st;
-    oe_anno_type = oe_anno_attr_type;
+    oe_anno_info = oe_anno_attr_info;
 }
 

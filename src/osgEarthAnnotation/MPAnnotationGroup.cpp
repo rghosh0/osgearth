@@ -38,8 +38,6 @@ using namespace osgEarth::Annotation;
 namespace
 {
     const osg::Node::NodeMask nodeNoMask = 0xffffffff;
-    const std::string undef = "-32765";
-    const Color magenta(1., 135./255., 195./255.);
 }
 
 
@@ -49,64 +47,49 @@ class AnnotationNodeGroupCullCallback : public osg::NodeCallback
 public:
     void operator()(osg::Node* node, osg::NodeVisitor* nv)
     {
-        osgUtil::CullVisitor* cullVisitor = nv->asCullVisitor();
-        if(! cullVisitor->isCulled(node->getBound()))
+        osg::ref_ptr<osgUtil::CullVisitor> cullVisitor = nv->asCullVisitor();
+        if ( ! cullVisitor->isCulled(node->getBound()) )
         {
             const osg::Matrix& MVPW = *(cullVisitor->getMVPW());
-            double vpXmin = cullVisitor->getViewport()->x();
-            double vpXmax = cullVisitor->getViewport()->x() + cullVisitor->getViewport()->width();
-            double vpYmin = cullVisitor->getViewport()->y();
-            double vpYmax = cullVisitor->getViewport()->y() + cullVisitor->getViewport()->height();
+            float vpXmin = cullVisitor->getViewport()->x();
+            float vpXmax = cullVisitor->getViewport()->x() + cullVisitor->getViewport()->width();
+            float vpYmin = cullVisitor->getViewport()->y();
+            float vpYmax = cullVisitor->getViewport()->y() + cullVisitor->getViewport()->height();
             double alt = DBL_MAX;
             cullVisitor->getCurrentCamera()->getUserValue("altitude", alt);
 
-            MPAnnotationGroup* annoGroup = static_cast<MPAnnotationGroup*>(node);
+            osg::ref_ptr<MPAnnotationGroup> annoGroup = static_cast<MPAnnotationGroup*>(node);
 
-            for ( auto const &anno : annoGroup->getDrawableList() )
+            for (unsigned int i = 0 ; i < annoGroup->getNumChildren() ; ++i)
             {
-                if ( ! anno.second.empty() )
+                osg::ref_ptr<MPAnnotationDrawable> annoDrawable = static_cast<MPAnnotationDrawable*>(annoGroup->getChild(i));
+
+                annoDrawable->_cull_anchorOnScreen = annoDrawable->_anchorPoint * MVPW;
+                annoDrawable->_cull_bboxSymetricOnScreen.set(annoDrawable->_cull_anchorOnScreen + annoDrawable->getBBoxSymetric()._min,
+                                                             annoDrawable->_cull_anchorOnScreen + annoDrawable->getBBoxSymetric()._max);
+
+                if ( ! annoDrawable->isAutoFollowLine() )
                 {
-                    ScreenSpaceLayoutData* ssld = anno.second[0].globalSsld;
-                    ssld->_cull_anchorOnScreen = ssld->_anchorPoint * MVPW;
-                    ssld->_cull_bboxSymOnScreen.set(ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._min, ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._max);
-
-                    if ( ! ssld->isAutoFollowLine() )
+                    // out of viewport
+                    if ( osg::maximum(annoDrawable->_cull_bboxSymetricOnScreen.xMin(), vpXmin) > osg::minimum(annoDrawable->_cull_bboxSymetricOnScreen.xMax(), vpXmax) ||
+                         osg::maximum(annoDrawable->_cull_bboxSymetricOnScreen.yMin(), vpYmin) > osg::minimum(annoDrawable->_cull_bboxSymetricOnScreen.yMax(), vpYmax) )
                     {
-                        // out of viewport
-                        if (osg::maximum(ssld->_cull_bboxSymOnScreen.xMin(), vpXmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.xMax(), vpXmax) ||
-                            osg::maximum(ssld->_cull_bboxSymOnScreen.yMin(), vpYmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.yMax(), vpYmax) )
-                        {
-                            for (auto iAnno : anno.second)
-                                annoGroup->getChild(iAnno.index)->setNodeMask(0);
-                            continue;
-                        }
+                        annoDrawable->setNodeMask(0);
+                        continue;
                     }
+                }
 
-                    // in viewport
-                    // compute the screen angle if necessary
-                    if ( ssld->isAutoRotate() )
-                    {
-                        osg::Vec3d anchorToProj = ssld->_lineEnd * MVPW;
-                        anchorToProj -= ssld->_cull_anchorOnScreen;
-                        ssld->_cull_rotationRadOnScreen = atan2(anchorToProj.y(), anchorToProj.x());
-                    }
+                // in viewport
+                annoDrawable->setAltitude( alt );
+                bool annoIsHidden = annoDrawable->isFullyHidden();
+                annoDrawable->setNodeMask( annoIsHidden ? 0 : nodeNoMask );
 
-                    for (auto iAnno : anno.second)
-                    {
-                        if (iAnno.type == MPAnnotationGroup::BboxGroup)
-                        {
-                            osg::Node* child = annoGroup->getChild(iAnno.index);
-                            BboxDrawable* bbox = static_cast<BboxDrawable*>(child);
-                            
-                            bbox->setNodeMask( iAnno.isVisible ? nodeNoMask : 0 );
-                            bbox->setReducedSize(alt >= iAnno.minRange);
-                        }
-                        else
-                        {
-                            annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? ( iAnno.isVisible ? nodeNoMask : 0 ) : 0);
-                        }
-                        
-                     }
+                // compute the screen angle if necessary
+                if ( ! annoIsHidden && annoDrawable->isAutoRotate() )
+                {
+                    osg::Vec3d anchorToProj = annoDrawable->_lineEnd * MVPW;
+                    anchorToProj -= annoDrawable->_cull_anchorOnScreen;
+                    annoDrawable->_cull_rotationRadOnScreen = atan2(anchorToProj.y(), anchorToProj.x());
                 }
             }
 
@@ -115,6 +98,26 @@ public:
     }
 };
 
+// Need a custom bounding sphere for the culling process of the whole tile
+osg::BoundingSphere MPAnnotationGroup::computeBound () const
+{
+    osg::BoundingSphere bsphere;
+
+    for(osg::NodeList::const_iterator itr = _children.begin(); itr!=_children.end(); ++itr)
+    {
+        if (itr->valid())
+        {
+            osg::ref_ptr<const MPAnnotationDrawable> annoDrawable = static_cast<MPAnnotationDrawable*>(itr->get());
+            bsphere.expandBy(annoDrawable->getAnchorPoint());
+            if (annoDrawable->isAutoFollowLine())
+            {
+                bsphere.expandBy(annoDrawable->getLineStartPoint());
+                bsphere.expandBy(annoDrawable->getLineEndPoint());
+            }
+        }
+    }
+    return bsphere;
+}
 
 MPAnnotationGroup::MPAnnotationGroup( bool lineSmooth ) : osg::Group()
 {
@@ -137,347 +140,29 @@ MPAnnotationGroup::MPAnnotationGroup( bool lineSmooth ) : osg::Group()
     ShaderGenerator::setIgnoreHint(this, true);
 }
 
-// Need a custom bounding sphere for the culling process
-osg::BoundingSphere MPAnnotationGroup::computeBound () const
-{
-    osg::BoundingSphere bsphere;
-
-    for(osg::NodeList::const_iterator itr = _children.begin(); itr!=_children.end(); ++itr)
-    {
-        if (itr->valid())
-        {
-            const ScreenSpaceLayoutData *ssld = static_cast<ScreenSpaceLayoutData*>((*itr)->getUserData());
-            if (ssld)
-            {
-                bsphere.expandBy(ssld->getAnchorPoint());
-                if (ssld->isAutoFollowLine())
-                {
-                    bsphere.expandBy(ssld->getLineStartPoint());
-                    bsphere.expandBy(ssld->getLineEndPoint());
-                }
-            }
-        }
-    }
-    return bsphere;
-}
-
 long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions)
 {
-    // layout data for screenspace information
+    // unique id for this annotation
     static long id{0};
-    osg::ref_ptr<ScreenSpaceLayoutData> dataLayout = new ScreenSpaceLayoutData();
-    dataLayout->setId(++id);
+    long localId = ++id;
 
-    // check if there is a predefined organization
-    const TextSymbol* textSymbol = style.get<TextSymbol>();
-    bool predefinedOrganisation = textSymbol && textSymbol->predefinedOrganisation().isSet();
-    StringVector textList;
-
-    // check if the bbox must be merged with the text geom
-    const BBoxSymbol* bboxsymbol = style.get<BBoxSymbol>();
-    bool nativeBBox = bboxsymbol ? bboxsymbol->technique().isSetTo(BBoxSymbol::TECHNIQUE_MERGE_WITH_TEXT_GEOM) : false;
-
-
-    // ----------------------
-    // Build image
-
-    osg::ref_ptr<osg::Geometry> imageDrawable;
-    osg::BoundingBox imageBox(0, 0, 0, 0, 0, 0);
-    StringVector iconList;
-    osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
-    const IconSymbol* icon = nullptr;
-    if (instance.valid())
-        icon = instance->asIcon();
-
-//    if (icon && icon->url().isSet())
-//    {
-//        // check if there is a list of icons
-//        std::string iconTxt = icon->url()->eval();
-//        if ( iconTxt.find(";") != std::string::npos )
-//        {
-//            StringTokenizer splitter( ";", "" );
-//            splitter.tokenize( iconTxt, iconList );
-//            if (! iconList.empty() )
-//                iconTxt = iconList[0];
-//        }
-
-//        imageDrawable = AnnotationUtils::createImageGeometry(iconTxt, icon, readOptions);
-//        if (imageDrawable.valid())
-//            imageBox = imageDrawable->getBoundingBox();
-//    }
-
-
-    // ----------------------
-    // Build text
-
-    //osg::ref_ptr<osgText::TextBase> textDrawable;
-    osg::ref_ptr<osgText::TextBase> textDrawable;
-    osg::ref_ptr<osg::Geometry> annoDrawable;
-    if ( textSymbol )
-    {
-        TextSymbol::Alignment textAlignment = TextSymbol::Alignment::ALIGN_LEFT_CENTER;
-        if ( imageDrawable.valid() && textSymbol->alignment().isSet() )
-            textAlignment = textSymbol->alignment().value();
-
-        osg::BoundingBox imageBoxWithMargin{imageBox};
-
-        if ( icon && icon->margin().isSet() )
-        {
-            const float margin{icon->margin().value()};
-            imageBoxWithMargin.expandBy({imageBox.xMin() - margin, imageBox.yMin() - margin, imageBox.zMin()});
-            imageBoxWithMargin.expandBy({imageBox.xMax() + margin, imageBox.yMax() + margin, imageBox.zMax()});
-        }
-
-        std::string text = textSymbol->content()->eval();
-        if ( predefinedOrganisation )
-        {
-            StringTokenizer splitter( ";", "" );
-            splitter.tokenize( text, textList );
-            if (! textList.empty() )
-                text = textList[0];
-        }
-
-        if ( ! text.empty() )
-        {
-//            textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBoxWithMargin, nativeBBox );
-//            textDrawable = new MPText( text );
-            OE_WARN << "BUILD " << text << "\n";
-            annoDrawable = new MPAnnotationDrawable(style, readOptions);
-
-        }
-    }
-
-
-    // ----------------------
-    // Create the other images if needed
-    // and organize them left to right
-
-    osg::NodeList imagesDrawable;
-    if ( iconList.size() > 1 && ( textDrawable.valid() || imageDrawable.valid() ) )
-    {
-        float xOffset = textDrawable.valid() ? textDrawable->getBoundingBox().xMax() : imageDrawable->getBoundingBox().xMax();
-        for ( unsigned int i=1 ; i<iconList.size() ; ++i )
-        {
-            if ( osg::Geometry* subImageDrawable = AnnotationUtils::createImageGeometry(iconList[i], icon, readOptions, xOffset) )
-            {
-                imagesDrawable.push_back( subImageDrawable );
-                xOffset = subImageDrawable->getBoundingBox().xMax();
-            }
-        }
-    }
-
-
-    // ----------------------
-    // Build BBox
-
-    // The bounding box can enclose either the text, or the image, or both
-    osg::ref_ptr<osg::Drawable> bboxDrawable;
-    if ( bboxsymbol && ! nativeBBox)
-    {
-        float sideMargin = icon && icon->margin().isSet() ? icon->margin().value() : 5.f;
-
-        if ( bboxsymbol->group() == BBoxSymbol::GROUP_ICON_ONLY && imageDrawable.valid() )
-            bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(), *bboxsymbol );
-        else if ( bboxsymbol->group() == BBoxSymbol::GROUP_TEXT_ONLY && textDrawable.valid() )
-            bboxDrawable = new BboxDrawable( textDrawable->getBoundingBox(), *bboxsymbol, sideMargin );
-        else if ( bboxsymbol->group() == BBoxSymbol::GROUP_ICON_AND_TEXT && textDrawable.valid() && imageDrawable.valid() )
-        {
-            if ( imagesDrawable.empty() )
-                bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(), textDrawable->getBoundingBox(), *bboxsymbol, sideMargin );
-            else
-                bboxDrawable = new BboxDrawable( imageDrawable->getBoundingBox(),
-                                                 static_cast<osg::Drawable*>(imagesDrawable.back().get())->getBoundingBox(), *bboxsymbol, sideMargin );
-        }
-    }
-
-    // ----------------------
-    // Create the other texts if needed
-    // only airway organisation treated for now
-
-    osg::NodeList textsDrawable;
-    if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() == 7 )//&& bboxDrawable.valid())
-    {
-        double margin = textSymbol->predefinedOrganisationMargin().get();
-        if ( bboxsymbol && bboxsymbol->border().isSet() && bboxsymbol->border().get().width().isSet() )
-            margin += bboxsymbol->border().get().width().get();
-        else
-            margin += 1.;
-        osg::Vec3 marginVec(margin, margin, margin);
-        //osg::BoundingBox refBBox( bboxDrawable->getBoundingBox()._min - marginVec, bboxDrawable->getBoundingBox()._max + marginVec);
-        osg::BoundingBox refBBox( textDrawable->getBoundingBox()._min - marginVec, textDrawable->getBoundingBox()._max + marginVec);
-
-        //------> TODO This part should be out of MPAnnotationGroup ...
-        TextSymbol::Alignment alignList[] = { TextSymbol::ALIGN_LEFT_BOTTOM, TextSymbol::ALIGN_LEFT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_LEFT_TOP,
-                                             TextSymbol::ALIGN_RIGHT_TOP, TextSymbol::ALIGN_RIGHT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_RIGHT_BOTTOM };
-
-        float fontSizeOrg = textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.f;
-        float fontSizeSmaller = fontSizeOrg / 18.f * 15.f;
-        float fontSizeList[] = {fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller};
-
-        Color colorOrg = textSymbol->fill().isSet() ? textSymbol->fill().get().color() : Color::White;
-        Color colorList[] = {colorOrg, colorOrg, colorOrg, magenta, colorOrg, colorOrg};
-
-        bool nativeBBox[] = {true, false, false, false, false, false};
-        //<------
-
-        // for each text (except the first one)
-        for ( unsigned int i=1 ; i<textList.size() ; ++i )
-        {
-            if ( textList[i].empty() || textList[i] == undef)
-                continue;
-
-            // specific treatments
-            if ( textList[i].find(":") == 1 )
-            {
-                // F: means that the value must be display with format FLxxx
-                // D: means that the value must be display with format xxx°
-                // R: means that the value must be display with format Rxxx
-                StringVector textSplit;
-                StringTokenizer splitter( ":", "" );
-                splitter.tokenize( textList[i], textSplit );
-                if ( textSplit.size() == 2 && textSplit[1] != undef)
-                {
-                    // convert to int
-                    int val;
-                    std::istringstream(textSplit[1]) >> val;
-
-                    // add the FL symbol if required
-                    if ( textSplit[0] == "F" )
-                    {
-                        textList[i] = "FL" + std::to_string(val/100);
-                    }
-                    // add the R symbol if required
-                    else if ( textSplit[0] == "R" )
-                    {
-                        textList[i] = "R" + std::to_string(val);
-                    }
-                    // add the ° symbol if required and make sure it has always three digits
-                    else if ( textSplit[0] == "D" )
-                    {
-                        if ( val < 10 ) textList[i] = "00" + textSplit[1] + "°";
-                        else if ( val < 100 ) textList[i] = "0" + textSplit[1] + "°";
-                        else textList[i] = textSplit[1] + "°";
-                    }
-                    else
-                    {
-                        textList[i] = textSplit[1];
-                    }
-                }
-                else
-                {
-                    continue;
-                }
-            }
-
-            // initialiaze the symbol by copy (to copy the font for example)
-            osg::ref_ptr<TextSymbol> subTextSym = new TextSymbol(*textSymbol);
-            subTextSym->alignment() = alignList[i-1];
-            subTextSym->size() = fontSizeList[i-1];
-            subTextSym->fill() = colorList[i-1];
-            if (subTextSym->font().isSet())
-            {
-                std::string font(subTextSym->font().get());
-                replaceIn(font, "Bold", "Regular"); // all sub items must be regular font
-                subTextSym->font() = font;
-            }
-
-            //osgText::TextBase* subText = AnnotationUtils::createTextDrawable( textList[i], subTextSym.get(), refBBox, nativeBBox[i-1] );
-//            osg::Geometry* subText = new MPText( textList[i] );
-//            textsDrawable.push_back( subText );
-        }
-    }
-
-
-    // ----------------------
-    // Common settings
-
-    double minRange = textSymbol && textSymbol->minRange().isSet() ? textSymbol->minRange().value() : DBL_MAX;
-    double minRange2ndlevel = textSymbol && textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : DBL_MAX;
-    if ( imageDrawable.valid() )
-    {
-        imageDrawable->setCullingActive(false);
-        imageDrawable->setDataVariance(osg::Object::DYNAMIC);
-        imageDrawable->setUserData(dataLayout);
-        this->addChild( imageDrawable );
-        _drawableList[id].push_back(AnnoInfo(Symbol, this->getNumChildren()-1, dataLayout, true));
-    }
-    for ( auto node : imagesDrawable )
-    {
-        node->setCullingActive(false);
-        node->setDataVariance(osg::Object::DYNAMIC);
-        node->setUserData(dataLayout);
-        this->addChild( node );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
-    }
-    if (  textDrawable.valid() )
-    {
-        textDrawable->setCullingActive(false);
-        textDrawable->setDataVariance(osg::Object::DYNAMIC);
-        textDrawable->setUserData(dataLayout);
-        this->addChild( textDrawable );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
-    }
-    if (  annoDrawable.valid() )
-    {
-        annoDrawable->setCullingActive(false);
-        annoDrawable->setDataVariance(osg::Object::DYNAMIC);
-        annoDrawable->setUserData(dataLayout);
-        this->addChild( annoDrawable );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange, true));
-        OE_WARN << "push to the scenegraph\n";
-    }
-    for ( auto node : textsDrawable )
-    {
-        node->setCullingActive(false);
-        node->setDataVariance(osg::Object::DYNAMIC);
-        node->setUserData(dataLayout);
-        this->addChild( node );
-        _drawableList[id].push_back(AnnoInfo(Text, this->getNumChildren()-1, dataLayout, minRange2ndlevel, true));
-    }
-    if ( bboxDrawable.valid() )
-    {
-        bboxDrawable->setCullingActive(false);
-        bboxDrawable->setDataVariance(osg::Object::DYNAMIC);
-        bboxDrawable->setUserData(dataLayout);
-        this->addChild( bboxDrawable );
-        if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_AND_TEXT )
-            _drawableList[id].push_back(AnnoInfo(BboxGroup, this->getNumChildren()-1, dataLayout, minRange, true));
-        else if ( bboxsymbol->group() == BBoxSymbol::BboxGroup::GROUP_ICON_ONLY )
-            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, true));
-        else
-            _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange, true));
-    }
-
-    // layout data for screenspace information
-    updateLayoutData(dataLayout, style, geom);
-
-    return dataLayout->getId();
-}
-
-
-void
-MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, Geometry* geom)
-{
-    if (! dataLayout.valid())
-        return;
-
+    // buid the single geometry which will gather all sub items and LODs
     const TextSymbol* ts = style.get<TextSymbol>();
+    MPAnnotationDrawable* annoDrawable = new MPAnnotationDrawable(style, readOptions);
+    annoDrawable->setId(localId);
+    annoDrawable->setCullingActive(false);
 
     // compute the anchor point as the centroid of the geometry
     const osg::Vec3d center = geom->getCentroid();
     GeoPoint pos( osgEarth::SpatialReference::get("wgs84"), center.x(), center.y(), center.z(), ALTMODE_ABSOLUTE );
     osg::Vec3d p0;
     pos.toWorld(p0);
-    dataLayout->setAnchorPoint(p0);
+    annoDrawable->setAnchorPoint(p0);
+    osg::BoundingSphere bSphere(annoDrawable->getBound());
 
     // priority and pixel offset
-    if (ts)
-    {
-        if (ts->priority().isSet())
-            dataLayout->setPriority(static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval()));
-        if (ts->pixelOffset().isSet())
-            dataLayout->setPixelOffset(ts->pixelOffset().get());
-    }
+    if (ts && ts->priority().isSet())
+        annoDrawable->setPriority(static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval()));
 
     // orientation
     // technic is to create a at 2500m from the anchor with the given bearing
@@ -517,8 +202,8 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
 
         osg::Vec3d p1;
         lineEndPoint.toWorld(p1);
-        dataLayout->setLineEndPoint(p1);
-        dataLayout->setAutoRotate(true);
+        annoDrawable->setLineEndPoint(p1);
+        annoDrawable->setAutoRotate(true);
     }
 
     // sliding label
@@ -547,11 +232,9 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
         {
             geomLineString = dynamic_cast<LineString*>( geomSupport );
         }
-        else
+        else if (const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport))
         {
-            const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport);
-            if( geomMulti )
-                geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
+            geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
         }
     }
 
@@ -587,20 +270,18 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
             }
         }
 
-        dataLayout->setLineStartPoint(p1);
-        dataLayout->setLineEndPoint(p2);
+        annoDrawable->setLineStartPoint(p1);
+        annoDrawable->setLineEndPoint(p2);
         if( ts->autoOffsetGeomWKT().isSet() )
-            dataLayout->setAnchorPoint(dataLayout->getLineStartPoint());
+            annoDrawable->setAnchorPoint(annoDrawable->getLineStartPoint());
 
-        dataLayout->setAutoFollowLine( ts->autoOffsetAlongLine().get() );
-        dataLayout->setAutoRotate( ts->autoRotateAlongLine().get() );
+        annoDrawable->setAutoFollowLine( ts->autoOffsetAlongLine().get() );
+        annoDrawable->setAutoRotate( ts->autoRotateAlongLine().get() );
     }
 
-    // global BBox
-    for ( auto i : _drawableList[dataLayout->getId()] )
-        dataLayout->expandBboxBy(this->getChild(i.index)->asDrawable()->getBoundingBox());
+    this->addChild( annoDrawable );
+    return localId;
 }
-
 
 void
 MPAnnotationGroup::setHighlight( long id, bool highlight )

@@ -41,7 +41,9 @@ public:
     osg::Vec2 lt_t;
     osg::Vec2 rt_t;
     osg::Vec2 rb_t;
-    double advance{0};
+    osg::Vec2 size;
+    double advance {0.};
+    double refScale {1.};
 };
 
 
@@ -50,7 +52,7 @@ class OSGEARTHANNO_EXPORT MPStateSetFontAltas : public osg::StateSet
 
 public:
 
-    static const int ATTRIB_DRAW_TYPE;
+    static const int ATTRIB_ANNO_INFO;
 
     enum DrawType
     {
@@ -59,12 +61,17 @@ public:
         TYPE_BBOX
     };
 
+    typedef std::map<std::string, GlyphInfo> GlyphMap;
+
 public:
 
     MPStateSetFontAltas(const std::string& fontAtlasPath, const osgEarth::URIContext& context, const osgDB::Options* readOptions);
 
     // map that holds all Glyphs
-    std::map<std::string, GlyphInfo> _mapGlyphs;
+    GlyphMap mapGlyphs;
+
+    // reference font size
+    double refFontSize{15.};
 
 };
 
