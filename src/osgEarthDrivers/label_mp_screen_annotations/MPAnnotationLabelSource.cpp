@@ -155,7 +155,7 @@ public:
             long id = root->addAnnotation(tempStyle, feature->getGeometry(), context.getDBOptions());
 
             // tag the drawables for that the feature can be retrieved when picking
-            if ( context.featureIndex() )
+            if ( context.featureIndex() && id >= 0 )
             {
                 std::vector<MPAnnotationGroup::AnnoInfo> drawableList = root->getDrawableList(id);
                 for (auto iAnno : drawableList )

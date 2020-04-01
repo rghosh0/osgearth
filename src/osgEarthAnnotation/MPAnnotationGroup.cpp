@@ -302,7 +302,9 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     }
 
     // build change over point pattern
-    else if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("changeoverpoint") && textList.size() == 2 )
+    else if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("changeoverpoint") && textList.size() == 2
+              && ! textList[0].empty() && textList[0] != undef
+              && ! textList[1].empty() && textList[1] != undef )
     {
         //double margin = textSymbol->predefinedOrganisationMargin().get();
         //osg::Vec3 marginVec(margin, margin, margin);
@@ -469,10 +471,17 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             _drawableList[id].push_back(AnnoInfo(Bbox, this->getNumChildren()-1, dataLayout, minRange, true));
     }
 
-    // layout data for screenspace information
-    updateLayoutData(dataLayout, style, geom);
+    if ( _drawableList.find(id) != _drawableList.end() )
+    {
+        // layout data for screenspace information
+        updateLayoutData(dataLayout, style, geom);
 
-    return dataLayout->getId();
+        return dataLayout->getId();
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 
