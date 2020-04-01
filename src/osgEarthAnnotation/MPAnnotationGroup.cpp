@@ -228,7 +228,8 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             if (! textList.empty() )
                 text = textList[0];
         }
-        if ( ! text.empty() )
+        // for change over point we will build the labels after
+        if ( ! text.empty() && ! textSymbol->predefinedOrganisation().isSetTo("changeoverpoint") )
             textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBoxWithMargin );
     }
 
@@ -256,9 +257,10 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     // Build BBox
 
     // The bounding box can enclose either the text, or the image, or both
+    // the bbox symbol for change over point will be calculated after
     osg::ref_ptr<osg::Drawable> bboxDrawable;
     const BBoxSymbol* bboxsymbol = style.get<BBoxSymbol>();
-    if ( bboxsymbol )
+    if ( bboxsymbol && (! predefinedOrganisation || ! textSymbol->predefinedOrganisation().isSetTo("changeoverpoint") ))
     {
         float sideMargin = icon && icon->margin().isSet() ? icon->margin().value() : 5.f;
 
@@ -278,7 +280,7 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
 
     // ----------------------
     // Create the other texts if needed
-    // predefinedOrganisation can be 'airway' or 'mora'
+    // predefinedOrganisation can be 'airway' or 'mora' or 'changeoverpoint'
     osg::NodeList textsDrawable;
 
     // build MORA pattern
@@ -297,6 +299,33 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
 
         osgText::Text* subText = AnnotationUtils::createTextDrawable( textList[1], subTextSym.get(), refBBox );
         textsDrawable.push_back( subText );
+    }
+
+    // build change over point pattern
+    else if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("changeoverpoint") && textList.size() == 2 )
+    {
+        //double margin = textSymbol->predefinedOrganisationMargin().get();
+        //osg::Vec3 marginVec(margin, margin, margin);
+        //osg::BoundingBox refBBox( textDrawable->getBoundingBox()._min - marginVec, textDrawable->getBoundingBox()._max + marginVec);
+        double margin = textSymbol->predefinedOrganisationMargin().isSet() ? textSymbol->predefinedOrganisationMargin().get() : 5.;
+        osg::Vec3 vMargin ( margin, margin, 0.);
+        osg::BoundingBox refBBox( -vMargin, vMargin );
+
+        // right top text
+        osg::ref_ptr<TextSymbol> mainTextSym = new TextSymbol(*textSymbol);
+        mainTextSym->alignment() = TextSymbol::ALIGN_LEFT_BOTTOM;
+        textDrawable = AnnotationUtils::createTextDrawable( textList[0], mainTextSym.get(), refBBox );
+
+        // left bottom text
+        osg::ref_ptr<TextSymbol> subTextSym = new TextSymbol(*textSymbol);
+        subTextSym->alignment() = TextSymbol::ALIGN_RIGHT_TOP;
+        osgText::Text* subText = AnnotationUtils::createTextDrawable( textList[1], subTextSym.get(), refBBox );
+        textsDrawable.push_back( subText );
+
+        // the "stair" symbol
+        refBBox.expandBy( textDrawable->getBoundingBox() );
+        refBBox.expandBy( subText->getBoundingBox() );
+        bboxDrawable = new BboxDrawable( refBBox, *bboxsymbol );
     }
 
     // build Airway pattern
@@ -462,13 +491,15 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
     pos.toWorld(p0);
     dataLayout->setAnchorPoint(p0);
 
-    // priority and pixel offset
+    // priority pixel offset, rotation policy
     if (ts)
     {
         if (ts->priority().isSet())
             dataLayout->setPriority(static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval()));
         if (ts->pixelOffset().isSet())
             dataLayout->setPixelOffset(ts->pixelOffset().get());
+        if (ts->predefinedOrganisation().isSetTo("changeoverpoint"))
+            dataLayout->_simpleCharacterInvert = true;
     }
 
     // orientation

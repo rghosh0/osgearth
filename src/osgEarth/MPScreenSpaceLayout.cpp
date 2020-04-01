@@ -58,8 +58,8 @@ struct SortByPriority : public DeclutterSortFunctor
 {
     bool operator()( const osgUtil::RenderLeaf* lhs, const osgUtil::RenderLeaf* rhs ) const
     {
-        const ScreenSpaceLayoutData* lhsdata = static_cast<const ScreenSpaceLayoutData*>(lhs->getDrawable()->getUserData());
-        const ScreenSpaceLayoutData* rhsdata = static_cast<const ScreenSpaceLayoutData*>(rhs->getDrawable()->getUserData());
+        const ScreenSpaceLayoutData* lhsdata = static_cast<const ScreenSpaceLayoutData*>(lhs->_drawable->getUserData());
+        const ScreenSpaceLayoutData* rhsdata = static_cast<const ScreenSpaceLayoutData*>(rhs->_drawable->getUserData());
 
         float lhsPriority = lhsdata->_priority ;
         float rhsPriority = rhsdata->_priority;
@@ -460,7 +460,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             ++i )
         {
             osgUtil::RenderLeaf* leaf = *i;
-            const osg::Drawable* drawable = leaf->getDrawable();
+            const osg::Drawable* drawable = leaf->_drawable;
             const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
 
             // transform the bounding box of the drawable into window-space.
@@ -489,9 +489,17 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 // use a symetric translation and adapt the rotation to be in the desired angles
                 if ( asText->getAlignment() == osgText::TextBase::AlignmentType::LEFT_BOTTOM_BASE_LINE
                      || asText->getAlignment() == osgText::TextBase::AlignmentType::RIGHT_BOTTOM_BASE_LINE )
-                    offset.set( layoutData->_pixelOffset.x() - (box.xMax()+box.xMin()), layoutData->_pixelOffset.y(), 0. );
+                    offset.set( layoutData->_pixelOffset.x() - (box.xMax()+box.xMin()),
+                                layoutData->_pixelOffset.y(),
+                                0. );
+                else if ( layoutData->_simpleCharacterInvert )
+                    offset.set( layoutData->_pixelOffset.x() - (box.xMax()+box.xMin()),
+                                layoutData->_pixelOffset.y() - (box.yMax()+box.yMin()),
+                                0. );
                 else
-                    offset.set( layoutData->_pixelOffset.x(), layoutData->_pixelOffset.y(), 0. );
+                    offset.set( layoutData->_pixelOffset.x(),
+                                layoutData->_pixelOffset.y(),
+                                0. );
                 angle += angle < -osg::PI_2 ? osg::PI : -osg::PI; // JD #1029
             }
             else
@@ -528,7 +536,6 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
                 updateOffsetForAutoLabelOnLine(box, vp, pos, layoutData, camVPW, slidingOffset, to);
                 pos += slidingOffset;
             }
-
 
 
 //            // Expand the box if this object is currently not visible, so that it takes a little
@@ -689,7 +696,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             for( osgUtil::RenderBin::RenderLeafList::const_iterator i=local._passed.begin(); i != local._passed.end(); ++i )
             {
                 osgUtil::RenderLeaf* leaf     = *i;
-                const osg::Drawable* drawable = leaf->getDrawable();
+                const osg::Drawable* drawable = leaf->_drawable;
                 const ScreenSpaceLayoutData* layoutData = static_cast<const ScreenSpaceLayoutData*>(drawable->getUserData());
                 long drawableFid = layoutData->getId();
 
@@ -729,7 +736,7 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             for( osgUtil::RenderBin::RenderLeafList::const_iterator i=local._failed.begin(); i != local._failed.end(); ++i )
             {
                 osgUtil::RenderLeaf* leaf =     *i;
-                const osg::Drawable* drawable = leaf->getDrawable();
+                const osg::Drawable* drawable = leaf->_drawable;
 
                 DrawableInfo& info = local._memory[drawable];
 

@@ -110,6 +110,7 @@ public:
     osg::BoundingBox _bbox;
     osg::BoundingSphere _bsphere{osg::Vec3d(0., 0., 0), 0.};
     osg::BoundingBox _bboxSymetric;
+    bool        _simpleCharacterInvert {false};
 
     osg::Vec3d          _cull_anchorOnScreen;
     double              _cull_rotationRadOnScreen;

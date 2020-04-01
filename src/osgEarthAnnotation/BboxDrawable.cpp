@@ -191,6 +191,15 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
         }
     }
 
+    else if ( bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_STAIR) )
+    {
+        float xMax = std::max( box.xMax(), -box.xMin() );
+        v->push_back( osg::Vec3( xMax + margin, box.yMax() + margin, 0.) );
+        v->push_back( osg::Vec3( 0., box.yMax() + margin, 0.) );
+        v->push_back( osg::Vec3( 0., box.yMin() - margin, 0.) );
+        v->push_back( osg::Vec3( - xMax - margin, box.yMin() - margin, 0.) );
+    }
+
     else
     {
         float shiftRight = 0.f;
@@ -268,7 +277,8 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
         c->push_back( _originalStrokeColor );
         if ( bboxSymbol.border()->width().isSet() )
             getOrCreateStateSet()->setAttribute( new osg::LineWidth( bboxSymbol.border()->width().value() ));
-        addPrimitiveSet( new osg::DrawArrays(GL_LINE_LOOP, 0, static_cast<int>(v->getNumElements())) );
+        GLenum lineMode ( bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_STAIR) ? GL_LINE_STRIP : GL_LINE_LOOP );
+        addPrimitiveSet( new osg::DrawArrays(lineMode, 0, static_cast<int>(v->getNumElements())) );
     }
 
     setColorArray( c );
