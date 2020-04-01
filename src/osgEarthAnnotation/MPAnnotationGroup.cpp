@@ -39,6 +39,7 @@ namespace
     const osg::Node::NodeMask nodeNoMask = 0xffffffff;
     const std::string undef = "-32765";
     const Color magenta(1., 135./255., 195./255.);
+    const Color almostRed("fe332d");
 }
 
 
@@ -228,8 +229,9 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
             if (! textList.empty() )
                 text = textList[0];
         }
-        // for change over point we will build the labels after
-        if ( ! text.empty() && ! textSymbol->predefinedOrganisation().isSetTo("changeoverpoint") )
+        // for change over point and mora we will build the labels after
+        if ( ! text.empty() && ! textSymbol->predefinedOrganisation().isSetTo("changeoverpoint")
+             && ! textSymbol->predefinedOrganisation().isSetTo("mora") )
             textDrawable = AnnotationUtils::createTextDrawable( text, textSymbol, imageBoxWithMargin );
     }
 
@@ -284,16 +286,28 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
     osg::NodeList textsDrawable;
 
     // build MORA pattern
-    if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("mora") && textList.size() == 2 && textDrawable.valid() )
+    if ( predefinedOrganisation && textSymbol->predefinedOrganisation().isSetTo("mora") && textList.size() == 2 )
     {
-        //double margin = textSymbol->predefinedOrganisationMargin().get();
-        //osg::Vec3 marginVec(margin, margin, margin);
-        //osg::BoundingBox refBBox( textDrawable->getBoundingBox()._min - marginVec, textDrawable->getBoundingBox()._max + marginVec);
+        int moraVal = std::stoi(textList[0]);
         osg::BoundingBox refBBox( 0., 0., 0., 0., 0., 0.);
 
-        // initialiaze the symbol by copy (to copy the font, the color, ...)
+        // main label
+        if ( moraVal < 10 )
+        {
+            textDrawable = AnnotationUtils::createTextDrawable( textList[0], textSymbol, refBBox );
+        }
+        else
+        {
+            osg::ref_ptr<TextSymbol> mainTextSym = new TextSymbol(*textSymbol);
+            mainTextSym->fill() = almostRed;
+            textDrawable = AnnotationUtils::createTextDrawable( textList[0], mainTextSym.get(), refBBox );
+        }
+
+        // second label
         osg::ref_ptr<TextSymbol> subTextSym = new TextSymbol(*textSymbol);
         subTextSym->alignment() = TextSymbol::ALIGN_LEFT_BOTTOM;
+        if ( moraVal >= 10 )
+            subTextSym->fill() = almostRed;
         float fontSizeOrg = textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.f;
         subTextSym->size() = fontSizeOrg * 0.7;
 
@@ -306,9 +320,6 @@ long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const 
               && ! textList[0].empty() && textList[0] != undef
               && ! textList[1].empty() && textList[1] != undef )
     {
-        //double margin = textSymbol->predefinedOrganisationMargin().get();
-        //osg::Vec3 marginVec(margin, margin, margin);
-        //osg::BoundingBox refBBox( textDrawable->getBoundingBox()._min - marginVec, textDrawable->getBoundingBox()._max + marginVec);
         double margin = textSymbol->predefinedOrganisationMargin().isSet() ? textSymbol->predefinedOrganisationMargin().get() : 5.;
         osg::Vec3 vMargin ( margin, margin, 0.);
         osg::BoundingBox refBBox( -vMargin, vMargin );
