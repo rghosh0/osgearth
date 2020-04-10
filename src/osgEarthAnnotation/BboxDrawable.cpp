@@ -206,8 +206,8 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
         // Top left
         v->push_back( osg::Vec3(box.xMin() - margin, box.yMax() + margin, 0.f) );
 
-        const int nbSteps = 9;
-        const float angleStep = osg::PI / nbSteps;
+        constexpr int nbSteps = 9;
+        constexpr float angleStep = osg::PI / nbSteps;
         const float radius = ((box.yMax() - box.yMin()) / 2.f) + margin;
         osg::Vec3 center(box.xMin(), (box.yMax() + box.yMin()) / 2.f, 0.f);
         float angle = osg::PIf / 2.f;
@@ -216,10 +216,10 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
         for (int step = 1; step < nbSteps; step++ )
         {
             angle += angleStep;
-            v->push_back(center + osg::Vec3((cosf(angle)*radius), sinf(angle)*radius, 0.f));
+            v->push_back(center + osg::Vec3((std::cosf(angle) * radius), std::sinf(angle) * radius, 0.f));
         }
         // Bottom left
-        v->push_back( osg::Vec3(box.xMin()-margin, box.yMin()-margin, 0.f) );
+        v->push_back( osg::Vec3(box.xMin() - margin, box.yMin() - margin, 0.f) );
     }
 
     else if ( bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_STAIR) )
