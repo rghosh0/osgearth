@@ -18,6 +18,7 @@
  */
 #include <osgEarthFeatures/BufferFilter>
 #include <osgEarthFeatures/FilterContext>
+#include <osgEarthSymbology/BufferParameters.h>
 
 #define LC "[BufferFilter] "
 
@@ -28,7 +29,7 @@ using namespace osgEarth::Symbology;
 bool
 BufferFilter::isSupported()
 {
-#ifdef OSGEARTH_HAVE_GEOS
+#if defined(OSGEARTH_HAVE_GEOS) || defined(OSGEARTH_HAVE_BOOST_GEO)
     static bool s_isSupported = true;
 #else
     static bool s_isSupported = false;

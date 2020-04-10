@@ -38,6 +38,13 @@ using namespace geos;
 using namespace geos::operation;
 #endif
 
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+#include <osgEarthSymbology/boostBuffer.h>
+#include <osgEarthSymbology/boostGeometryAPI.h>
+#include <boost/geometry.hpp>
+namespace bg = boost::geometry;
+#endif // OSGEARTH_HAVE_BOOST_GEO
+
 #define GEOS_OUT OE_DEBUG
 
 #define LC "[Geometry] "
@@ -145,7 +152,7 @@ Geometry::create( Type type, const Vec3dVector* toCopy )
 bool
 Geometry::hasBufferOperation()
 {
-#ifdef OSGEARTH_HAVE_GEOS
+#if defined(OSGEARTH_HAVE_GEOS) || defined(OSGEARTH_HAVE_BOOST_GEO)
     return true;
 #else
     return false;
@@ -157,7 +164,9 @@ Geometry::buffer(double distance,
                  osg::ref_ptr<Geometry>& output,
                  const BufferParameters& params ) const
 {
-#ifdef OSGEARTH_HAVE_GEOS   
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+     return boost_buffer(distance, output, params);
+#elif OSGEARTH_HAVE_GEOS
 
     GEOSContext gc;
 
@@ -226,16 +235,21 @@ Geometry::buffer(double distance,
 
 #else // OSGEARTH_HAVE_GEOS
 
-    OE_WARN << LC << "Buffer failed - GEOS not available" << std::endl;
+    OE_WARN << LC << "Buffer failed - GEOS and BOOST not available" << std::endl;
     return false;
 
-#endif // OSGEARTH_HAVE_GEOS
+#endif // OSGEARTH_HAVE_GEOS AND OSGEARTH_HAVE_BOOST_GEO
 }
 
 bool
 Geometry::crop( const Polygon* cropPoly, osg::ref_ptr<Geometry>& output ) const
 {
-#ifdef OSGEARTH_HAVE_GEOS
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+    return boost_crop(cropPoly, output);
+
+#elif OSGEARTH_HAVE_GEOS
+
+
     bool success = false;
     output = 0L;
 
@@ -305,10 +319,10 @@ Geometry::crop( const Polygon* cropPoly, osg::ref_ptr<Geometry>& output ) const
 
 #else // OSGEARTH_HAVE_GEOS
 
-    OE_WARN << LC << "Crop failed - GEOS not available" << std::endl;
+    OE_WARN << LC << "Crop failed - GEOS and BOOST not available" << std::endl;
     return false;
 
-#endif // OSGEARTH_HAVE_GEOS
+#endif // OSGEARTH_HAVE_GEOS and OSGEARTH_HAVE_BOOST_GEO
 }
 
 bool
@@ -326,7 +340,9 @@ Geometry::crop( const Bounds& bounds, osg::ref_ptr<Geometry>& output ) const
 bool
 Geometry::geounion( const Geometry* other, osg::ref_ptr<Geometry>& output ) const
 {
-#ifdef OSGEARTH_HAVE_GEOS
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+     return boost_geounion(other, output);
+#elif OSGEARTH_HAVE_GEOS
     bool success = false;
     output = 0L;
 
@@ -396,17 +412,18 @@ Geometry::geounion( const Geometry* other, osg::ref_ptr<Geometry>& output ) cons
 
 #else // OSGEARTH_HAVE_GEOS
 
-    OE_WARN << LC << "Union failed - GEOS not available" << std::endl;
+    OE_WARN << LC << "Union failed - GEOS and BOOST not available" << std::endl;
     return false;
 
-#endif // OSGEARTH_HAVE_GEOS
+#endif // OSGEARTH_HAVE_GEOS and OSGEARTH_HAVE_BOOST_GEO
 }
 
 bool
 Geometry::difference( const Polygon* diffPolygon, osg::ref_ptr<Geometry>& output ) const
 {
-#ifdef OSGEARTH_HAVE_GEOS
-
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+     return boost_difference(diffPolygon, output);
+#elif OSGEARTH_HAVE_GEOS
     GEOSContext gc;
 
     //Create the GEOS Geometries
@@ -455,10 +472,10 @@ Geometry::difference( const Polygon* diffPolygon, osg::ref_ptr<Geometry>& output
 
 #else // OSGEARTH_HAVE_GEOS
 
-    OE_WARN << LC << "Difference failed - GEOS not available" << std::endl;
+    OE_WARN << LC << "Difference failed - GEOS and BOOST not available" << std::endl;
     return false;
 
-#endif // OSGEARTH_HAVE_GEOS
+#endif // OSGEARTH_HAVE_GEOS and OSGEARTH_HAVE_BOOST_GEO
 }
 
 bool
@@ -466,7 +483,9 @@ Geometry::intersects(
             const class Geometry* other
             ) const
 {
-#ifdef OSGEARTH_HAVE_GEOS
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+     return boost_intersects(other);
+#elif OSGEARTH_HAVE_GEOS
 
     GEOSContext gc;
 
@@ -484,11 +503,365 @@ Geometry::intersects(
 
 #else // OSGEARTH_HAVE_GEOS
 
-    OE_WARN << LC << "Intersects failed - GEOS not available" << std::endl;
+    OE_WARN << LC << "Intersects failed - GEOS and BOOST not available" << std::endl;
     return false;
 
-#endif // OSGEARTH_HAVE_GEOS
+#endif // OSGEARTH_HAVE_GEOS and OSGEARTH_HAVE_BOOST_GEO
 }
+
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+bool
+Geometry::boost_buffer(double distance,
+                       osg::ref_ptr<Geometry>& output,
+                       const BufferParameters& params ) const
+{
+    boostGeometryContext bgc;
+    auto thisGeo = bgc.importGeometry( this );
+    // Check if imported geometry is invalid
+    if(thisGeo.first == false) {
+        return false;
+    }
+
+    // Convert line per corner (90deg) into point per circle (360deg)
+    const size_t points_per_circle = static_cast<const size_t>(4 * params._cornerSegs);
+    BoostBufferParameters boostBuffer(points_per_circle, distance, params._singleSided, params._leftSide);
+    // Set strategy
+    boostBuffer.setJoinStrategy(params._joinStyle);
+    boostBuffer.setEndStrategy(params._capStyle);
+
+    // Get geometry type and subtype for multy geometry
+    Type subGeoType = TYPE_UNKNOWN;
+    if(this->getType() == TYPE_MULTI)
+    {
+        // In osgearth, all geometry in the multigeometry have the same type (retreived from first element).
+        subGeoType = static_cast<const Symbology::MultiGeometry*>( this )->getComponentType();
+    }
+    // Perform buffer operation
+    std::list<polygon2d_t> listPolyOutput = boostBuffer.compute(this->getType(), subGeoType, thisGeo.second);
+    // export geometry
+    output = bgc.exportGeometry<polygon2d_t>(&listPolyOutput);
+
+    if ( output.valid() && !output->isValid() )
+    {
+        output = 0L;
+    }
+    return output.valid();
+}
+
+bool
+Geometry::boost_crop( const Polygon* cropPoly, osg::ref_ptr<Geometry>& output ) const
+{
+    boostGeometryContext bgc;
+    auto thisGeo = bgc.importGeometry( this );
+    auto cropPolyGeo = bgc.importGeometry( cropPoly );
+
+    // if imported geometry are invalid
+    if((thisGeo.first == false) || (cropPolyGeo.first == false)) {
+        return false;
+    }
+
+    try {
+        auto boost_poly1 = boost::any_cast<polygon2d_t>(thisGeo.second);
+        auto boost_poly2 = boost::any_cast<polygon2d_t>(cropPolyGeo.second);
+
+        std::list<polygon2d_t> boost_output;
+        boost::geometry::intersection(boost_poly1, boost_poly2, boost_output);
+        if (boost_output.size() != 1) {
+            output = nullptr;
+        }
+        else {
+            output = bgc.exportGeometry<polygon2d_t>(&boost_output);
+        }
+
+        if ( output.valid() && !output->isValid() )
+        {
+            output = nullptr;
+        }
+    }
+    catch (const boost::bad_any_cast &e) {
+        OE_DEBUG << e.what();
+        return false;
+    }
+    catch (const bg::empty_input_exception  &e) {
+        OE_DEBUG << e.what();
+        return false;
+    }
+    catch (const bg::invalid_input_exception  &e) {
+        OE_DEBUG << e.what();
+        return false;
+    }    
+    catch (...) {
+        OE_WARN << "Unknown error in boost_crop";
+        return false;
+    }
+    return output.valid();
+}
+
+bool
+Geometry::boost_geounion( const Geometry* other, osg::ref_ptr<Geometry>& output ) const
+{
+    output = nullptr;
+    bool success = false;
+    bool geoEmpty = false;
+    boostGeometryContext bgc;
+    auto thisGeo = bgc.importGeometry( this );
+    auto otherGeo = bgc.importGeometry( other );
+
+    // if imported geometry are invalid
+    if((thisGeo.first == false) || (otherGeo.first == false)) {
+        return false;
+    }
+
+    try {
+        switch(other->getType()) {
+        case Symbology::Geometry::TYPE_UNKNOWN:
+            break;
+        case Symbology::Geometry::TYPE_POINTSET:
+        {
+            std::list<point_t> boost_output;
+            bg::union_(boost::any_cast<point_t>(thisGeo.second),
+                                    boost::any_cast<point_t>(otherGeo.second),
+                                    boost_output);
+            geoEmpty = boost_output.empty();
+            output = bgc.exportGeometry<point_t>(&boost_output);
+        }
+            break;
+        case Symbology::Geometry::TYPE_LINESTRING:
+        {
+            std::list<linestring_t> boost_output;
+            bg::union_(boost::any_cast<linestring_t>(thisGeo.second),
+                                    boost::any_cast<linestring_t>(otherGeo.second),
+                                    boost_output);
+            geoEmpty = boost_output.empty();
+            output = bgc.exportGeometry<linestring_t>(&boost_output);
+        }
+            break;
+        case Symbology::Geometry::TYPE_RING:
+        case Symbology::Geometry::TYPE_POLYGON:
+        {
+            std::list<polygon2d_t> boost_output;
+
+            bg::union_(boost::any_cast<polygon2d_t>(thisGeo.second),
+                                    boost::any_cast<polygon2d_t>(otherGeo.second),
+                                    boost_output);
+            geoEmpty = boost_output.empty();
+            output = bgc.exportGeometry<polygon2d_t>(&boost_output);
+        }
+            break;
+        case Symbology::Geometry::TYPE_MULTI:
+
+            switch(other->getComponentType()){
+            case Symbology::Geometry::TYPE_UNKNOWN:
+                break;
+            case Symbology::Geometry::TYPE_MULTI:
+                break;
+            case Symbology::Geometry::TYPE_POINTSET:
+            {
+                std::list<point_t> boost_output;
+                bg::union_(boost::any_cast<mpoint_xyz_t>(thisGeo.second),
+                                        boost::any_cast<mpoint_xyz_t>(otherGeo.second),
+                                        boost_output);
+                geoEmpty = boost_output.empty();
+                output = bgc.exportGeometry<point_t>(&boost_output);
+            }
+                break;
+            case Symbology::Geometry::TYPE_LINESTRING:
+            {
+                std::list<linestring_t> boost_output;
+                bg::union_(boost::any_cast<mlinestring_t>(thisGeo.second),
+                                        boost::any_cast<mlinestring_t>(otherGeo.second),
+                                        boost_output);
+                geoEmpty = boost_output.empty();
+                output = bgc.exportGeometry<linestring_t>(&boost_output);
+            }
+                break;
+            case Symbology::Geometry::TYPE_RING:
+            case Symbology::Geometry::TYPE_POLYGON:
+            {
+                std::list<polygon2d_t> boost_output;
+                bg::union_(boost::any_cast<mpolygon2d_t>(thisGeo.second),
+                                        boost::any_cast<mpolygon2d_t>(otherGeo.second),
+                                        boost_output);
+                geoEmpty = boost_output.empty();
+                output = bgc.exportGeometry<polygon2d_t>(&boost_output);
+            }
+                break;
+            }
+
+        default:
+            OE_WARN << "Unhandled case";
+            break;
+        }
+    }
+    catch (const boost::bad_any_cast &e) {
+        OE_DEBUG << "boost_geounion: " << e.what();
+        return false;
+    }
+    catch (const bg::empty_input_exception  &e) {
+        OE_DEBUG << "boost_geounion: " << e.what();
+        return false;
+    }
+    catch (const bg::invalid_input_exception  &e) {
+        OE_DEBUG << "boost_geounion: " << e.what();
+        return false;
+    }
+    catch (...) {
+        OE_WARN << "Unknown error in boost_geounion";
+        return false;
+    }
+
+    if ( output.valid())
+    {
+        if ( output->isValid() )
+        {
+            success = true;
+        }
+        else
+        {
+            // GEOS result is invalid
+            output = nullptr;
+        }
+    }
+    else
+    {
+        // set output to empty geometry to indicate the (valid) empty case,
+        // still returning false but allows for check.
+        if (geoEmpty)
+        {
+            output = new osgEarth::Symbology::Geometry();
+        }
+    }
+    return success;
+}
+
+bool
+Geometry::boost_difference( const Polygon* diffPolygon, osg::ref_ptr<Geometry>& output ) const
+{
+    boostGeometryContext bgc;
+    auto thisGeo = bgc.importGeometry( this );
+    auto diffPolygonGeo = bgc.importGeometry( diffPolygon );
+    // if imported geometry are invalid
+    if((thisGeo.first == false) || (diffPolygonGeo.first == false)) {
+        return false;
+    }
+
+    try {
+        auto boost_poly1 = boost::any_cast<polygon2d_t>(thisGeo.second);
+        auto boost_poly2 = boost::any_cast<polygon2d_t>(diffPolygonGeo.second);
+        std::list<polygon2d_t> boost_output;
+        // Correct geometry point order
+        bg::difference(boost_poly1, boost_poly2, boost_output);
+        if (boost_output.size() != 1) {
+            output = 0L;
+        }
+        else {
+            output = bgc.exportGeometry<polygon2d_t>(&boost_output);
+        }
+
+        if ( output.valid() && !output->isValid() )
+        {
+            output = nullptr;
+        }
+    }
+    catch (const boost::bad_any_cast &e) {
+        OE_DEBUG << e.what();
+        return false;
+    }
+    catch (const bg::empty_input_exception  &e) {
+        OE_DEBUG << e.what();
+        return false;
+    }
+    catch (const bg::invalid_input_exception  &e) {
+        OE_DEBUG << e.what();
+        return false;
+    } 
+    catch (...) {
+        OE_WARN << "Unknown error in boost_difference";
+        return false;
+    }
+    return output.valid();
+}
+
+bool
+Geometry::boost_intersects( const class Geometry* other ) const
+{
+    boostGeometryContext bgc;
+    auto thisGeo = bgc.importGeometry( this );
+    auto otherGeo = bgc.importGeometry( other );
+
+    // if imported geometry are invalid
+    if((thisGeo.first == false) || (otherGeo.first == false)) {
+        return false;
+    }
+
+    try {
+        switch(other->getType()) {
+        case Symbology::Geometry::TYPE_UNKNOWN:
+            break;
+        case Symbology::Geometry::TYPE_POINTSET:
+        {
+            return bg::intersects(boost::any_cast<point_t>(thisGeo.second),
+                                               boost::any_cast<point_t>(otherGeo.second));
+        }
+        case Symbology::Geometry::TYPE_LINESTRING:
+        {
+            return bg::intersects(boost::any_cast<linestring_t>(thisGeo.second),
+                                               boost::any_cast<linestring_t>(otherGeo.second));
+        }
+        case Symbology::Geometry::TYPE_RING:
+        {
+            return bg::intersects(boost::any_cast<ring_t>(thisGeo.second),
+                                               boost::any_cast<ring_t>(otherGeo.second));
+        }
+        case Symbology::Geometry::TYPE_POLYGON:
+        {
+            return bg::intersects(boost::any_cast<polygon2d_t>(thisGeo.second),
+                                               boost::any_cast<polygon2d_t>(otherGeo.second));
+        }
+        case Symbology::Geometry::TYPE_MULTI:
+
+            switch(other->getComponentType()){
+            case Symbology::Geometry::TYPE_UNKNOWN:
+                break;
+            case Symbology::Geometry::TYPE_MULTI:
+                break;
+            case Symbology::Geometry::TYPE_POINTSET:
+            {
+                return bg::intersects(boost::any_cast<mpoint_xyz_t>(thisGeo.second),
+                                                   boost::any_cast<mpoint_xyz_t>(otherGeo.second));
+            }
+            case Symbology::Geometry::TYPE_LINESTRING:
+            {
+                return bg::intersects(boost::any_cast<mlinestring_t>(thisGeo.second),
+                                                   boost::any_cast<mlinestring_t>(otherGeo.second));
+            }
+            case Symbology::Geometry::TYPE_RING:
+            case Symbology::Geometry::TYPE_POLYGON:
+            {
+                return bg::intersects(boost::any_cast<mpolygon2d_t>(thisGeo.second),
+                                                   boost::any_cast<mpolygon2d_t>(otherGeo.second));
+            }
+            }
+        default:
+            OE_WARN << "Unhandled case";
+            break;
+        }
+    }
+    catch (const boost::bad_any_cast &e) {
+        OE_DEBUG << e.what();
+    }
+    catch (const bg::empty_input_exception  &e) {
+        OE_DEBUG << e.what();
+    }
+    catch (const bg::invalid_input_exception  &e) {
+        OE_DEBUG << e.what();
+    } 
+    catch (...) {
+        OE_WARN << "Unknown error in boost_intersects";
+    }
+    return false;
+}
+#endif // OSGEARTH_HAVE_BOOST_GEO
 
 osg::Vec3d
 Geometry::localize()

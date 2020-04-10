@@ -76,7 +76,7 @@ CropFilter::push( FeatureList& input, FilterContext& context )
 
     else // METHOD_CROPPING (requires GEOS)
     {
-#ifdef OSGEARTH_HAVE_GEOS
+#if defined(OSGEARTH_HAVE_GEOS) || defined(OSGEARTH_HAVE_BOOST_GEO)
 
         // create the intersection polygon:
         osg::ref_ptr<Symbology::Polygon> poly;
