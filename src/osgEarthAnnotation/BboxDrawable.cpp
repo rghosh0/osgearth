@@ -191,6 +191,37 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
         }
     }
 
+    else if ( bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_BOX_ROUNDED_ORIENTED) )
+    {
+        const float hMed = (box.yMax() - box.yMin() + 2.f * margin) * 0.5f;
+        const float arrowEdgeX = hMed / 1.375f;
+
+        // Bottom right
+        v->push_back( osg::Vec3(box.xMax() + margin, box.yMin() - margin, 0.f) );
+        // Right angle shape
+        v->push_back( osg::Vec3(box.xMax() + margin + arrowEdgeX, box.yMax() + margin - hMed, 0.f) );
+        // Top right
+        v->push_back( osg::Vec3(box.xMax() + margin, box.yMax() + margin, 0.f) );
+
+        // Top left
+        v->push_back( osg::Vec3(box.xMin() - margin, box.yMax() + margin, 0.f) );
+
+        constexpr int nbSteps = 9;
+        constexpr float angleStep = osg::PI / nbSteps;
+        const float radius = ((box.yMax() - box.yMin()) / 2.f) + margin;
+        osg::Vec3 center(box.xMin(), (box.yMax() + box.yMin()) / 2.f, 0.f);
+        float angle = osg::PIf / 2.f;
+
+        // Left rounded shape
+        for (int step = 1; step < nbSteps; step++ )
+        {
+            angle += angleStep;
+            v->push_back(center + osg::Vec3((std::cosf(angle) * radius), std::sinf(angle) * radius, 0.f));
+        }
+        // Bottom left
+        v->push_back( osg::Vec3(box.xMin() - margin, box.yMin() - margin, 0.f) );
+    }
+
     else if ( bboxSymbol.geom().isSetTo(BBoxSymbol::GEOM_STAIR) )
     {
         float xMax = std::max( box.xMax(), -box.xMin() );
