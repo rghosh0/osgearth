@@ -24,26 +24,16 @@
 #include <osgEarth/Containers>
 #include <vector>
 #include <stack>
+#include <osgEarthSymbology/BufferParameters.h>
+
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+#include <boost/any.hpp>
+#include <boost/geometry.hpp>
+#endif // OSGEARTH_HAVE_BOOST_GEO
 
 namespace osgEarth { namespace Symbology 
 {
     using namespace osgEarth;
-
-    /** Options for the Geometry::buffer() operation. */
-    class BufferParameters
-    {
-    public:
-        enum CapStyle  { CAP_DEFAULT, CAP_SQUARE, CAP_ROUND, CAP_FLAT };
-        enum JoinStyle { JOIN_ROUND, JOIN_MITRE, JOIN_BEVEL};
-        BufferParameters( CapStyle capStyle =CAP_DEFAULT, JoinStyle joinStyle = JOIN_ROUND, int cornerSegs =0, bool singleSided=false, bool leftSide=false )
-            : _capStyle(capStyle), _joinStyle(joinStyle),_cornerSegs(cornerSegs), _singleSided(singleSided), _leftSide(leftSide) { }
-        CapStyle  _capStyle;
-        JoinStyle _joinStyle;
-        int       _cornerSegs; // # of line segment making up a rounded corner
-        bool      _singleSided; //Whether or not to do a single sided buffer
-        bool      _leftSide;    //If doing a single sided buffer are we buffering to the left?  If false, buffer to the right
-    };
-
     typedef std::vector<osg::Vec3d> Vec3dVector;
 
     /**
@@ -250,8 +240,51 @@ namespace osgEarth { namespace Symbology
         void push_back(double x, double y, double z) { 
             osgEarth::MixinVector<osg::Vec3d,osg::Referenced>::push_back(osg::Vec3d(x,y,z)); }
 
-    protected:
-    };
+#ifdef OSGEARTH_HAVE_BOOST_GEO
+    private:
+	/**
+     * Using boost geometry library, runs a buffer (dialate/erode) operation on this geometry and returns the
+     * result in the output parameter. Returns true if the op succeeded.
+     */
+	 bool boost_buffer(
+            double distance,
+            osg::ref_ptr<Geometry>& output,
+            const BufferParameters& bp =BufferParameters() ) const;
+	    
+	/**
+     * Using boost geometry library, crops this geometry to the region represented by the crop polygon, returning
+     * the result in the output parameter. Returns true if the op succeeded.
+     */
+	 bool boost_crop(
+            const class Polygon* cropPolygon,
+            osg::ref_ptr<Geometry>& output ) const;
+	    
+	/**
+     * Using boost geometry library, creates the union of this geometry with the other geometry, returning
+     * the result in the output parameter. Returns true if the op succeeded.
+     */
+	 bool boost_geounion(
+            const Geometry* other,
+            osg::ref_ptr<Geometry>& output ) const;
+	    
+    /**
+     * Using boost geometry library, boolean difference - subtracts diffPolygon from this geometry, and put the
+     * result in output.
+     */
+    bool boost_difference(
+        const class Polygon* diffPolygon,
+        osg::ref_ptr<Geometry>& output ) const;
+	
+    /**
+     * Using boost geometry library, whether this geometry intersects with another geometry
+     */
+	 bool boost_intersects(
+            const class Geometry* other
+            ) const;
+#endif // OSGEARTH_HAVE_BOOST_GEO
+
+
+    }; //class
 
     typedef std::vector< osg::ref_ptr<Geometry> > GeometryCollection;
 
