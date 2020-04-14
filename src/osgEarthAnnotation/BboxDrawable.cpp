@@ -207,7 +207,7 @@ BboxDrawable::build( const osg::BoundingBox& box, const BBoxSymbol &bboxSymbol )
         v->push_back( osg::Vec3(box.xMin() - margin, box.yMax() + margin, 0.f) );
 
         constexpr int nbSteps = 9;
-        constexpr float angleStep = osg::PI / nbSteps;
+        const float angleStep = osg::PI / nbSteps;
         const float radius = ((box.yMax() - box.yMin()) / 2.f) + margin;
         osg::Vec3 center(box.xMin(), (box.yMax() + box.yMin()) / 2.f, 0.f);
         float angle = osg::PIf / 2.f;
