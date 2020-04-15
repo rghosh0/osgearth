@@ -58,7 +58,11 @@ public:
                               _pixelOffset(0, 0),
                               _autoRotate(false),
                               _autoFollowLine(false),
-                              _id(-1) { }
+                              _screenClamping(false),
+                              _id(-1),
+                              _instanceIndex(0),
+                              _lineStart(0.0,0.0,0.0),
+                              _lineEnd(0.0,0.0,0.0) { }
 
     /** Decluttering priority - FLT_MAX means don't declutter */
     void setPriority(float value) { _originalPriority = _priority = value; }
@@ -80,6 +84,11 @@ public:
     void setAutoFollowLine(bool autoFollowLine) { _autoFollowLine = autoFollowLine; }
     bool isAutoFollowLine() const { return _autoFollowLine; }
 
+    
+    /** Wether the label shall automatically replace itself along a line */
+    void setScreenClamping(bool screenClamping) { _screenClamping = screenClamping; }
+    bool screenClamping() const { return _screenClamping; }
+    
     /** Start world point for automatic placement on a line */
     void setLineStartPoint(const osg::Vec3d& value) { _lineStart = value; }
     const osg::Vec3d& getLineStartPoint() const { return _lineStart; }
@@ -94,6 +103,10 @@ public:
     /** Identifier to group drawables that relates to the same feature */
     void setId(long id) { _id = id; }
     long getId() const { return _id; }
+    
+     /** the index of a drawable inside for a same given feature  (in case of multiple instances per feature)*/
+    unsigned long long  getInstanceIndex() const { return _instanceIndex; }
+    void setInstanceIndex(unsigned long long  instanceIndex) { _instanceIndex = instanceIndex; }
 
     /** The global BBox for the whole feature (containing all the drawables) */
     const osg::BoundingBox& getBBox() const { return _bbox; }
@@ -104,9 +117,10 @@ public:
     float      _originalPriority;
     float      _priority;
     osg::Vec2s _pixelOffset;
-    bool       _autoRotate, _autoFollowLine;
+    bool       _autoRotate, _autoFollowLine, _screenClamping;
     osg::Vec3d _anchorPoint, _lineStart, _lineEnd;
     long       _id;
+    unsigned long long _instanceIndex;
     osg::BoundingBox _bbox;
     osg::BoundingSphere _bsphere{osg::Vec3d(0., 0., 0), 0.};
     osg::BoundingBox _bboxSymetric;
@@ -118,6 +132,7 @@ public:
 
 public:
     virtual ~ScreenSpaceLayoutData() { }
+  
 };
 
 /**

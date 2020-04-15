@@ -80,6 +80,7 @@ public:
         StringExpression  iconUrlExpr     ( icon ? *icon->url()      : StringExpression() );
         NumericExpression iconScaleExpr   ( icon ? *icon->scale()    : NumericExpression() );
         NumericExpression iconHeadingExpr ( icon ? *icon->heading()  : NumericExpression() );
+        
         NumericExpression vertOffsetExpr  ( alt  ? *alt->verticalOffset() : NumericExpression() );
 
         for( FeatureList::const_iterator i = input.begin(); i != input.end(); ++i )
@@ -107,6 +108,8 @@ public:
                 continue;
 
             Style tempStyle = styleCopy;
+            
+            bool isPerVertex=false;
 
             // evaluate expressions into literals.
             // TODO: Later we could replace this with a generate "expression evaluator" type
@@ -149,17 +152,74 @@ public:
 
                 if ( icon->heading().isSet() )
                     tempStyle.get<IconSymbol>()->heading()->setLiteral( feature->eval(iconHeadingExpr, &context) );
+                
+                if ( icon->placement().isSetTo(IconSymbol::PLACEMENT_VERTEX) ) 
+                {
+                     OE_DEBUG << LC << "mp_icon per vertex\n";
+                     isPerVertex=true;
+                }
             }
+            
+            if(isPerVertex &&                 
+                feature->getGeometry()->getComponentType() == Geometry::TYPE_LINESTRING) {
+                
+                
+                OE_DEBUG << LC << "per vertex multiline n";
+                 LineString * geomLineString ;
+                if(feature->getGeometry()->getType() == Geometry::TYPE_MULTI )
+                {
+                    const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(feature->getGeometry());           
+                    geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
+                } else
+                {
+                    geomLineString = dynamic_cast<LineString*>( feature->getGeometry());
+                }
+                
+                unsigned long long ii=0;
+                
+                int step=(geomLineString->size()-1);
+                for( unsigned long long i =0 ; i<geomLineString->size() ; i=i+step ){
+                    
+                    osg::ref_ptr<LineString> sampledLine= new LineString();
+                    sampledLine->push_back(geomLineString->at(i));
+                    int  nextOrPrevious=(i==geomLineString->size()-1)?-step:step;
+                    sampledLine->push_back(geomLineString->at((i+nextOrPrevious)));
+                            
+                    // actually build the scenegraph related to this feature
+                    long id = root->addAnnotation(tempStyle,sampledLine, context.getDBOptions(),ii);
+                    
+                    
+                    
+                    // tag the drawables for that the feature can be retrieved when picking
+                    if ( context.featureIndex() && id >= 0 )
+                    {
+                        std::vector<MPAnnotationGroup::AnnoInfo> drawableList = root->getDrawableList(id);
+                        for (auto iAnno : drawableList )
+                        context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                        }
+                    
+                    ii++;
+                
+                }
+                 
+            
+                
+                
+            } else { 
 
             // actually build the scenegraph related to this feature
             long id = root->addAnnotation(tempStyle, feature->getGeometry(), context.getDBOptions());
 
+            
+            
             // tag the drawables for that the feature can be retrieved when picking
             if ( context.featureIndex() && id >= 0 )
             {
                 std::vector<MPAnnotationGroup::AnnoInfo> drawableList = root->getDrawableList(id);
                 for (auto iAnno : drawableList )
                     context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+            }
+            
             }
         }
 

@@ -49,6 +49,7 @@ TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _occlusionCull(rhs._occlusionCull),
                                                                            _occlusionCullAltitude(rhs._occlusionCullAltitude),
                                                                            _autoOffsetAlongLine(rhs._autoOffsetAlongLine),
+                                                                           _placementTechnique(rhs._placementTechnique),
                                                                            _autoRotateAlongLine(rhs._autoRotateAlongLine),
                                                                            _autoOffsetGeomWKT(rhs._autoOffsetGeomWKT),
                                                                            _attachedLabel(rhs._attachedLabel),
@@ -77,6 +78,7 @@ TextSymbol::TextSymbol( const Config& conf ) :
                                              _onScreenRotation     ( 0.0 ),
                                              _geographicCourse     ( 0.0 ),
                                              _autoOffsetAlongLine  ( false ),
+                                             _placementTechnique   (NONE),
                                              _autoRotateAlongLine  ( false ),
                                              _attachedLabel        ( false ),
                                              _attachedLabelDecimationTolerance( false ),
@@ -155,7 +157,12 @@ TextSymbol::getConfig() const
     conf.set( "text-occlusion-cull", _occlusionCull );
     conf.set( "text-occlusion-cull-altitude", _occlusionCullAltitude );
 
-    conf.set( "auto-offset-alongline", _autoOffsetAlongLine);
+    conf.set( "auto-offset-alongline", _autoOffsetAlongLine);    
+    
+    conf.set( "placement-technique", "none",                 _placementTechnique, NONE );
+    conf.set( "placement-technique", "clamp-to-screen-edge", _placementTechnique, CLAMP_TO_SCREEN_EDGE );
+    conf.set( "placement-technique", "screen-edge-only",     _placementTechnique, SCREEN_EDGE_ONLY );   
+    
     conf.set( "auto-rotate-alongline", _autoRotateAlongLine);
     conf.set( "auto-offset-support", _autoOffsetGeomWKT );
 
@@ -238,6 +245,11 @@ TextSymbol::mergeConfig( const Config& conf )
     conf.get( "text-occlusion-cull-altitude", _occlusionCullAltitude );
 
     conf.get( "auto-offset-alongline", _autoOffsetAlongLine );
+    
+    conf.get( "placement-technique", "none",                 _placementTechnique, NONE );
+    conf.get( "placement-technique", "clamp-to-screen-edge", _placementTechnique, CLAMP_TO_SCREEN_EDGE );
+    conf.get( "placement-technique", "screen-edge-only",     _placementTechnique, SCREEN_EDGE_ONLY );   
+    
     conf.get( "auto-rotate-alongline", _autoRotateAlongLine );
     conf.get( "auto-offset-support", _autoOffsetGeomWKT );
 
@@ -398,6 +410,17 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "text-auto-offset-alongline") ) {
         style.getOrCreate<TextSymbol>()->autoOffsetAlongLine() = as<bool>(c.value(), defaults.autoOffsetAlongLine().get() );
+    }
+    else if ( match(c.key(), "text-placement-technique") ) {
+        
+     
+        if (match(c.value(), "screen-edge-only"))
+            style.getOrCreate<TextSymbol>()->placementTechnique() = TextSymbol::SCREEN_EDGE_ONLY;
+        else if (match(c.value(), "clamp-to-screen-edge"))
+            style.getOrCreate<TextSymbol>()->placementTechnique() = TextSymbol::CLAMP_TO_SCREEN_EDGE;
+       else
+            style.getOrCreate<TextSymbol>()->placementTechnique() = TextSymbol::NONE;
+        
     }
     else if ( match(c.key(), "text-auto-rotate-alongline") ) {
         style.getOrCreate<TextSymbol>()->autoRotateAlongLine() = as<bool>(c.value(), defaults.autoRotateAlongLine().get() );

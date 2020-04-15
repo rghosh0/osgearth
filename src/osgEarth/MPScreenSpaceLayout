@@ -23,7 +23,7 @@
 #define OSGEARTH_MP_SCREEN_SPACE_LAYOUT_H 1
 
 #include <osgEarth/ScreenSpaceLayout>
-
+#include <osgEarthUtil/ClipSpace>
 
 // -----------------------------------------------------------
 // This class is mainly copied from ScreenSpaceLayout

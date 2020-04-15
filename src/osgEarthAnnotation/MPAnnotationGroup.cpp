@@ -67,6 +67,20 @@ public:
                 if ( ! anno.second.empty() )
                 {
                     ScreenSpaceLayoutData* ssld = anno.second[0].globalSsld;
+                    
+                    //bool isCulled=false;
+                    
+                    //on the other side of earth
+                    const osg::Matrix& MV = *cullVisitor->getModelViewMatrix();
+                    osg::Vec3d viewAnchor = ssld->_anchorPoint * MV;
+                    osg::Vec3d centerEarth = osg::Vec3d(0,0,0) * MV;
+                    if(viewAnchor.length()>centerEarth.length())
+                    {                    
+                        for (auto iAnno : anno.second)
+                            annoGroup->getChild(iAnno.index)->setNodeMask(0);
+                        continue;                    
+                    }
+                     
                     ssld->_cull_anchorOnScreen = ssld->_anchorPoint * MVPW;
                     ssld->_cull_bboxSymOnScreen.set(ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._min, ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._max);
 
@@ -76,6 +90,7 @@ public:
                         if (osg::maximum(ssld->_cull_bboxSymOnScreen.xMin(), vpXmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.xMax(), vpXmax) ||
                             osg::maximum(ssld->_cull_bboxSymOnScreen.yMin(), vpYmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.yMax(), vpYmax) )
                         {
+                            
                             for (auto iAnno : anno.second)
                                 annoGroup->getChild(iAnno.index)->setNodeMask(0);
                             continue;
@@ -161,13 +176,14 @@ osg::BoundingSphere MPAnnotationGroup::computeBound () const
     return bsphere;
 }
 
-long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions)
+long MPAnnotationGroup::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions, unsigned long long instanceIndex)
 {
     // layout data for screenspace information
     static long id{0};
     osg::ref_ptr<ScreenSpaceLayoutData> dataLayout = new ScreenSpaceLayoutData();
     dataLayout->setId(++id);
-
+    dataLayout->setInstanceIndex(instanceIndex);
+    
     // check if there is a predefined organization
     const TextSymbol* textSymbol = style.get<TextSymbol>();
     bool predefinedOrganisation = textSymbol && textSymbol->predefinedOrganisation().isSet();
@@ -564,6 +580,8 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
         dataLayout->setAutoRotate(true);
     }
 
+    
+    
     // sliding label
 
     Geometry* geomSupport = nullptr;
@@ -639,6 +657,61 @@ MPAnnotationGroup::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLay
         dataLayout->setAutoRotate( ts->autoRotateAlongLine().get() );
     }
 
+    //label placement technique
+    
+    if( ts && ts->placementTechnique().isSet()){
+      
+        osg::Vec3d p1, p2;
+          geomSupport = geom;
+        if( geomSupport->getType() == Geometry::TYPE_LINESTRING)
+        {
+            geomLineString = dynamic_cast<LineString*>( geomSupport );
+        }
+        else
+        {
+            const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport);
+            if( geomMulti )
+                geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
+        }
+
+        if( geomLineString )
+        {
+            GeoPoint geoStart( osgEarth::SpatialReference::get("wgs84"), geomLineString->front().x(), geomLineString->front().y(),
+                    geomLineString->front().z(), ALTMODE_ABSOLUTE );
+            GeoPoint geoEnd( osgEarth::SpatialReference::get("wgs84"), geomLineString->back().x(), geomLineString->back().y(),
+                    geomLineString->back().z(), ALTMODE_ABSOLUTE );
+
+            if( ts->autoOffsetGeomWKT().isSet() )
+            {
+                // Direction to the longest distance
+                if( (geoStart.vec3d() - center).length2() > (geoEnd.vec3d() - center).length2() )
+                {
+                    geoEnd.toWorld(p1);
+                    geoStart.toWorld(p2);
+                }
+                else
+                {
+                    geoStart.toWorld(p1);
+                    geoEnd.toWorld(p2);
+                }
+            }
+            else
+            {
+                geoEnd.toWorld(p1);
+                geoStart.toWorld(p2);
+            }
+        }else{
+            OE_WARN<<"no geomLineString avail"<<std::endl;
+        }
+
+        dataLayout->setLineStartPoint(p1);
+        dataLayout->setLineEndPoint(p2);
+         OE_DEBUG<<" geomLineString store"<<dataLayout->getId()<<" "<<dataLayout->getLineStartPoint().x()<<" "<<dataLayout->getLineStartPoint().y()<<" "<<dataLayout->getLineStartPoint().y()<<
+                   "  p2"<<dataLayout->getLineEndPoint().x()<<" "<<dataLayout->getLineEndPoint().y()<<" "<<dataLayout->getLineEndPoint().y()<<std::endl;
+        dataLayout->setScreenClamping(true);
+        
+    }  
+      
     // global BBox
     for ( auto i : _drawableList[dataLayout->getId()] )
         dataLayout->expandBboxBy(this->getChild(i.index)->asDrawable()->getBoundingBox());
