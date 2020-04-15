@@ -63,6 +63,7 @@ BBoxSymbol::getConfig() const
     conf.set( "geom", "box_rounded", _bboxGeom, GEOM_BOX_ROUNDED );
     conf.set( "geom", "box_rounded_inner", _bboxGeom, GEOM_BOX_ROUNDED_INNER );
     conf.set( "geom", "stair", _bboxGeom, GEOM_STAIR );
+    conf.set( "geom", "box_rounded_oriented", _bboxGeom, GEOM_BOX_ROUNDED_ORIENTED );
 
     conf.set( "group", "none", _bboxGroup, GROUP_NONE );
     conf.set( "group", "text-only", _bboxGroup, GROUP_TEXT_ONLY );
@@ -88,6 +89,7 @@ BBoxSymbol::mergeConfig( const Config& conf )
     conf.get( "geom", "box_rounded", _bboxGeom, GEOM_BOX_ROUNDED );
     conf.get( "geom", "box_rounded_inner", _bboxGeom, GEOM_BOX_ROUNDED_INNER );
     conf.get( "geom", "stair", _bboxGeom, GEOM_STAIR );
+    conf.get( "geom", "box_rounded_oriented", _bboxGeom, GEOM_BOX_ROUNDED_ORIENTED );
 
     conf.get( "group", "none", _bboxGroup, GROUP_NONE );
     conf.get( "group", "text-only", _bboxGroup, GROUP_TEXT_ONLY );
@@ -136,6 +138,9 @@ BBoxSymbol::parseSLD(const Config& c, Style& style)
         }
         else if ( match(c.value(), "stair") ) {
             style.getOrCreate<BBoxSymbol>()->geom() = GEOM_STAIR;
+        }
+        else if ( match(c.value(), "box_rounded_oriented") ) {
+            style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ROUNDED_ORIENTED;
         }
     }
     else if ( match(c.key(), "text-bbox-group") ) {

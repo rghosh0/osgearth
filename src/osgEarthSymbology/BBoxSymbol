@@ -41,7 +41,8 @@ namespace osgEarth { namespace Symbology
             GEOM_BOX_ORIENTED_2WAYS,
             GEOM_BOX_ROUNDED,
             GEOM_BOX_ROUNDED_INNER,
-            GEOM_STAIR
+            GEOM_STAIR,
+            GEOM_BOX_ROUNDED_ORIENTED
         };
 
         enum BboxGroup {

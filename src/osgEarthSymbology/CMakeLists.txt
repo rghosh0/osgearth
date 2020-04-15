@@ -8,6 +8,10 @@ IF (GEOS_FOUND)
     ADD_DEFINITIONS(-DOSGEARTH_HAVE_GEOS)
 ENDIF(GEOS_FOUND)
 
+IF (BOOST_FOUND)
+    ADD_DEFINITIONS(-DOSGEARTH_HAVE_BOOST_GEO)
+ENDIF(BOOST_FOUND)
+
 SET(LIB_NAME osgEarthSymbology)
 
 SET(HEADER_PATH ${OSGEARTH_SOURCE_DIR}/include/${LIB_NAME})
@@ -21,6 +25,9 @@ SET(LIB_PUBLIC_HEADERS
     Common
     Color
     CoverageSymbol
+    boostBuffer.h
+    boostGeoTypes.h
+    BufferParameters.h
     CssUtils
     Expression
     ExtrusionSymbol
@@ -28,6 +35,7 @@ SET(LIB_PUBLIC_HEADERS
     Geometry
     GeometryFactory
     GEOS
+    boostGeometryAPI.h
     GeometryRasterizer
     IconResource
     IconSymbol
@@ -65,6 +73,7 @@ ADD_LIBRARY(${LIB_NAME} ${OSGEARTH_USER_DEFINED_DYNAMIC_OR_STATIC}
     BillboardSymbol.cpp
     Color.cpp
     CoverageSymbol.cpp
+    boostBuffer.cpp
     CssUtils.cpp
     Expression.cpp
     ExtrusionSymbol.cpp
@@ -72,6 +81,7 @@ ADD_LIBRARY(${LIB_NAME} ${OSGEARTH_USER_DEFINED_DYNAMIC_OR_STATIC}
     Geometry.cpp
     GeometryFactory.cpp
     GEOS.cpp
+    boostGeometryAPI.cpp
     GeometryRasterizer.cpp
     IconResource.cpp
     IconSymbol.cpp
