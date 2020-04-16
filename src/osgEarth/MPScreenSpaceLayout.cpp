@@ -447,6 +447,13 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         camVPW.postMult(cam->getViewMatrix());
         camVPW.postMult(cam->getProjectionMatrix());
         camVPW.postMult(windowMatrix);
+              
+            
+        // Calculate the "clip to world" matrix = MVPinv.
+        osg::Matrix MVP = (cam->getViewMatrix()) * cam->getProjectionMatrix();
+        osg::Matrix MVPinv;
+        MVPinv.invert(MVP);
+     
         
         // has the camera moved?
         //        bool camChanged = camVPW != local._lastCamVPW;
@@ -459,6 +466,8 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
         // Go through each leaf and test for visibility.
         // Enforce the "max objects" limit along the way.
         
+        
+        osg::ref_ptr<osg::LineSegment> seg;
         
         for(osgUtil::RenderBin::RenderLeafList::iterator i = leaves.begin();
             i != leaves.end() && local._passed.size() < limit;
@@ -544,114 +553,91 @@ struct /*internal*/ MPDeclutterSort : public osgUtil::RenderBin::SortCallback
             if(layoutData->screenClamping()){
                 
                 
-                
-                // Calculate the "clip to world" matrix = MVPinv.
-                osg::Matrix MVP = (cam->getViewMatrix()) * cam->getProjectionMatrix();
-                osg::Matrix MVPinv;
-                MVPinv.invert(MVP);
-                
-                osg::ref_ptr<MapNode> mapNode = MapNode::findMapNode(leaf->_drawable->asNode());
-//                EllipsoidIntersector ellipsoid(mapNode->getMapSRS()->getEllipsoid());
-                
-//                // For each corner, transform the clip coordinates at the near and far
-//                // planes into world space and intersect that line with the ellipsoid:
-//                osg::Vec3d p0, p1;
-                
-//                bool is_intesect=true;
-//                // find the lower-left corner of the frustum:
-//                osg::Vec3d LL_world;
-//                p0 = osg::Vec3d(-1, -1, -1) * MVPinv;
-//                p1 = osg::Vec3d(-1, -1, +1) * MVPinv;
-//                bool LL_ok = ellipsoid.intersectLine(p0, p1, LL_world);
-//                if (!LL_ok)
-//                    is_intesect= false;
-                
-//                // find the upper-left corner of the frustum:
-//                osg::Vec3d UL_world;
-//                p0 = osg::Vec3d(-1, +1, -1) * MVPinv;
-//                p1 = osg::Vec3d(-1, +1, +1) * MVPinv;
-//                bool UL_ok = ellipsoid.intersectLine(p0, p1, UL_world);
-//                if (!UL_ok)
-//                    is_intesect= false;
-                
-//                // find the lower-right corner of the frustum:
-//                osg::Vec3d LR_world;
-//                p0 = osg::Vec3d(+1, -1, -1) * MVPinv;
-//                p1 = osg::Vec3d(+1, -1, +1) * MVPinv;
-//                bool LR_ok = ellipsoid.intersectLine(p0, p1, LR_world);
-//                if (!LR_ok)
-//                    is_intesect= false;
-                
                 osg::Vec3d pw1=layoutData->getLineStartPoint();
                 osg::Vec3d pw2=layoutData->getLineEndPoint();
                 
-                osg::Vec3d pc1=layoutData->getLineStartPoint()*MVP;
-                osg::Vec3d pc2=layoutData->getLineEndPoint()*MVP;
-                osg::Vec3d centerEarth=osg::Vec3d(0.0,0.0,0.0)*MVP;
-                
+                osg::Vec3d pc1=pw1*MVP;
+                osg::Vec3d pc2=pw2*MVP;
+                               
                 
                 bool p1_in_width=pc1.x()<1.0 && pc1.x()>-1.0;
                 bool p1_in_height=pc1.y()<1.0 && pc1.y()>-1.0;
-                bool p1_in_depth=(pc1.length() -centerEarth.length())<-1.0;
+             
                 bool p1_inside_screen = p1_in_width && p1_in_height;
                 
                 bool p2_in_width=pc2.x()<1.0 && pc2.x()>-1.0;
                 bool p2_in_height=pc2.y()<1.0 && pc2.y()>-1.0;
-                bool p2_in_depth=(pc2.length() -centerEarth.length())<-1.0;
+         
                 bool p2_inside_screen = p2_in_width && p2_in_height;                
                 
                 
                 bool line_inside_screen=p1_inside_screen && p2_inside_screen;  
                 
-                bool line_cross_screen=false;    
+             
                 
-                if(!p1_inside_screen && !p2_inside_screen){
-                    //in this case , line may crosses the screen
-                    line_cross_screen = (p1_in_width && p2_in_height) || (p2_in_width && p1_in_height) ;
-                    
-                }
-                
-                
-                
-              visible = ( !line_inside_screen) ;
+                osg::BoundingBox bb (-1.0,-1.0,-1.0,1.0,1.0,1.0); 
+                visible = ( !line_inside_screen) && !bb.contains(pc1);
+           
+            
                 
                 if(visible){ 
-                    osg::BoundingBox bb (-1.0,-1.0,-1.0,1.0,1.0,1.0);
-                    //osg::BoundingBox bb (-0.0,-0.0,-0.0,0.8,0.8,0.8);
-                    osg::ref_ptr<osg::LineSegment> seg = new osg::LineSegment (pc1,pc2);
-                    float r1=0,r2=0;
-                    visible=seg->intersectAndComputeRatios(bb,r1,r2);
                     
-                    if( layoutData->getInstanceIndex() ==0)
-                        pos= (pc1 + (pc2-pc1)*r1);
+                    if(!seg.valid())
+                        seg = new osg::LineSegment (pc1,pc2);
                     else
-                        pos= (pc1 + (pc2-pc1)*r2);
+                        seg->set(pc1,pc2);
+                    float r1=0,r2=0;
+                    visible = seg->intersectAndComputeRatios(bb,r1,r2) ;
                     
-                    float x_bbox=0;
-                    float y_bbox=0;
-                    
-                    if(pos.x() >=0.99){
-                        x_bbox=box.xMax() ;
-                    }else if(pos.x() <=-0.99){
-                        x_bbox=box.xMin() ;
+                    if(visible)
+                    {
+    
+    //                    if( layoutData->getInstanceIndex() ==0) 
+    //                    {
+                          //  OE_DEBUG<<" r1= "<<r1<<"r2"<<r2 <<std::endl;
+                            
+                            pos= (pw1 + (pw2-pw1)*r1)*MVP;
+                            
+                            0.5*(pw1.length()+pw2.length());
+                            
+    //                    }
+    //                    else
+    //                    {
+    //                         OE_DEBUG<<" r2= "<<r2<<std::endl;
+    //                        pos= (pc1 - (pc2-pc1)*r2);
+    //                    }
+                        
+                        float x_bbox=0;
+                        float y_bbox=0;
+                        
+                        if(pos.x() >=0.99){
+                            x_bbox = box.xMax() ;
+                        }else if(pos.x() <=-0.99){
+                            x_bbox = box.xMin() ;
+                        }
+                        
+                        if(pos.y() >=0.99){
+                            y_bbox = box.yMax() ;
+                        }else if(pos.y() <=-0.99){
+                            y_bbox = box.yMin() ;
+                        }
+                        
+                        
+                        pos = pos * windowMatrix;
+                        pos.x()-=x_bbox;
+                        pos.y()-=y_bbox;
                     }
-                    
-                    if(pos.y() >=0.99){
-                        y_bbox=box.yMax() ;
-                    }else if(pos.y() <=-0.99){
-                        y_bbox=box.yMin() ;
-                    }
-                    
-                    pos=pos*windowMatrix;
-                    pos.x()-=x_bbox;
-                     pos.y()-=y_bbox;
-                    OE_DEBUG<<" geomLineString "<<layoutData->getId()<<" "<<drawable<<" p1"<<pw1.x()<<" "<<pw1.y()<<" "<<pw1.z()<<"  p2"<<pw2.x()<<" "<<pw2.y()<<" "<<pw2.z()<<std::endl;
-                    OE_DEBUG<<" p2="<<pc2.x()<<" "<<pc2.y()<<" "<<pc2.z()
-                           <<" p1="<<pc1.x()<<" "<<pc1.y()<<" "<<pc1.z()
-                          <<" i="<<pos.x()<<" "<<pos.y()<<" "<<pos.z()<<std::endl;
+                     
+                     
+//                    OE_DEBUG<<" geomLineString "<<layoutData->getId()<<" "<<layoutData->getInstanceIndex() 
+//                           <<" p1"<<pw1.x()<<" "<<pw1.y()<<" "<<pw1.z()<<"  p2"<<pw2.x()<<" "<<pw2.y()<<" "<<pw2.z()<<std::endl;
+//                    OE_DEBUG<<layoutData->getInstanceIndex() <<" p2="<<pc2.x()<<" "<<pc2.y()<<" "<<pc2.z()
+//                           <<" p1="<<pc1.x()<<" "<<pc1.y()<<" "<<pc1.z()
+                             
+//                          <<" i="<<pos.x()<<" "<<pos.y()<<" "<<pos.z()<<std::endl;
                 }
                 
-            }
+          }
             
             //            // Expand the box if this object is currently not visible, so that it takes a little
             //            // more room for it to before visible once again.

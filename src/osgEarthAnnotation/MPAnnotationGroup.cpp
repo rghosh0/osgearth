@@ -68,23 +68,25 @@ public:
                 {
                     ScreenSpaceLayoutData* ssld = anno.second[0].globalSsld;
                     
-                    //bool isCulled=false;
+                 
+                    // anno behind center of earth culling
                     
-                    //on the other side of earth
                     const osg::Matrix& MV = *cullVisitor->getModelViewMatrix();
                     osg::Vec3d viewAnchor = ssld->_anchorPoint * MV;
                     osg::Vec3d centerEarth = osg::Vec3d(0,0,0) * MV;
-                    if(viewAnchor.length()>centerEarth.length())
+                    if(viewAnchor.length()>centerEarth.length()) //on the other side of earth
                     {                    
                         for (auto iAnno : anno.second)
                             annoGroup->getChild(iAnno.index)->setNodeMask(0);
                         continue;                    
                     }
+                    
+                    // out of viewport culling
                      
                     ssld->_cull_anchorOnScreen = ssld->_anchorPoint * MVPW;
                     ssld->_cull_bboxSymOnScreen.set(ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._min, ssld->_cull_anchorOnScreen + ssld->getBBoxSymetric()._max);
 
-                    if ( ! ssld->isAutoFollowLine() )
+                    if ( ! ssld->isAutoFollowLine()  && ! ssld->screenClamping())
                     {
                         // out of viewport
                         if (osg::maximum(ssld->_cull_bboxSymOnScreen.xMin(), vpXmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.xMax(), vpXmax) ||
@@ -165,7 +167,7 @@ osg::BoundingSphere MPAnnotationGroup::computeBound () const
             if (ssld)
             {
                 bsphere.expandBy(ssld->getAnchorPoint());
-                if (ssld->isAutoFollowLine())
+                if (ssld->isAutoFollowLine() || ssld->screenClamping())
                 {
                     bsphere.expandBy(ssld->getLineStartPoint());
                     bsphere.expandBy(ssld->getLineEndPoint());
