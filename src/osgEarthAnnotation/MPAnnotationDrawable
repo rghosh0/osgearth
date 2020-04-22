@@ -1,0 +1,147 @@
+/* -*-c++-*- OpenSceneGraph - Copyright (C) 1998-2006 Robert Osfield
+ *
+ * This library is open source and may be redistributed and/or modified under
+ * the terms of the OpenSceneGraph Public License (OSGPL) version 0.0 or
+ * (at your option) any later version.  The full license is in LICENSE file
+ * included with this distribution, and on the openscenegraph.org website.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * OpenSceneGraph Public License for more details.
+*/
+
+#ifndef OSGEARTH_ANNOTATION_DRAWABLE_H
+#define OSGEARTH_ANNOTATION_DRAWABLE_H 1
+
+
+#include <osg/Geometry>
+
+#include <osgEarthSymbology/Style>
+#include <osgEarthAnnotation/MPStateSetFontAltas>
+#include <osgEarth/MPScreenSpaceLayoutSG>
+
+
+namespace osgEarth { namespace Annotation
+{
+
+// specific draw array to manage the cluttered case
+struct OSGEARTHANNO_EXPORT ScreenSpaceDrawElements : public osg::DrawElementsUShort
+{
+    ScreenSpaceDrawElements(GLenum mode=0) : DrawElementsUShort(mode) {}
+
+    ScreenSpaceDrawElements(const ScreenSpaceDrawElements& array, const osg::CopyOp& copyop=osg::CopyOp::SHALLOW_COPY):
+        DrawElementsUShort(array, copyop), _cluttered(array._cluttered)
+        {}
+
+    void draw(osg::State& state, bool useVertexBufferObjects) const override;
+
+    bool _cluttered {false};
+
+    // by default, when declutter, the main icon quad still drawn but not the background box
+    int _drawOffset {6*2};
+    int _drawSize {6};
+};
+
+
+class OSGEARTHANNO_EXPORT MPAnnotationDrawable : public MPScreenSpaceGeometry
+{
+
+public:
+
+    typedef std::pair<std::vector<unsigned int>, osg::Vec3> ShiftInfo;
+
+    struct LODAnno
+    {
+    public:
+        LODAnno(double alt, const std::vector<GLushort> &pDrawElt) : altitudeMax{alt}, drawElts{pDrawElt} {}
+        double altitudeMax{DBL_MAX};
+        std::vector<GLushort> drawElts;
+        std::vector<ShiftInfo> shiftVec;
+    };
+
+    MPAnnotationDrawable(const osgEarth::Symbology::Style& style, const osgDB::Options* readOptions, MPStateSetFontAltas *atlasStateSet );
+
+    /** set the right geometry LOD according to the cam altitude **/
+    void setAltitude(double alt);
+
+    /** get wether the annotation has some part displayed or if it is complety hidden **/
+    bool isFullyHidden() const { return _d->size() == 0; }
+
+    /** update this geometry to take into account a rotation greater than 90° **/
+    void setInverted(bool inverted);
+    bool isInverted() const { return _inverted; }
+
+    /** make this annotation highlighted or dehighlighted **/
+    void setHighlight( bool highlight );
+
+    /** change main icon color **/
+    void setIconColor( const Color& color );
+
+    /** active the decluttered mode of this annotation **/
+    void activeClutteredMode( bool cluttered ) override;
+
+protected:
+
+    virtual ~MPAnnotationDrawable() { }
+
+    void buildGeometry(const osgEarth::Symbology::Style& style);
+
+    float appendIcon(const std::string& urlPath, const osg::Vec4 &color = Color::White, double alt = DBL_MAX, float xMax = FLT_MAX);
+    int appendText(const std::string &text, const std::string &font, const osg::Vec4 &color = Color::White, double fontSize = 16., double alt = DBL_MAX);
+    int appendBox(const osg::BoundingBox &bbox,
+                   const osg::Vec4 &fillColor = Color::White,
+                   const osg::Vec4 &strokeColor = osg::Vec4(0., 0., 0., 0.),
+                   BBoxSymbol::BboxGeom geomType = BBoxSymbol::BboxGeom::GEOM_BOX,
+                   bool oppose = false,
+                   float strokeWidth = 0.f,
+                   float reverseVideoX = 0.f,
+                   float margin = 4.f,
+                   double alt = DBL_MAX);
+    void moveTextPosition(int nbVertices, const osg::BoundingBox& refBBox,
+                          osgEarth::Symbology::TextSymbol::Alignment alignment = osgEarth::Symbology::TextSymbol::Alignment::ALIGN_CENTER_CENTER);
+
+    int pushDrawElements(double alt, const std::vector<GLushort> &pDrawElt);
+
+    void dirty();
+
+    // the list of level of detail
+    std::vector<LODAnno> _LODlist;
+
+    // highlight current state
+    bool _isHighlighted {false};
+
+    // main icon vertices
+    std::vector<unsigned int> _mainIconVertices;
+    std::vector<unsigned int> _mainIconDrawIndex;
+
+    osg::ref_ptr<osg::Vec3Array> _v {nullptr};
+    osg::ref_ptr<osg::Vec4Array> _c {nullptr};
+    osg::ref_ptr<osg::Vec2Array> _t {nullptr};
+    osg::ref_ptr<osg::Vec4Array> _infoArray {nullptr};
+    osg::ref_ptr<osg::Vec4Array> _c2 {nullptr};
+    //osg::ref_ptr<osg::DrawElementsUShort> _d {nullptr};
+    osg::ref_ptr<ScreenSpaceDrawElements> _d {nullptr};
+
+    URIContext _context;
+    const osgDB::Options* _readOptions {nullptr};
+    osg::ref_ptr<MPStateSetFontAltas> _stateSetFontAltas {nullptr};
+    double _scale {1.};
+    float _bbox_margin {2.};
+    float _icon_margin {5.};
+    float _multi_text_margin {4.};
+    std::string _mainFont;
+    double _mainFontSize {16.};
+    double _altFirstLevel {DBL_MAX};
+    osgText::String::Encoding _text_encoding{osgText::String::ENCODING_UNDEFINED};
+    double _camAlt {0.};
+    int _LOD {-1};
+    bool _inverted{false};
+    std::vector<unsigned int> _rot_verticesToInvert;
+    std::vector<ShiftInfo> _rot_verticesToShift;
+};
+
+} }
+
+
+#endif

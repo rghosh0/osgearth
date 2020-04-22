@@ -17,10 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#include <osgEarthAnnotation/MPAnnotationGroup>
+#include <osgEarthAnnotation/MPAnnotationGroupSG>
+#include <osgEarthAnnotation/MPAnnotationGroupMG>
 #include <osgEarthFeatures/LabelSource>
 #include <osgEarthFeatures/FeatureSourceIndexNode>
 #include <osgEarthFeatures/FilterContext>
+#include <osgEarth/MPScreenSpaceLayoutSG>
 
 #define LC "[MPAnnotationLabelSource] "
 
@@ -68,7 +70,11 @@ public:
         AltitudeSymbol* alt = styleCopy.get<AltitudeSymbol>();
 
         // attach point for all drawables
-        MPAnnotationGroup* root = new MPAnnotationGroup(bbox && bbox->border().isSet() && bbox->border()->smooth().isSetTo(true));
+        MPAnnotationGroup* root = nullptr;
+        if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
+            root = new MPAnnotationGroupSG(context.getDBOptions(), text);
+        else
+            root = new MPAnnotationGroupMG(bbox && bbox->border().isSet() && bbox->border()->smooth().isSetTo(true));
 
         StringExpression  textContentExpr ( text ? *text->content()  : StringExpression() );
         NumericExpression textPriorityExpr( text ? *text->priority() : NumericExpression() );
@@ -80,7 +86,6 @@ public:
         StringExpression  iconUrlExpr     ( icon ? *icon->url()      : StringExpression() );
         NumericExpression iconScaleExpr   ( icon ? *icon->scale()    : NumericExpression() );
         NumericExpression iconHeadingExpr ( icon ? *icon->heading()  : NumericExpression() );
-        NumericExpression vertOffsetExpr  ( alt  ? *alt->verticalOffset() : NumericExpression() );
 
         for( FeatureList::const_iterator i = input.begin(); i != input.end(); ++i )
         {
@@ -157,9 +162,16 @@ public:
             // tag the drawables for that the feature can be retrieved when picking
             if ( context.featureIndex() && id >= 0 )
             {
-                std::vector<MPAnnotationGroup::AnnoInfo> drawableList = root->getDrawableList(id);
-                for (auto iAnno : drawableList )
-                    context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
+                {
+                    context.featureIndex()->tagDrawable(root->getChild(root->getNumChildren()-1)->asDrawable(), feature);
+                }
+                else
+                {
+                    std::vector<MPAnnotationGroupMG::AnnoInfo> drawableList = static_cast<MPAnnotationGroupMG*>(root)->getDrawableList(id);
+                    for (auto iAnno : drawableList )
+                        context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                }
             }
         }
 

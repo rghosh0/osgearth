@@ -21,10 +21,7 @@
 
 #include <osgEarthSymbology/Style>
 #include <osgEarthSymbology/Geometry>
-#include <osgEarth/MPScreenSpaceLayout>
-#include <osgEarth/GeoData>
 #include <osgEarthAnnotation/Export>
-#include <osgEarthFeatures/Feature>
 #include <osg/Group>
 
 
@@ -34,80 +31,39 @@ namespace osgEarth { namespace Annotation
 using namespace osgEarth;
 using namespace osgEarth::Symbology;
 
+typedef std::map<long, osg::ref_ptr<osg::Node>> MainGeomList;
+
 
 class OSGEARTHANNO_EXPORT MPAnnotationGroup : public osg::Group
 {
 public:
 
-    typedef enum
-    {
-        Symbol = 0,
-        Text,
-        Bbox,
-        BboxGroup,
-        Text2ndlevel
-    } TypeDrawable;
-
-    MPAnnotationGroup(bool lineSmooth = false);
-
-    struct AnnoInfo
-    {
-        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, bool visible) : type{t}, index{i}, globalSsld{ssld}, isVisible{visible} {}
-        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange, bool visible) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange}, isVisible{visible} {}
-
-        // Type of Drawable
-        TypeDrawable type;
-        // index in the parent list
-        unsigned int index{0};
-
-        // min range for displaying the drawable
-        double minRange{DBL_MAX};
-        
-
-        // ScreenSpaceLayoutData
-        osg::ref_ptr<ScreenSpaceLayoutData> globalSsld;
-
-        // highlight ?
-        bool highlight{false};
-        // whether the feature should be drawn when it is not culled 
-        bool isVisible{true};
-    };
-
     // Add an annotation (list of drawables corresponding to one feature)
-    long addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions);
+    virtual long addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions) = 0;
 
     // Highlight an Annotation
-    void setHighlight( long id, bool highlight = true );
-    void clearHighlight();
+    virtual void setHighlight( long id, bool highlight = true );
+    virtual void clearHighlight();
     
     // change icon color
-    void setIconColor( long id, Color color );
-    
-    std::vector<AnnoInfo>& getDrawableList(long id) { return _drawableList[id]; }
-    std::map<long, std::vector<AnnoInfo>>& getDrawableList() { return _drawableList; }
-    
-    //get a reference to the info structure for a specific annotation drawable
-    AnnoInfo & getAnnoInfo(long id,long idx){ return _drawableList[id].at(idx);}
+    virtual void setIconColor( long id, const Color& color );
 
-    // Need a custom bounding sphere for the culling process
-    virtual osg::BoundingSphere computeBound () const override;
+    // change the visibility status
+    virtual void setVisible( long id, bool visible );
 
+    // provide the list of drawable but with only one geometry per ID
+    // (main icon geom in case of multi geometry implementation)
+    virtual MainGeomList& getMainGeomDrawableList() { return _mainGeomDrawableList; }
+    
 protected:
 
     virtual ~MPAnnotationGroup() { }
 
-    void updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, Geometry *geom);
+    MainGeomList _mainGeomDrawableList;
 
-
-protected:
-
-    std::map<long, std::vector<AnnoInfo>> _drawableList;
-
-    osg::ref_ptr<osg::StateSet> _rootStateSet;
-    static std::map<std::string, osg::observer_ptr<osg::StateSet>> s_imageStateSet;
 };
 
 
 } } // namespace osgEarth::Annotation
 
-#endif //OSGEARTH_ANNOTATION_PLACE_NODE_H
+#endif //OSGEARTH_MP_ANNOTATION_GROUP_H

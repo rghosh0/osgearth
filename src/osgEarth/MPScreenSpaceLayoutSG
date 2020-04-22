@@ -1,0 +1,185 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
+* http://osgearth.org
+*
+* osgEarth is free software; you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>
+*/
+#ifndef OSGEARTH_MP_SCREEN_SPACE_LAYOUT_SG_H
+#define OSGEARTH_MP_SCREEN_SPACE_LAYOUT_SG_H 1
+
+#include <osgEarth/ScreenSpaceLayout>
+#include <osg/Geometry>
+
+
+// -----------------------------------------------------------
+// This class is mainly copied from ScreenSpaceLayout
+// but with performance improvements
+// -----------------------------------------------------------
+
+
+#define OSGEARTH_MP_SCREEN_SPACE_LAYOUT_SG_BIN "osgearth_MPScreenSpaceLayoutSGBin"
+
+namespace osgEarth
+{
+
+/*
+ * Parent geometry class to expose the screen space information
+ * (copied from ScreenSpaceLayout::ScreenSpaceLayoutData)
+ */
+class OSGEARTH_EXPORT MPScreenSpaceGeometry : public osg::Geometry
+{
+public:
+    /** Constructor */
+    MPScreenSpaceGeometry() : osg::Geometry(),
+                              _priority(0.f),
+                              _originalPriority(0.f),
+                              _pixelOffset(0, 0),
+                              _autoRotate(false),
+                              _autoFollowLine(false),
+                              _id(-1) { }
+
+    /** Decluttering priority - FLT_MAX means don't declutter */
+    void setPriority(float value) { _originalPriority = _priority = value; }
+    float getPriority() const     { return _priority; }
+
+    /** Offset from geoposition in screen pixels */
+    void setPixelOffset(const osg::Vec2s& value) { _pixelOffset = value; }
+    const osg::Vec2s& getPixelOffset() const     { return _pixelOffset; }
+
+    /** Wether the label shall follow a given geographic course */
+    void setAutoRotate(bool autoRotate) { _autoRotate = autoRotate; }
+    bool isAutoRotate() const { return _autoRotate; }
+
+    /** World point for label rotation reference */
+    void setAnchorPoint(const osg::Vec3d& value) { _anchorPoint = value; }
+    const osg::Vec3d& getAnchorPoint() const { return _anchorPoint; }
+
+    /** Wether the label shall automatically replace itself along a line */
+    void setAutoFollowLine(bool autoFollowLine) { _autoFollowLine = autoFollowLine; }
+    bool isAutoFollowLine() const { return _autoFollowLine; }
+
+    /** Start world point for automatic placement on a line */
+    void setLineStartPoint(const osg::Vec3d& value) { _lineStart = value; }
+    const osg::Vec3d& getLineStartPoint() const { return _lineStart; }
+
+    /**
+     * Stop world point for automatic placement on a line
+     * also used as projection point for label rotation reference
+     */
+    void setLineEndPoint(const osg::Vec3d& value) { _lineEnd = value; }
+    const osg::Vec3d& getLineEndPoint() const { return _lineEnd; }
+
+    /** Identifier to group drawables that relates to the same feature */
+    void setId(long id) { _id = id; }
+    long getId() const { return _id; }
+
+    /** The global BBox for the whole feature (containing all the drawables) */
+    const osg::BoundingBox& getBBox() const { return _bbox; }
+    //void expandBboxBy ( const osg::BoundingBox& bbox) { _bbox.expandBy(bbox); _bsphere.expandRadiusBy(bbox); _bboxSymetric.expandBy(_bsphere); }
+    const osg::BoundingBox& getBBoxSymetric() const { return _bboxSymetric; }
+
+    /** active the decluttered mode of this annotation **/
+    virtual void activeClutteredMode( bool cluttered ) {}
+
+    /** true if this annotation still draw something even when fully cluttered **/
+    bool drawInClutteredMode( ) const { return _drawInClutteredMode; }
+
+public:
+    long       _id{1};
+    float      _originalPriority{0.f};
+    float      _priority{0.f};
+    osg::Vec2s _pixelOffset{0, 0};
+    bool       _autoRotate{false}, _autoFollowLine{false};
+    osg::Vec3d _anchorPoint, _lineStart, _lineEnd;
+    osg::BoundingBox    _bbox;
+    osg::BoundingSphere _bsphereInitial {osg::Vec3d(0., 0., 0), 0.};
+    osg::BoundingBox    _bboxSymetric;
+
+    // draw in cluttered state
+    bool        _drawInClutteredMode {false};
+    bool        _cluttered {false};
+
+public:
+    // computed at cull step
+    osg::Vec3d          _cull_anchorOnScreen;
+    osg::BoundingBox    _cull_bboxSymetricOnScreen;
+    double              _cull_rotationRadOnScreen;
+
+public:
+    // computed at declutter step
+    double _declutter_lastScale { 1. };
+    bool _declutter_isInitialised { false };
+    bool _declutter_visible { true };
+
+protected:
+    virtual ~MPScreenSpaceGeometry() { }
+};
+
+
+
+struct OSGEARTH_EXPORT MPScreenSpaceLayoutSG
+{
+    /**
+     * Assigns a stateset to the screen-space layout engine.
+     * Drawables rendered while this stateset is active will be projected from
+     * scene space to 2D screen space with optional decluttering.
+     */
+    static void activate(osg::StateSet* stateSet); //, int binNum =13);
+
+    /**
+     * Deactivates the use of the screen-space layout engine for a stateset.
+     */
+    static void deactivate(osg::StateSet* stateSet);
+
+    /**
+     * Enables or disables decluttering globally.
+     */
+    static void setDeclutteringEnabled(bool enabled);
+
+    /**
+     * Applies the provided options to the layout engine.
+     */
+    static void setOptions(const ScreenSpaceLayoutOptions& options);
+
+    /**
+     * Fetches the current layout options
+     */
+    static const ScreenSpaceLayoutOptions& getOptions();
+
+    /**
+     * True if the extension has been loaded by default through the configuration file
+     */
+    static bool isExtensionLoaded();
+
+public: // advanced
+
+    /**
+     * Sets a functor to use to determine render leaf priority for declutter sorting.
+     */
+    static void setSortFunctor( DeclutterSortFunctor* f );
+
+    /**
+     * Clears a custom priority functor that was set using setDeclutterPriorityFunctor,
+     * reverting to the default behavior (which is to sort by distance from the camera).
+     */
+    static void clearSortFunctor();
+};
+
+} // namespace osgEarth
+
+#endif //OSGEARTH_MP_SCREEN_SPACE_LAYOUT_SG_H

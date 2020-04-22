@@ -60,7 +60,8 @@ _terrainEngineDriver( "rex" ),
 _cacheDriver        ( "filesystem" ),
 _overrideCachePolicyInitialized( false ),
 _threadPoolSize(2u),
-_devicePixelRatio(1.0f)
+_devicePixelRatio(1.0f),
+_devicePixelDensity(96)
 {
     // set up GDAL and OGR.
     OGRRegisterAll();
@@ -744,8 +745,24 @@ void
 Registry::setDevicePixelRatio(float devicePixelRatio)
 {
     _devicePixelRatio = devicePixelRatio;
+
+    if ( _devicePixelRatio <= 0.75 )
+        _devicePixelDensity = 72;
+    else if ( _devicePixelRatio <= 1. )
+        _devicePixelDensity = 96;
+    else if ( _devicePixelRatio <= 1.5 )
+        _devicePixelDensity = 144;
+    else if ( _devicePixelRatio <= 2. )
+        _devicePixelDensity = 192;
+    else if ( _devicePixelRatio <= 3. )
+        _devicePixelDensity = 288;
 }
 
+int
+Registry::getDevicePixelDensity() const
+{
+    return _devicePixelDensity;
+}
 
 //Simple class used to add a file extension alias for the earth_tile to the earth plugin
 class RegisterEarthTileExtension

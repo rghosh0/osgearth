@@ -177,6 +177,9 @@ ScreenSpaceLayoutOptions::fromConfig( const Config& conf )
     conf.get( "use_screen_grid",     _useScreenGrid );
     conf.get( "screen_grid_NbCol",   _screenGridNbCol );
     conf.get( "screen_grid_NbRow",   _screenGridNbRow );
+    conf.get( "font_default",        _defaultFont );
+    conf.get( "font_altas",          _fontAltas );
+    conf.get( "icon_altas",          _iconAltas );
 }
 
 Config
@@ -195,6 +198,9 @@ ScreenSpaceLayoutOptions::getConfig() const
     conf.set( "use_screen_grid",     _useScreenGrid );
     conf.set( "screen_grid_NbCol",   _screenGridNbCol );
     conf.set( "screen_grid_NbRow",   _screenGridNbRow );
+    conf.set( "font_default",        _defaultFont );
+    conf.set( "font_altas",          _fontAltas );
+    conf.set( "icon_altas",          _iconAltas );
     return conf;
 }
 

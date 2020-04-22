@@ -1,0 +1,119 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
+ * http://osgearth.org
+ *
+ * osgEarth is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+#ifndef OSGEARTH_MP_ANNOTATION_GROUP_MG_H
+#define OSGEARTH_MP_ANNOTATION_GROUP_MG_H 1
+
+#include <osgEarthSymbology/Style>
+#include <osgEarthSymbology/Geometry>
+#include <osgEarth/MPScreenSpaceLayout>
+#include <osgEarth/GeoData>
+#include <osgEarthAnnotation/Export>
+#include <osgEarthAnnotation/MPAnnotationGroup>
+#include <osgEarthFeatures/Feature>
+#include <osg/Group>
+
+
+namespace osgEarth { namespace Annotation
+{
+
+
+class OSGEARTHANNO_EXPORT MPAnnotationGroupMG : public MPAnnotationGroup
+{
+public:
+
+    typedef enum
+    {
+        Symbol = 0,
+        Text,
+        Bbox,
+        BboxGroup,
+        Text2ndlevel
+    } TypeDrawable;
+
+    MPAnnotationGroupMG(bool lineSmooth = false);
+
+    struct AnnoInfo
+    {
+        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, bool visible) : type{t}, index{i}, globalSsld{ssld}, isVisible{visible} {}
+        AnnoInfo(TypeDrawable t, unsigned int i, ScreenSpaceLayoutData* ssld, double minimumRange, bool visible) : type{t}, index{i}, globalSsld{ssld}, minRange{minimumRange}, isVisible{visible} {}
+
+        // Type of Drawable
+        TypeDrawable type;
+
+        // index in the parent list
+        unsigned int index{0};
+
+        // min range for displaying the drawable
+        double minRange{DBL_MAX};
+
+        // ScreenSpaceLayoutData
+        osg::ref_ptr<ScreenSpaceLayoutData> globalSsld;
+
+        // highlight ?
+        bool highlight{false};
+
+        // whether the feature should be drawn when it is not culled 
+        bool isVisible{true};
+    };
+
+public:
+
+    // Add an annotation (list of drawables corresponding to one feature)
+    virtual long addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions) override;
+
+    // Highlight an Annotation
+    virtual void setHighlight( long id, bool highlight = true ) override;
+    virtual void clearHighlight() override;
+    
+    // change icon color
+    virtual void setIconColor(long id, const Color &color ) override;
+
+    // change the visibility status
+    virtual void setVisible( long id, bool visible ) override;
+
+public:
+
+    std::vector<AnnoInfo>& getDrawableList(long id) { return _drawableList[id]; }
+    std::map<long, std::vector<AnnoInfo>>& getDrawableList() { return _drawableList; }
+    
+    //get a reference to the info structure for a specific annotation drawable
+    AnnoInfo & getAnnoInfo(long id,long idx){ return _drawableList[id].at(idx);}
+
+    // Need a custom bounding sphere for the culling process
+    virtual osg::BoundingSphere computeBound () const override;
+
+protected:
+
+    virtual ~MPAnnotationGroupMG() { }
+
+    void updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataLayout, const Style& style, Geometry *geom);
+
+
+protected:
+
+    std::map<long, std::vector<AnnoInfo>> _drawableList;
+
+    osg::ref_ptr<osg::StateSet> _rootStateSet;
+    static std::map<std::string, osg::observer_ptr<osg::StateSet>> s_imageStateSet;
+};
+
+
+} } // namespace osgEarth::Annotation
+
+#endif //OSGEARTH_MP_ANNOTATION_GROUP_MG_H

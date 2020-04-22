@@ -284,6 +284,12 @@ namespace osgEarth
         * This value is useful when running in high dpi environments on high resolution displays.
         */
         void setDevicePixelRatio(float devicePixelRatio);
+
+        /**
+         * Gets the device pixel density.
+         * (automatically computed from devicePixelRatio when set)
+         */
+        int getDevicePixelDensity() const;
         
         //! Release any resources held by the registry so it can be re-used
         void release();
@@ -368,6 +374,7 @@ namespace osgEarth
         unsigned _threadPoolSize;
 
         float _devicePixelRatio;
+        int _devicePixelDensity;
         
         typedef std::map<SpatialReference::Key, osg::ref_ptr<SpatialReference> > SRSCache;
         mutable SRSCache _srsCache;
