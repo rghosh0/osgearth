@@ -295,10 +295,25 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         }
     }
 
-    // build the "reverse video" labels (to the right of existing icon/text)
+    // build the other labels (to the right of existing icon/text)
     float reverseVideoXThreshold = 0.;
     if ( mainBBoxText.valid() && textSymbol && textList.size() > 1 && ! textSymbol->predefinedOrganisation().isSet() )
     {
+        // other labels
+        if ( iconList.size() >= 2 && textList.size() >= 2 && textList[1].find("I:") != 0)
+        {
+            osg::Vec4 color(textSymbol->fill().isSet() ? textSymbol->fill()->color() : Color::White);
+            int nbVert = appendText( textList[1], _mainFont, color, _mainFontSize, _altFirstLevel);
+            if ( nbVert > 0 )
+            {
+                moveTextPosition( nbVert, mainBBoxText, TextSymbol::Alignment::ALIGN_LEFT_CENTER );
+                // expand the text zone with this new label (take into account only the last quad)
+                for ( int i = _v->getNumElements() - 4 ; i >= 0 && i < static_cast<int>(_v->getNumElements()) ; ++i )
+                    mainBBoxText.expandBy( (*_v)[i] );
+            }
+        }
+
+        // last label to the right on reverse video
         if ( textList[textList.size()-1].find("I:") == 0 )
         {
             // color must be inverted... but for now setting it to black is sufficient
@@ -357,7 +372,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
 
 
     // ----------------------
-    // Append the secondary texts
+    // Append the secondary texts in predefined organisation
 
     if ( textSymbol && textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() == 7 )
     {
