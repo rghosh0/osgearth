@@ -200,6 +200,10 @@ public:
     optional<double>& predefinedOrganisationMargin() { return _predefinedOrganisationMargin; }
     const optional<double>& predefinedOrganisationMargin() const { return _predefinedOrganisationMargin; }
 
+    /** A pseudo backface culling for labels */
+    inline optional<bool>& backEarthCull() { return _backEarthCull; }
+    inline const optional<bool>& backEarthCull() const { return _backEarthCull; }
+
 public:
     virtual Config getConfig() const;
     virtual void mergeConfig( const Config& conf );
@@ -234,6 +238,7 @@ protected:
     optional<double>            _minRange2ndlevel;
     optional<std::string>       _predefinedOrganisation;
     optional<double>            _predefinedOrganisationMargin;
+    optional<bool>              _backEarthCull;
 };
 
 } } // namespace osgEarth::Symbology

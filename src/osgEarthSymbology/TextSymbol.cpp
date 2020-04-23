@@ -56,7 +56,8 @@ TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _minRange(rhs._minRange),
                                                                            _minRange2ndlevel(rhs._minRange2ndlevel),
                                                                            _predefinedOrganisation(rhs._predefinedOrganisation),
-                                                                           _predefinedOrganisationMargin( rhs._predefinedOrganisationMargin )
+                                                                           _predefinedOrganisationMargin( rhs._predefinedOrganisationMargin),
+                                                                           _backEarthCull(rhs._backEarthCull)
 {
 }
 
@@ -168,6 +169,8 @@ TextSymbol::getConfig() const
     conf.set( "predefined-organisation", _predefinedOrganisation );
     conf.set( "predefined-organisation-margin", _predefinedOrganisationMargin );
 
+    conf.set( "back-earth-cull", _backEarthCull );
+
     return conf;
 }
 
@@ -249,6 +252,8 @@ TextSymbol::mergeConfig( const Config& conf )
 
     conf.get( "predefined-organisation", _predefinedOrganisation );
     conf.get( "predefined-organisation-margin", _predefinedOrganisationMargin );
+
+    conf.get( "back-earth-cull", _backEarthCull );
 }
 
 
@@ -422,5 +427,8 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "text-predefined-organisation-margin") ) {
         style.getOrCreate<TextSymbol>()->predefinedOrganisationMargin() = as<double>(c.value(), defaults.predefinedOrganisationMargin().get() );
+    }
+    else if ( match(c.key(), "text-back-earth-cull") ) {
+        style.getOrCreate<TextSymbol>()->backEarthCull() = as<bool>(c.value(), defaults.backEarthCull().get() );
     }
 }

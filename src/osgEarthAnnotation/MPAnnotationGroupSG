@@ -1,0 +1,63 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
+ * http://osgearth.org
+ *
+ * osgEarth is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+#ifndef OSGEARTH_MP_ANNOTATION_GROUP_SG_H
+#define OSGEARTH_MP_ANNOTATION_GROUP_SG_H 1
+
+#include <osgEarth/MPScreenSpaceLayoutSG>
+#include <osgEarthAnnotation/MPAnnotationGroup>
+#include <osgEarthAnnotation/MPStateSetFontAltas>
+
+
+namespace osgEarth { namespace Annotation
+{
+
+class OSGEARTHANNO_EXPORT MPAnnotationGroupSG : public MPAnnotationGroup
+{
+public:
+
+    MPAnnotationGroupSG(const osgDB::Options* readOptions, TextSymbol* textSym);
+
+    // Add an annotation (list of drawables corresponding to one feature)
+    virtual long addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions) override;
+
+    // Highlight an Annotation
+    virtual void setHighlight( long id, bool highlight = true ) override;
+    virtual void clearHighlight() override;
+    
+    // change icon color
+    virtual void setIconColor(long id, const Color &color ) override;
+
+    // Need a custom bounding sphere for the culling process
+    virtual osg::BoundingSphere computeBound () const override;
+
+protected:
+
+    virtual ~MPAnnotationGroupSG() { }
+
+protected:
+
+    // unique stateset for all annotations
+    static osg::observer_ptr<MPStateSetFontAltas> s_atlasStateSet;
+    osg::ref_ptr<MPStateSetFontAltas> _atlasStateSet;
+};
+
+
+} } // namespace osgEarth::Annotation
+
+#endif //OSGEARTH_MP_ANNOTATION_GROUP_SG_H
