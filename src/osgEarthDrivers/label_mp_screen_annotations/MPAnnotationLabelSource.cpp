@@ -67,7 +67,6 @@ public:
         TextSymbol* text = styleCopy.get<TextSymbol>();
         BBoxSymbol* bbox = styleCopy.get<BBoxSymbol>();
         IconSymbol* icon = styleCopy.get<IconSymbol>();
-        AltitudeSymbol* alt = styleCopy.get<AltitudeSymbol>();
 
         // attach point for all drawables
         MPAnnotationGroup* root = nullptr;

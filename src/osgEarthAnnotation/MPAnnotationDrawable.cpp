@@ -85,6 +85,7 @@ MPAnnotationDrawable::MPAnnotationDrawable(const Style &style, const osgDB::Opti
     _mainFont = textSymbol && textSymbol->font().isSet() ? textSymbol->font().get()
                  : ( MPScreenSpaceLayoutSG::getOptions().defaultFont().isSet() ?
                          MPScreenSpaceLayoutSG::getOptions().defaultFont().get() : "" );
+    _mainTextColor = textSymbol->fill().isSet() ? textSymbol->fill()->color() : Color::White;
     _mainFontSize = textSymbol && textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.;
     _multi_text_margin = textSymbol && textSymbol->predefinedOrganisationMargin().isSet() ? textSymbol->predefinedOrganisationMargin().value() : 4.f;
     _altFirstLevel = textSymbol && textSymbol->minRange().isSet() ? textSymbol->minRange().get() : DBL_MAX;
@@ -144,13 +145,16 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         // check if there is a list of icons
         if ( iconTxt.find(";") != std::string::npos )
         {
-            StringTokenizer splitter( ";", "" );
+            StringTokenizer splitter( ";" );
+            splitter.keepEmpties() = true;
             splitter.tokenize( iconTxt, iconList );
             if (! iconList.empty() && ! iconList[0].empty() )
                 iconTxt = iconList[0];
+            else
+                iconTxt = "";
         }
 
-        // push the main centered icon
+        // Build the main centered icon
         if (! iconTxt.empty() )
         {
             appendIcon(iconTxt);
@@ -165,10 +169,9 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                     mainBBoxIcon.expandBy( _v->at(i) );
                     _mainIconVertices.push_back(i);
                 }
-//                osg::Vec3 margin(_icon_margin, _icon_margin, 0.);
-//                mainBBoxIcon._min -= margin;
-//                mainBBoxIcon._max += margin;
 
+                // manage the rotation of GEOM_BOX_ROUNDED_ORIENTED in case of pixel offset
+                // note : the other types of bbox will not handle correctly the rotation in case of pixel offset
                 if ( bboxsymbol && bboxsymbol->geom() == BBoxSymbol::GEOM_BOX_ROUNDED_ORIENTED && _v->size() >= 4 )
                 {
                     float offset = textSymbol->pixelOffset().isSet() ? textSymbol->pixelOffset().get().x() : 0.;
@@ -204,21 +207,17 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         if (! textList.empty() )
             mainText = textList[0];
 
-        // push the main centered text
+        // Build the main centered text
         if ( ! mainText.empty() && ! textSymbol->predefinedOrganisation().isSetTo("changeoverpoint")
              && ! textSymbol->predefinedOrganisation().isSetTo("mora"))
         {
             // add the separator if necessary
-            if ( ! textSymbol->predefinedOrganisation().isSetTo("airway") )
-            {
-                if ( iconList.size() > 1 )
-                    mainText += " | ";
-                else if ( textList.size() >= 2 && textList[1].find("I:") != 0 )
-                    mainText += " | " + textList[1];
-            }
+            if ( iconList.size() > 1 )
+                mainText += " | ";
+            else if ( ! textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() >= 2 && textList[1].find("I:") != 0 )
+                mainText += " | " + textList[1];
 
-            osg::Vec4 color(textSymbol->fill().isSet() ? textSymbol->fill()->color() : Color::White);
-            int nbVert = appendText(mainText, _mainFont, color, _mainFontSize, _altFirstLevel);
+            int nbVert = appendText(mainText, _mainFont, _mainTextColor, _mainFontSize, _altFirstLevel);
             if (nbVert > 0)
             {
                 TextSymbol::Alignment align = textSymbol->alignment().isSet() ?
@@ -302,8 +301,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         // other labels
         if ( iconList.size() >= 2 && textList.size() >= 2 && textList[1].find("I:") != 0)
         {
-            osg::Vec4 color(textSymbol->fill().isSet() ? textSymbol->fill()->color() : Color::White);
-            int nbVert = appendText( textList[1], _mainFont, color, _mainFontSize, _altFirstLevel);
+            int nbVert = appendText( textList[1], _mainFont, _mainTextColor, _mainFontSize, _altFirstLevel);
             if ( nbVert > 0 )
             {
                 moveTextPosition( nbVert, mainBBoxText, TextSymbol::Alignment::ALIGN_LEFT_CENTER );
@@ -385,8 +383,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                                              TextSymbol::ALIGN_RIGHT_TOP, TextSymbol::ALIGN_RIGHT_BOTTOM_BASE_LINE, TextSymbol::ALIGN_RIGHT_BOTTOM };
         float fontSizeSmaller = _mainFontSize / 18.f * 15.f;
         float fontSizeList[] = {fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller};
-        Color colorOrg = textSymbol->fill().isSet() ? textSymbol->fill().get().color() : Color::White;
-        Color colorList[] = {colorOrg, colorOrg, colorOrg, magenta, colorOrg, colorOrg};
+        Color colorList[] = {_mainTextColor, _mainTextColor, _mainTextColor, magenta, _mainTextColor, _mainTextColor};
         double alt2ndLevel = textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : _altFirstLevel;
         // make the font regular for the secondary texts
         std::string subFont(_mainFont);
@@ -437,10 +434,9 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
     {
         const osg::Vec3 marginVec(_multi_text_margin, _multi_text_margin, 0.);
         const osg::BoundingBox refBBox( -marginVec, marginVec );
-        Color colorOrg = textSymbol->fill().isSet() ? textSymbol->fill().get().color() : Color::White;
 
         // right top text
-        int nbVert = appendText(textList[0], _mainFont, colorOrg, _mainFontSize);
+        int nbVert = appendText(textList[0], _mainFont, _mainTextColor, _mainFontSize);
         osg::BoundingBox trBbox;
         if (nbVert > 0)
         {
@@ -455,9 +451,8 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
             _rot_verticesToShift.push_back( shiftData );
         }
 
-
         // left bottom text
-        int nbVert2 = appendText(textList[1], _mainFont, colorOrg, _mainFontSize);
+        int nbVert2 = appendText(textList[1], _mainFont, _mainTextColor, _mainFontSize);
         osg::BoundingBox blBbox;
         if (nbVert2 > 0)
         {

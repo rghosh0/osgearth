@@ -3,7 +3,7 @@
 #
 
 set(TARGET_GLSL
-	BumpMap.vert.view.glsl
+    BumpMap.vert.view.glsl
     BumpMap.frag.simple.glsl
     BumpMap.frag.progressive.glsl
     BumpMap.frag.common.glsl)
