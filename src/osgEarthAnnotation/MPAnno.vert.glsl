@@ -10,8 +10,6 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 in vec4 oe_anno_attr_info;
 in vec4 oe_anno_attr_color2;
 
-uniform float oe_anno_texicon_factor;
-
 out vec2 oe_anno_texcoord;
 
 flat out vec4 oe_anno_info;
@@ -36,11 +34,7 @@ void oe_anno_VS(inout vec4 vertex)
     oe_anno_info = oe_anno_attr_info;
     widthBy2 = oe_anno_info.x * 0.5;
     heightBy2 = oe_anno_info.y * 0.5;
-
-    if ( oe_anno_info.z == TYPE_ICON )
-        oe_anno_texcoord = gl_MultiTexCoord0.st * oe_anno_texicon_factor;
-    else
-        oe_anno_texcoord = gl_MultiTexCoord0.st;
+    oe_anno_texcoord = gl_MultiTexCoord0.st;
 
     if ( oe_anno_info.z != TYPE_CHARACTER_MSDF && oe_anno_info.z != TYPE_ICON )
         oe_anno_fill_white_threshold = int(oe_anno_info.w);

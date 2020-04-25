@@ -7,7 +7,6 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 #pragma import_defines(TYPE_CHARACTER_MSDF, TYPE_ICON, TYPE_BBOX, TYPE_BBOX_ROUNDED, TYPE_BBOX_ONEARROW, TYPE_BBOX_TWOARROWS, TYPE_BBOX_STAIR, TYPE_BBOX_ROUNDED_ORIENTED)
 
 
-uniform sampler2D oe_anno_font_tex;
 uniform sampler2D oe_anno_icon_tex;
 uniform vec4 oe_anno_highlightFillColor;
 
@@ -62,7 +61,7 @@ void oe_anno_FS(inout vec4 color)
     if ( oe_anno_info.z == TYPE_CHARACTER_MSDF )
     {
         float halfMSDFUnit = oe_anno_info.w/2.;
-        vec3 sample = texture(oe_anno_font_tex, oe_anno_texcoord).rgb;
+        vec3 sample = texture(oe_anno_icon_tex, oe_anno_texcoord).rgb;
         float sigDist = max(min(sample.r, sample.g), min(max(sample.r, sample.g), sample.b));
         color.a = smoothstep(0.5 - halfMSDFUnit, 0.5 + halfMSDFUnit, sigDist );
     }
