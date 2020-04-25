@@ -91,7 +91,7 @@ public:
 
 public:
 
-    MPStateSetFontAltas(const std::string& fontAtlasPath, const std::string& iconAtlasPath, const osgDB::Options* readOptions);
+    MPStateSetFontAltas(const std::string& iconAtlasPath, const osgDB::Options* readOptions);
 
     // map that holds all Glyphs
     GlyphMap mapGlyphs;

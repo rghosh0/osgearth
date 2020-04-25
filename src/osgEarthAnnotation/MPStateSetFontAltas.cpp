@@ -76,39 +76,8 @@ IconInfo::IconInfo(double x, double y, double s, double textureSize)
     size.set(s, s);
 }
 
-MPStateSetFontAltas::MPStateSetFontAltas(const std::string& fontAtlasPath, const std::string &iconAtlasPath, const osgDB::Options *readOptions) : StateSet()
+MPStateSetFontAltas::MPStateSetFontAltas(const std::string &iconAtlasPath, const osgDB::Options *readOptions) : StateSet()
 {
-    // load the font atlas
-    std::string fullFontAtlasPath = osgDB::findDataFile(fontAtlasPath, readOptions, osgDB::CASE_INSENSITIVE);
-    if ( fullFontAtlasPath.empty() || ! osgDB::fileExists(fullFontAtlasPath) )
-    {
-        OE_WARN << LC << "Unable to locate the font atlas " << fontAtlasPath << "\n";
-        return;
-    }
-    URI imageURI(fullFontAtlasPath, readOptions);
-    osg::ref_ptr<osg::Image> image = imageURI.getImage(readOptions);
-    if (! image.valid() )
-    {
-        OE_WARN << LC << "Unable to load the font atlas " << fullFontAtlasPath << "\n";
-        return;
-    }
-
-    // build the Glyph map
-    double textureSize = image.get()->s();
-    URI atlasConfURI(osgDB::getNameLessExtension(fullFontAtlasPath) + ".txt", readOptions);
-    if (! osgDB::fileExists(atlasConfURI.full()))
-        return;
-
-    std::ifstream in(atlasConfURI.full().c_str());
-    std::string key;
-    double x, y, scale, w, h, advance, cursorX, cursorY;
-    while(in >> key >> x >> y >> scale >> w >> h >> cursorX >> cursorY >> advance)
-        mapGlyphs[key] = GlyphInfo(x, y, scale, w, h, cursorX, cursorY, advance, textureSize);
-
-    // set it as a texture
-    osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D();
-    texture->setImage( image );
-
     // get the pixel density
     int dpi = Registry::instance()->getDevicePixelDensity();
     std::string iconAtlasPathWithDPI = osgDB::getNameLessExtension(iconAtlasPath) + std::to_string(dpi) + "." + osgDB::getFileExtension(iconAtlasPath);
@@ -120,7 +89,7 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string& fontAtlasPath, const
         OE_WARN << LC << "Unable to locate the icon atlas " << fullIconAtlasPath << "\n";
         return;
     }
-    imageURI = URI(fullIconAtlasPath, readOptions);
+    URI imageURI = URI(fullIconAtlasPath, readOptions);
     osg::ref_ptr<osg::Image> imageIcon = imageURI.getImage(readOptions);
     if (! imageIcon.valid() )
     {
@@ -128,15 +97,32 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string& fontAtlasPath, const
         return;
     }
 
-    // build the Icon map
-    textureSize = image.get()->s();
-    atlasConfURI = URI(osgDB::getNameLessExtension(iconAtlasPathWithDPI) + ".txt", readOptions);
+    // read the Icon conf file
+    double textureSize = imageIcon.get()->s();
+    URI atlasConfURI = URI(osgDB::getNameLessExtension(iconAtlasPathWithDPI) + ".txt", readOptions);
     if (! osgDB::fileExists(atlasConfURI.full()))
         return;
 
-    in = std::ifstream(atlasConfURI.full().c_str());
-    while(in >> key >> x >> y >> w)
-        mapIcons[key] = IconInfo(x, y, w, textureSize);
+    std::ifstream in (std::ifstream(atlasConfURI.full().c_str()));
+    std::string key;
+    double x, y, scale, w, h, advance, cursorX, cursorY;
+    for( std::string line ; getline( in, line ); )
+    {
+        // font
+        if ( line.find("/") != std::string::npos )
+        {
+            std::istringstream inLine (line);
+            inLine >> key >> x >> y >> scale >> w >> h >> cursorX >> cursorY >> advance;
+            mapGlyphs[key] = GlyphInfo(x, y, scale, w, h, cursorX, cursorY, advance, textureSize);
+        }
+        // icon
+        else
+        {
+            std::istringstream inLine (line);
+            inLine >> key >> x >> y >> w;
+            mapIcons[key] = IconInfo(x, y, w, textureSize);
+        }
+    }
 
     osg::ref_ptr<osg::Texture2D> textureIcon = new osg::Texture2D();
     textureIcon->setImage( imageIcon );
@@ -146,8 +132,7 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string& fontAtlasPath, const
     setMode(GL_CULL_FACE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
     setMode(GL_BLEND, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     GLUtils::setLighting(this, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-    setTextureAttributeAndModes(0, texture, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-    setTextureAttributeAndModes(1, textureIcon, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+    setTextureAttributeAndModes(0, textureIcon, osg::StateAttribute::ON);
 
     // shaders
     VirtualProgram* vp = VirtualProgram::getOrCreate(this);
@@ -158,12 +143,9 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string& fontAtlasPath, const
     pkg.load( vp, pkg.MPAnno_Vertex );
     pkg.load( vp, pkg.MPAnno_Fragment );
     addUniform(new osg::Uniform("oe_anno_font_tex", 0));
-    addUniform(new osg::Uniform("oe_anno_icon_tex", 1));
     addUniform(new osg::Uniform("oe_anno_highlightFillColor", _highlightFillColor));
     addUniform(new osg::Uniform("oe_anno_highlightStrokeColor", _highlightStrokeColor));
     addUniform(new osg::Uniform("oe_anno_highlightStrokeWidth", _highlightStrokeWidth));
-    float texturesFactor = static_cast<float>(texture->getImage()->s()) / static_cast<float>(textureIcon->getImage()->s());
-    addUniform(new osg::Uniform("oe_anno_texicon_factor", texturesFactor));
     DefineList defineList;
     defineList["TYPE_CHARACTER_MSDF"] = osg::StateSet::DefinePair(std::to_string(TYPE_CHARACTER_MSDF), osg::StateAttribute::ON);
     defineList["TYPE_ICON"] = osg::StateSet::DefinePair(std::to_string(TYPE_ICON), osg::StateAttribute::ON);

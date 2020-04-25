@@ -158,16 +158,14 @@ MPAnnotationGroupSG::MPAnnotationGroupSG(const osgDB::Options *readOptions , Tex
         {
 
             if ( ! MPScreenSpaceLayoutSG::isExtensionLoaded()
-                 || ! MPScreenSpaceLayoutSG::getOptions().fontAltas().isSet()
                  || ! MPScreenSpaceLayoutSG::getOptions().iconAltas().isSet() )
             {
-                OE_WARN << LC << "Impossible to create StateSet because MPScreenSpaceLayoutSGis not well defined." << "\n";
+                OE_WARN << LC << "Impossible to create StateSet because MPScreenSpaceLayoutSG is not well defined." << "\n";
                 return;
             }
 
-            std::string atlasFontPath = MPScreenSpaceLayoutSG::getOptions().fontAltas().get();
             std::string atlasIconPath = MPScreenSpaceLayoutSG::getOptions().iconAltas().get();
-            s_atlasStateSet = _atlasStateSet = new MPStateSetFontAltas(atlasFontPath, atlasIconPath, readOptions);
+            s_atlasStateSet = _atlasStateSet = new MPStateSetFontAltas(atlasIconPath, readOptions);
             // draw in the screen-space bin
             MPScreenSpaceLayoutSG::activate(_atlasStateSet.get());
             // no depth test in screen space layout
