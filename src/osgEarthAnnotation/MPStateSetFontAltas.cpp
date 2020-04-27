@@ -84,6 +84,12 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string &iconAtlasPath, const
 
     // load the icon atlas
     std::string fullIconAtlasPath = osgDB::findDataFile(iconAtlasPathWithDPI, readOptions, osgDB::CASE_INSENSITIVE);
+    if ( fullIconAtlasPath.empty() )
+    {
+        // On iOS the icon atlas file is search inside default.earth as if it were a directory.
+        // To prevent this behavior we force the search next to default.earth.
+        fullIconAtlasPath = osgDB::findDataFile("../" + iconAtlasPathWithDPI, readOptions, osgDB::CASE_INSENSITIVE);
+    }
     if ( fullIconAtlasPath.empty() || ! osgDB::fileExists(fullIconAtlasPath) )
     {
         OE_WARN << LC << "Unable to locate the icon atlas " << fullIconAtlasPath << "\n";
@@ -99,7 +105,7 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string &iconAtlasPath, const
 
     // read the Icon conf file
     double textureSize = imageIcon.get()->s();
-    URI atlasConfURI = URI(osgDB::getNameLessExtension(iconAtlasPathWithDPI) + ".txt", readOptions);
+    URI atlasConfURI = URI(osgDB::getNameLessExtension(fullIconAtlasPath) + ".txt", readOptions);
     if (! osgDB::fileExists(atlasConfURI.full()))
         return;
 
@@ -147,13 +153,13 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string &iconAtlasPath, const
     addUniform(new osg::Uniform("oe_anno_highlightStrokeColor", _highlightStrokeColor));
     addUniform(new osg::Uniform("oe_anno_highlightStrokeWidth", _highlightStrokeWidth));
     DefineList defineList;
-    defineList["TYPE_CHARACTER_MSDF"] = osg::StateSet::DefinePair(std::to_string(TYPE_CHARACTER_MSDF), osg::StateAttribute::ON);
-    defineList["TYPE_ICON"] = osg::StateSet::DefinePair(std::to_string(TYPE_ICON), osg::StateAttribute::ON);
-    defineList["TYPE_BBOX"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX), osg::StateAttribute::ON);
-    defineList["TYPE_BBOX_ROUNDED"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_ROUNDED), osg::StateAttribute::ON);
-    defineList["TYPE_BBOX_ONEARROW"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_ONEARROW), osg::StateAttribute::ON);
-    defineList["TYPE_BBOX_TWOARROWS"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_TWOARROWS), osg::StateAttribute::ON);
-    defineList["TYPE_BBOX_STAIR"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_STAIR), osg::StateAttribute::ON);
-    defineList["TYPE_BBOX_ROUNDED_ORIENTED"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_ROUNDED_ORIENTED), osg::StateAttribute::ON);
+    defineList["TYPE_CHARACTER_MSDF"] = osg::StateSet::DefinePair(std::to_string(TYPE_CHARACTER_MSDF) + ".", osg::StateAttribute::ON);
+    defineList["TYPE_ICON"] = osg::StateSet::DefinePair(std::to_string(TYPE_ICON) + ".", osg::StateAttribute::ON);
+    defineList["TYPE_BBOX"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX) + ".", osg::StateAttribute::ON);
+    defineList["TYPE_BBOX_ROUNDED"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_ROUNDED) + ".", osg::StateAttribute::ON);
+    defineList["TYPE_BBOX_ONEARROW"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_ONEARROW) + ".", osg::StateAttribute::ON);
+    defineList["TYPE_BBOX_TWOARROWS"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_TWOARROWS) + ".", osg::StateAttribute::ON);
+    defineList["TYPE_BBOX_STAIR"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_STAIR) + ".", osg::StateAttribute::ON);
+    defineList["TYPE_BBOX_ROUNDED_ORIENTED"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_ROUNDED_ORIENTED) + ".", osg::StateAttribute::ON);
     setDefineList(defineList);
 }

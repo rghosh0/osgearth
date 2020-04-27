@@ -77,13 +77,13 @@ void oe_anno_FS(inout vec4 color)
     {
         float midBorder = (oe_anno_stroke_width+pixelSmooth) * 0.5;
         vec2 distVec = (oe_anno_texcoord - 0.5) * oe_anno_info.xy;
-        if ( distVec.x < -midBorder && distVec.y > 0 || distVec.x > midBorder && distVec.y < 0 )
+        if ( distVec.x < -midBorder && distVec.y > 0. || distVec.x > midBorder && distVec.y < 0. )
         {
             discard;
         }
         else
         {
-            if ( distVec.y < 0)
+            if ( distVec.y < 0.)
                 distVec = -distVec;
             distVec.x += midBorder;
             float distToBorder = min( distVec.x, heightBy2 - distVec.y );
@@ -97,7 +97,7 @@ void oe_anno_FS(inout vec4 color)
     else
     {
         // arbitrary distance to draw plain color in case of non defined shape type
-        float minDist = 10;
+        float minDist = 10.;
         float distX = getWidthBorderDistance();
         float distY = getHeightBorderDistance();
 
