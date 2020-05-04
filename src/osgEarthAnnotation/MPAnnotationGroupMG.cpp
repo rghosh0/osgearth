@@ -643,7 +643,7 @@ MPAnnotationGroupMG::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataL
     }
 
     // global BBox
-    for ( auto i : _drawableList[dataLayout->getId()] )
+    for ( auto const &i : _drawableList[dataLayout->getId()] )
         dataLayout->expandBboxBy(this->getChild(i.index)->asDrawable()->getBoundingBox());
 }
 
@@ -651,7 +651,7 @@ MPAnnotationGroupMG::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataL
 void
 MPAnnotationGroupMG::setHighlight( long id, bool highlight )
 {
-    for ( auto anno : getDrawableList()[id] )
+    for ( auto &anno : getDrawableList()[id] )
         if (anno.type == MPAnnotationGroupMG::Bbox || anno.type == MPAnnotationGroupMG::BboxGroup)
         {
             BboxDrawable* bbox = static_cast<BboxDrawable*>(getChild(anno.index));
@@ -675,7 +675,7 @@ MPAnnotationGroupMG::clearHighlight()
 void
 MPAnnotationGroupMG::setIconColor(long id, const Color& color)
 {
-    for ( auto anno : getDrawableList()[id] )
+    for ( auto const &anno : getDrawableList()[id] )
         if (anno.type == MPAnnotationGroupMG::Symbol)
         {
                osg::Geometry* icon = static_cast<osg::Geometry*>(getChild(anno.index));
@@ -689,6 +689,6 @@ MPAnnotationGroupMG::setIconColor(long id, const Color& color)
 void
 MPAnnotationGroupMG::setVisible( long id, bool visible )
 {
-    for ( auto anno : getDrawableList()[id] )
+    for ( auto &anno : getDrawableList()[id] )
         anno.isVisible = visible;
 }
