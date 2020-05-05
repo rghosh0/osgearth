@@ -36,12 +36,6 @@ void ScreenSpaceDrawElements::draw(osg::State& state, bool useVertexBufferObject
     // source copied from DrawElementsUShort::draw()
     else
     {
-        GLenum mode = _mode;
-        #if defined(OSG_GLES1_AVAILABLE) || defined(OSG_GLES2_AVAILABLE) || defined(OSG_GLES3_AVAILABLE)
-            if (mode==GL_POLYGON) mode = GL_TRIANGLE_FAN;
-            if (mode==GL_QUAD_STRIP) mode = GL_TRIANGLE_STRIP;
-        #endif
-
         if (useVertexBufferObjects)
         {
             osg::GLBufferObject* ebo = getOrCreateGLBufferObject(state.getContextID());
@@ -49,20 +43,20 @@ void ScreenSpaceDrawElements::draw(osg::State& state, bool useVertexBufferObject
             if (ebo)
             {
                 state.getCurrentVertexArrayState()->bindElementBufferObject(ebo);
-                if (_numInstances>=1) state.glDrawElementsInstanced(mode, _drawSize, GL_UNSIGNED_SHORT, (const GLvoid *)(ebo->getOffset(getBufferIndex()) + _drawOffset), _numInstances);
-                else glDrawElements(mode, _drawSize, GL_UNSIGNED_SHORT, (const GLvoid *)(ebo->getOffset(getBufferIndex()) + _drawOffset) );
+                if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_SHORT, (const GLvoid *)(ebo->getOffset(getBufferIndex()) + _drawOffset), _numInstances);
+                else glDrawElements(_mode, _drawSize, GL_UNSIGNED_SHORT, (const GLvoid *)(ebo->getOffset(getBufferIndex()) + _drawOffset) );
             }
             else
             {
                 state.getCurrentVertexArrayState()->unbindElementBufferObject();
-                if (_numInstances>=1) state.glDrawElementsInstanced(mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset, _numInstances);
-                else glDrawElements(mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset);
+                if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset, _numInstances);
+                else glDrawElements(_mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset);
             }
         }
         else
         {
-            if (_numInstances>=1) state.glDrawElementsInstanced(mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset, _numInstances);
-            else glDrawElements(mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset);
+            if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset, _numInstances);
+            else glDrawElements(_mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset);
         }
     }
 }
@@ -125,6 +119,8 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
     _d = new ScreenSpaceDrawElements(GL_TRIANGLES);
     osg::BoundingBox mainBBoxText;
     osg::BoundingBox mainBBoxIcon;
+    osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
+    const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
     const TextSymbol* textSymbol = style.get<TextSymbol>();
     const BBoxSymbol* bboxsymbol = style.get<BBoxSymbol>();
 
@@ -133,8 +129,6 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
     // Search for all icons
 
     StringVector iconList;
-    osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
-    const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
     if ( iconSym && iconSym->url().isSet() )
     {
         if ( ! iconSym->alignment().isSet() || ! iconSym->alignment().isSetTo(IconSymbol::ALIGN_CENTER_CENTER) )
@@ -163,6 +157,9 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
             {
                 // when decluttered the main icon is still drawn
                 _drawInClutteredMode = true;
+                if ( ! bboxsymbol )
+                    _d->_drawOffset = 0; // no bbox drawing / no offset needed
+
                 _mainIconDrawIndex.insert(_mainIconDrawIndex.begin(), _d->begin(), _d->end());
                 for ( unsigned int i = 0 ; i < _v->getNumElements() ; i++ )
                 {
@@ -217,7 +214,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
             else if ( ! textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() >= 2 && textList[1].find("I:") != 0 )
                 mainText += " | " + textList[1];
 
-            int nbVert = appendText(mainText, _mainFont, _mainTextColor, _mainFontSize, _altFirstLevel);
+            int nbVert = appendText(mainText, _mainFont, _mainTextColor, _mainFontSize, _altFirstLevel, true);
             if (nbVert > 0)
             {
                 TextSymbol::Alignment align = textSymbol->alignment().isSet() ?
@@ -672,7 +669,7 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
     return pushDrawElements(alt, drawIndices);
 }
 
-int MPAnnotationDrawable::appendText(const std::string& text, const std::string& font, const osg::Vec4& color, double fontSize, double alt)
+int MPAnnotationDrawable::appendText(const std::string& text, const std::string& font, const osg::Vec4& color, double fontSize, double alt, bool pushDrawAfter)
 {
     if ( ! _stateSetFontAltas.valid() )
         return 0;
@@ -793,7 +790,7 @@ int MPAnnotationDrawable::appendText(const std::string& text, const std::string&
 
         unsigned int last = _v->getNumElements() - 1;
         std::vector<GLushort> drawIndices { GLushort(last-3), GLushort(last-2), GLushort(last-1), GLushort(last-3), GLushort(last-1), GLushort(last)};
-        pushDrawElements(alt, drawIndices);
+        pushDrawElements(alt, drawIndices, pushDrawAfter);
 
         advance.x() += glyphInfo.advance * scale;
         nbVertices += 4;
@@ -803,7 +800,7 @@ int MPAnnotationDrawable::appendText(const std::string& text, const std::string&
 }
 
 
-int MPAnnotationDrawable::pushDrawElements(double alt, const std::vector<GLushort> &pDrawElt)
+int MPAnnotationDrawable::pushDrawElements(double alt, const std::vector<GLushort> &pDrawElt, bool pushDrawAfter)
 {
     int nbEltBefore = 0;
     int indexBefore = 0;
@@ -819,7 +816,10 @@ int MPAnnotationDrawable::pushDrawElements(double alt, const std::vector<GLushor
         // insert into an existing level
         else if ( level.altitudeMax == alt )
         {
-            _d->insert( _d->begin() + nbEltBefore /**+ level.drawElts.size()**/, pDrawElt.begin(), pDrawElt.end() );
+            if ( pushDrawAfter )
+                _d->insert( _d->begin() + nbEltBefore + level.drawElts.size(), pDrawElt.begin(), pDrawElt.end() );
+            else
+                _d->insert( _d->begin() + nbEltBefore, pDrawElt.begin(), pDrawElt.end() );
             level.drawElts.insert(level.drawElts.begin(), pDrawElt.begin(), pDrawElt.end());
             return indexBefore;
         }

@@ -31,16 +31,14 @@ struct OSGEARTHANNO_EXPORT ScreenSpaceDrawElements : public osg::DrawElementsUSh
     ScreenSpaceDrawElements(GLenum mode=0) : DrawElementsUShort(mode) {}
 
     ScreenSpaceDrawElements(const ScreenSpaceDrawElements& array, const osg::CopyOp& copyop=osg::CopyOp::SHALLOW_COPY):
-        DrawElementsUShort(array, copyop), _cluttered(array._cluttered)
+        DrawElementsUShort(array, copyop), _cluttered(array._cluttered), _drawOffset(array._drawOffset), _drawSize(array._drawSize)
         {}
 
     void draw(osg::State& state, bool useVertexBufferObjects) const override;
 
     bool _cluttered {false};
-
-    // by default, when declutter, the main icon quad still drawn but not the background box
-    int _drawOffset {6*2};
-    int _drawSize {6};
+    int _drawOffset {6*2}; // by default, when declutter, the main icon quad still drawn but not the background box
+    int _drawSize {6}; // one quad
 };
 
 
@@ -88,7 +86,12 @@ protected:
     void buildGeometry(const osgEarth::Symbology::Style& style);
 
     float appendIcon(const std::string& urlPath, const osg::Vec4 &color = Color::White, double alt = DBL_MAX, float xMax = FLT_MAX);
-    int appendText(const std::string &text, const std::string &font, const osg::Vec4 &color = Color::White, double fontSize = 16., double alt = DBL_MAX);
+    int appendText(const std::string &text,
+                   const std::string &font,
+                   const osg::Vec4 &color = Color::White,
+                   double fontSize = 16.,
+                   double alt = DBL_MAX,
+                   bool pushDrawAfter = false);
     int appendBox(const osg::BoundingBox &bbox,
                    const osg::Vec4 &fillColor = Color::White,
                    const osg::Vec4 &strokeColor = osg::Vec4(0., 0., 0., 0.),
@@ -101,7 +104,7 @@ protected:
     void moveTextPosition(int nbVertices, const osg::BoundingBox& refBBox,
                           osgEarth::Symbology::TextSymbol::Alignment alignment = osgEarth::Symbology::TextSymbol::Alignment::ALIGN_CENTER_CENTER);
 
-    int pushDrawElements(double alt, const std::vector<GLushort> &pDrawElt);
+    int pushDrawElements(double alt, const std::vector<GLushort> &pDrawElt, bool pushDrawAfter = false);
 
     void dirty();
 
