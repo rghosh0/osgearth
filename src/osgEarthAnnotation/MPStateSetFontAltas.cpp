@@ -35,7 +35,7 @@ const int MPStateSetFontAltas::ATTRIB_ANNO_COLOR2 = osg::Drawable::ATTRIBUTE_7;
 namespace  {
     const osgEarth::Symbology::Color    _highlightFillColor     { 0x3a6caaff };
     const osgEarth::Symbology::Color    _highlightStrokeColor   { 0x4b96ffff };
-    const float                         _highlightStrokeWidth   { 4.5f };
+    const float                         _highlightStrokeWidth   { 3.f };
 }
 
 
