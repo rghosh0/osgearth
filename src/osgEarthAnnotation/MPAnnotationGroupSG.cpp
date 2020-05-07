@@ -216,13 +216,13 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     //osg::BoundingSphere bSphere(annoDrawable->getBound());
 
     // priority
-//    osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
-//    const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
+    osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
+    const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
     const TextSymbol* ts = style.get<TextSymbol>();
     if (ts && ts->priority().isSet())
         annoDrawable->setPriority(static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval()));
-//    if ( (iconSym && iconSym->declutter().isSetTo(false)) || (ts && ts->declutter().isSetTo(false)))
-//        annoDrawable->_declutterActivated = false;
+    if ( (iconSym && iconSym->declutter().isSetTo(false)) || (ts && ts->declutter().isSetTo(false)))
+        annoDrawable->_declutterActivated = false;
 
     // orientation
     // technic is to create a at 2500m from the anchor with the given bearing

@@ -569,7 +569,7 @@ MPAnnotationGroupMG::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataL
 
     // sliding label
 
-    Geometry* geomSupport = nullptr;
+    osg::ref_ptr<Geometry> geomSupport = nullptr;
     LineString* geomLineString = nullptr;
 
     if( ts && ts->autoOffsetAlongLine().get() )
@@ -591,11 +591,11 @@ MPAnnotationGroupMG::updateLayoutData(osg::ref_ptr<ScreenSpaceLayoutData>& dataL
     {
         if( geomSupport->getType() == Geometry::TYPE_LINESTRING)
         {
-            geomLineString = dynamic_cast<LineString*>( geomSupport );
+            geomLineString = dynamic_cast<LineString*>( geomSupport.get() );
         }
         else
         {
-            const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport);
+            const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport.get());
             if( geomMulti )
                 geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
         }

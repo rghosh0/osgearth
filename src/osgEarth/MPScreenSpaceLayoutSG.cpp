@@ -432,6 +432,9 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             ++i )
         {
             osgUtil::RenderLeaf* leaf = *i;
+            if ( ! leaf->_drawable.valid() )
+                continue;
+
             MPScreenSpaceGeometry* annoDrawable = static_cast<MPScreenSpaceGeometry*>(leaf->_drawable.get());
 
             // transform the bounding box of the drawable into window-space.
@@ -514,7 +517,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             {
 
                 // A max priority => never occlude.
-                float priority = annoDrawable ? annoDrawable->_priority : 0.0f;
+                float priority = annoDrawable->_priority;
 
                 if ( useScreenGrid )
                 {
@@ -524,7 +527,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                     mapEndY = osg::clampTo(static_cast<int>(floor((box.yMax() - vpYMin) / mapSizeY)), 0, screenMapNbRow-1);
                 }
 
-                if ( priority == FLT_MAX )
+                if ( priority == FLT_MAX || ! annoDrawable->_declutterActivated)
                 {
                     visible = true;
                 }
@@ -579,7 +582,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 {
                     // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
                     // to the final draw list.
-                    local._used.push_back( box );
+                    if ( annoDrawable->_declutterActivated )
+                        local._used.push_back( box );
                     local._passed.push_back( leaf );
 
                     if ( useScreenGrid )
@@ -629,7 +633,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 bool fullyIn = true;
                 bool displaySomethingInCluttered = annoDrawable->drawInClutteredMode();
                 if ( displaySomethingInCluttered )
-                    annoDrawable->activeClutteredMode( false );
+                    annoDrawable->activeClutteredDrawMode( false );
 
                 // scale in until at full scale:
                 if ( annoDrawable->_declutter_lastScale != 1. )
@@ -659,7 +663,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 MPScreenSpaceGeometry* annoDrawable = static_cast<MPScreenSpaceGeometry*>(leaf->_drawable.get());
                 bool displaySomethingInCluttered = annoDrawable->drawInClutteredMode();
                 if ( displaySomethingInCluttered )
-                    annoDrawable->activeClutteredMode( true );
+                    annoDrawable->activeClutteredDrawMode( true );
 
                 //DrawableInfo& info = local._memory[drawable];
 

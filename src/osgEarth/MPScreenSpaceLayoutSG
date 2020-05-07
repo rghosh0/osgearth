@@ -94,7 +94,7 @@ public:
     const osg::BoundingBox& getBBoxSymetric() const { return _bboxSymetric; }
 
     /** active the decluttered mode of this annotation **/
-    virtual void activeClutteredMode( bool cluttered ) {}
+    virtual void activeClutteredDrawMode( bool cluttered ) {}
 
     /** true if this annotation still draw something even when fully cluttered **/
     bool drawInClutteredMode( ) const { return _drawInClutteredMode; }
@@ -103,6 +103,7 @@ public:
     long       _id{1};
     float      _originalPriority{0.f};
     float      _priority{0.f};
+    bool       _declutterActivated{true} ;
     osg::Vec2s _pixelOffset{0, 0};
     bool       _autoRotate{false}, _autoFollowLine{false};
     osg::Vec3d _anchorPoint, _lineStart, _lineEnd;
