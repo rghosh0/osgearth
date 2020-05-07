@@ -6,6 +6,7 @@
 
 #include <osgText/String>
 #include <osgDB/FileNameUtils>
+#include <osg/Math>
 
 
 
@@ -470,7 +471,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         BBoxSymbol::BboxGeom geomType = bboxsymbol->geom().isSet() ? bboxsymbol->geom().get() : BBoxSymbol::BboxGeom::GEOM_STAIR;
         osg::BoundingBox box(trBbox);
         box.expandBy(blBbox);
-        appendBox(box, Color::Gray, strokeColor, geomType, false, borderThickness, _bbox_margin);
+        appendBox(box, Color::Gray, strokeColor, geomType, false, borderThickness, 0.f, _bbox_margin);
     }
 
     // build mora pattern
@@ -730,6 +731,8 @@ int MPAnnotationDrawable::appendText(const std::string& text, const std::string&
     osg::Vec3 advance(0., 0., 0.);
     std::vector<unsigned int> drawIndices;
     int nbVertices = 0;
+    float yMin = FLT_MAX;
+    float yMax = -FLT_MAX;
     osgText::String textFormated(tmpText, _text_encoding);
     MPStateSetFontAltas::GlyphMap::const_iterator itGlyph;
     for ( osgText::String::const_iterator itrChar=textFormated.begin() ; itrChar!=textFormated.end() ; ++itrChar )
@@ -766,6 +769,16 @@ int MPAnnotationDrawable::appendText(const std::string& text, const std::string&
         _v->push_back( glyphInfo.lt_v * scale + advance );
         _v->push_back( glyphInfo.rt_v * scale + advance );
         _v->push_back( glyphInfo.rb_v * scale + advance );
+
+        // case '|' character then move it so that it is well aligned with the rest of the characters
+        if ( charcode == 124 )
+        {
+            (*_v)[_v->size()-1].y() = (*_v)[_v->size()-4].y() = yMin;
+            (*_v)[_v->size()-2].y() = (*_v)[_v->size()-3].y() = yMax;
+        }
+
+        yMin = osg::minimum(yMin, (*_v)[_v->size()-1].y());
+        yMax = osg::maximum(yMax, (*_v)[_v->size()-2].y());
 
         _c->push_back( color );
         _c->push_back( color );
@@ -942,7 +955,7 @@ void MPAnnotationDrawable::moveTextPosition(int nbVertices, const osg::BoundingB
     // then translate
     if ( doTranslation )
         for ( unsigned int i = _v->getNumElements()-nbVertices ; i < _v->getNumElements() ; ++i )
-            _v->at(i) += translate;
+            (*_v)[i] += translate;
 }
 
 void MPAnnotationDrawable::setAltitude(double alt)
