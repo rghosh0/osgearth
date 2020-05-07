@@ -22,6 +22,7 @@ namespace  {
     const Color magenta(1., 135./255., 195./255.);
     const Color almostRed("fe332d");
     const osg::BoundingBox bboxZero(0., 0., 0., 0., 0., 0.);
+    const float rightMarginInnerRndBox(2.);
 }
 
 
@@ -357,12 +358,26 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         else if ( groupType == BBoxSymbol::GROUP_ICON_AND_TEXT && mainBBoxIcon.valid() && mainBBoxText.valid() )
         {
             osg::BoundingBox groupBbox( mainBBoxIcon );
+            // expand the icon bbox to scale it like the text
+            float txtHeight = mainBBoxText.yMax() - mainBBoxText.yMin();
+            float iconHeight = groupBbox.yMax() - groupBbox.yMin();
+            float correction = txtHeight - iconHeight;
+            if ( correction > 0. )
+            {
+                correction = correction / 2.;
+                groupBbox.xMin() -= correction;
+            }
+            else
+            {
+                correction = 0.;
+            }
+            if ( geomType == BBoxSymbol::BboxGeom::GEOM_BOX_ROUNDED_INNER )
+                correction -= rightMarginInnerRndBox;
             groupBbox.expandBy( mainBBoxText );
-            appendBox(groupBbox, fillColor, strokeColor, geomType, oppose,
-                      borderThickness, reverseVideoXThreshold, _bbox_margin);
+            appendBox(groupBbox, fillColor, strokeColor, geomType, oppose, borderThickness, reverseVideoXThreshold, _bbox_margin);
             // add the xShift to do in the right LOD
             _LODlist[_LODlist.size()-1].shiftVec.push_back( ShiftInfo({_v->getNumElements()-1, _v->getNumElements()-2},
-                                                                      osg::Vec3(mainBBoxText.xMax() - mainBBoxIcon.xMax(), 0., 0.)) );
+                                         osg::Vec3(mainBBoxText.xMax() - mainBBoxIcon.xMax() - correction, 0., 0.)) );
         }
     }
 
@@ -590,7 +605,10 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
         case BBoxSymbol::GEOM_BOX_ROUNDED :
             xMaxMargin += height/2.;
             xMinMargin = xMaxMargin;
+            drawType = MPStateSetFontAltas::TYPE_BBOX_ROUNDED;
+            break;
         case BBoxSymbol::GEOM_BOX_ROUNDED_INNER :
+            xMaxMargin += rightMarginInnerRndBox;
             drawType = MPStateSetFontAltas::TYPE_BBOX_ROUNDED;
             break;
         case BBoxSymbol::GEOM_BOX_ORIENTED :
@@ -648,7 +666,7 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
     // push the draw info
     float boxAdditionalInfo = strokeWidth / 10.;
     if ( reverseVideoX > 0. )
-            boxAdditionalInfo += reverseVideoX - (bbox.xMin()-xMinMargin);
+        boxAdditionalInfo += reverseVideoX - (bbox.xMin()-xMinMargin);
     float width = bbox.xMax() - bbox.xMin() + xMaxMargin + xMinMargin;
     _infoArray->push_back( osg::Vec4(width, height, drawType, boxAdditionalInfo) );
     _infoArray->push_back( osg::Vec4(width, height, drawType, boxAdditionalInfo) );
@@ -763,7 +781,7 @@ int MPAnnotationDrawable::appendText(const std::string& text, const std::string&
         }
 
         const GlyphInfo& glyphInfo = itGlyph->second;
-        double scale = ( fontSize / _stateSetFontAltas->refFontSize ) * Registry::instance()->getDevicePixelRatio();
+        double scale = ( fontSize / _stateSetFontAltas->refFontSize );
 
         _v->push_back( glyphInfo.lb_v * scale + advance );
         _v->push_back( glyphInfo.lt_v * scale + advance );
