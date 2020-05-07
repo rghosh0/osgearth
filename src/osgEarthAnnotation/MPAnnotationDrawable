@@ -76,8 +76,12 @@ public:
     /** change main icon color **/
     void setIconColor( const Color& color );
 
+    /** management of the visibility of this annotation **/
+    void setVisible(bool visible);
+    bool isVisible() const { return _isVisible; }
+
     /** active the decluttered mode of this annotation **/
-    void activeClutteredMode( bool cluttered ) override;
+    void activeClutteredDrawMode( bool cluttered ) override;
 
 protected:
 
@@ -114,17 +118,19 @@ protected:
     // highlight current state
     bool _isHighlighted {false};
 
+    // false if this annotation must be hidden
+    bool _isVisible {true};
+
     // main icon vertices
     std::vector<unsigned int> _mainIconVertices;
     std::vector<unsigned int> _mainIconDrawIndex;
 
-    osg::ref_ptr<osg::Vec3Array> _v {nullptr};
-    osg::ref_ptr<osg::Vec4Array> _c {nullptr};
-    osg::ref_ptr<osg::Vec2Array> _t {nullptr};
-    osg::ref_ptr<osg::Vec4Array> _infoArray {nullptr};
-    osg::ref_ptr<osg::Vec4Array> _c2 {nullptr};
-    //osg::ref_ptr<osg::DrawElementsUShort> _d {nullptr};
-    osg::ref_ptr<ScreenSpaceDrawElements> _d {nullptr};
+    osg::observer_ptr<osg::Vec3Array> _v {nullptr};
+    osg::observer_ptr<osg::Vec4Array> _c {nullptr};
+    osg::observer_ptr<osg::Vec2Array> _t {nullptr};
+    osg::observer_ptr<osg::Vec4Array> _infoArray {nullptr};
+    osg::observer_ptr<osg::Vec4Array> _c2 {nullptr};
+    osg::observer_ptr<ScreenSpaceDrawElements> _d {nullptr};
 
     URIContext _context;
     const osgDB::Options* _readOptions {nullptr};

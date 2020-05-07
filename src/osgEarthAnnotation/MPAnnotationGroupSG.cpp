@@ -63,6 +63,7 @@ namespace
                 float vpYmax = cullVisitor->getViewport()->y() + cullVisitor->getViewport()->height();
                 double alt = DBL_MAX;
                 cullVisitor->getCurrentCamera()->getUserValue("altitude", alt);
+                float eyePointLength2 = _backCull ? cullVisitor->getEyePoint().length2() : 0.;
 
                 osg::ref_ptr<MPAnnotationGroupSG> annoGroup = static_cast<MPAnnotationGroupSG*>(node);
 
@@ -70,18 +71,27 @@ namespace
                 {
                     osg::ref_ptr<MPAnnotationDrawable> annoDrawable = static_cast<MPAnnotationDrawable*>(annoGroup->getChild(i));
 
+                    // visibility management
+                    if ( ! annoDrawable->isVisible() )
+                    {
+                         annoDrawable->setNodeMask(0);
+                         continue;
+                    }
+
+                    // transform to screen
                     annoDrawable->_cull_anchorOnScreen = annoDrawable->_anchorPoint * MVPW;
                     annoDrawable->_cull_bboxSymetricOnScreen.set(annoDrawable->_cull_anchorOnScreen + annoDrawable->getBBoxSymetric()._min,
                                                                  annoDrawable->_cull_anchorOnScreen + annoDrawable->getBBoxSymetric()._max);
 
 
                     // check opposite side of the globe
-                    if ( _backCull && (cullVisitor->getEyePoint() - annoDrawable->_anchorPoint).length2() > cullVisitor->getEyePoint().length2() )
+                    if ( _backCull && (cullVisitor->getEyePoint() - annoDrawable->_anchorPoint).length2() > eyePointLength2 )
                     {
                         annoDrawable->setNodeMask(0);
                         continue;
                     }
 
+                    // chek if it is out of viewport
                     if ( ! annoDrawable->isAutoFollowLine() )
                     {
                         // out of viewport
@@ -206,9 +216,13 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     //osg::BoundingSphere bSphere(annoDrawable->getBound());
 
     // priority
+//    osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
+//    const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
     const TextSymbol* ts = style.get<TextSymbol>();
     if (ts && ts->priority().isSet())
         annoDrawable->setPriority(static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval()));
+//    if ( (iconSym && iconSym->declutter().isSetTo(false)) || (ts && ts->declutter().isSetTo(false)))
+//        annoDrawable->_declutterActivated = false;
 
     // orientation
     // technic is to create a at 2500m from the anchor with the given bearing
@@ -254,7 +268,7 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
 
     // sliding label
 
-    Geometry* geomSupport = nullptr;
+    osg::ref_ptr<Geometry> geomSupport = nullptr;
     LineString* geomLineString = nullptr;
 
     if( ts && ts->autoOffsetAlongLine().get() )
@@ -276,9 +290,9 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     {
         if( geomSupport->getType() == Geometry::TYPE_LINESTRING)
         {
-            geomLineString = dynamic_cast<LineString*>( geomSupport );
+            geomLineString = dynamic_cast<LineString*>( geomSupport.get() );
         }
-        else if (const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport))
+        else if (const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>( geomSupport.get() ))
         {
             geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
         }
@@ -354,4 +368,13 @@ MPAnnotationGroupSG::setIconColor(long id, const Color& color)
     MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
     if ( itr != _mainGeomDrawableList.end() )
         static_cast<MPAnnotationDrawable*>( itr->second.get() )->setIconColor(color);
+}
+
+void
+MPAnnotationGroupSG::setVisible( long id, bool visible )
+{
+
+    MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
+    if ( itr != _mainGeomDrawableList.end() )
+        static_cast<MPAnnotationDrawable*>( itr->second.get() )->setVisible( visible );
 }

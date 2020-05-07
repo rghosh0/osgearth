@@ -1093,13 +1093,18 @@ void MPAnnotationDrawable::setIconColor(const Color &color )
         (*_c)[i] = color;
 }
 
+void MPAnnotationDrawable::setVisible(bool visible)
+{
+    _isVisible = visible;
+}
 
-void MPAnnotationDrawable::activeClutteredMode( bool cluttered )
+void MPAnnotationDrawable::activeClutteredDrawMode( bool cluttered )
 {
     if ( cluttered == _cluttered )
         return;
 
-    _d->_cluttered = cluttered;
+    if ( _d.valid() )
+        _d->_cluttered = cluttered;
 
     _cluttered = cluttered;
 }

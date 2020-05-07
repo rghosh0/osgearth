@@ -43,6 +43,9 @@ public:
     // change icon color
     virtual void setIconColor(long id, const Color &color ) override;
 
+    // change the visibility status
+    virtual void setVisible( long id, bool visible ) override;
+
     // Need a custom bounding sphere for the culling process
     virtual osg::BoundingSphere computeBound () const override;
 
