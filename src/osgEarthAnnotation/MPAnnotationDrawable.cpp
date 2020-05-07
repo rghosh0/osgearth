@@ -614,11 +614,11 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
         case BBoxSymbol::GEOM_BOX_ORIENTED :
         case BBoxSymbol::GEOM_BOX_ORIENTED_SYM :
             drawType = MPStateSetFontAltas::TYPE_BBOX_ONEARROW;
-            xMaxMargin += (bbox.yMax() - bbox.yMin()) / 3.;
+            xMaxMargin += height / 3.;
             break;
         case BBoxSymbol::GEOM_BOX_ORIENTED_2WAYS:
             drawType = MPStateSetFontAltas::TYPE_BBOX_TWOARROWS;
-            xMaxMargin += (bbox.yMax() - bbox.yMin()) / 3.;
+            xMaxMargin += height / 3.;
             xMinMargin = xMaxMargin;
             break;
         case BBoxSymbol::GEOM_STAIR:
@@ -626,7 +626,7 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
             break;
         case BBoxSymbol::GEOM_BOX_ROUNDED_ORIENTED:
             drawType = MPStateSetFontAltas::TYPE_BBOX_ROUNDED_ORIENTED;
-            xMaxMargin += (bbox.yMax() - bbox.yMin()) / 3.;
+            xMaxMargin += height / 3.;
             break;
         default: ;
     }
