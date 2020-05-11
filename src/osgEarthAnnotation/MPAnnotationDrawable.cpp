@@ -597,7 +597,6 @@ float MPAnnotationDrawable::appendIcon(const std::string& urlPath, const osg::Ve
     }
 
     const IconInfo& iconInfo = itIcon->second;
-    const double scale = Registry::instance()->getDevicePixelRatio();
 
     // compute the x translation if necessary
     osg::Vec3 rightShift ( 0.f, 0.f, 0.f );
@@ -605,10 +604,10 @@ float MPAnnotationDrawable::appendIcon(const std::string& urlPath, const osg::Ve
         rightShift.x() += xMax + iconInfo.size.x()/ 2.f + _icon_margin;
 
     // push vertices
-    _v->push_back( iconInfo.lb_v * scale + rightShift );
-    _v->push_back( iconInfo.lt_v * scale + rightShift );
-    _v->push_back( iconInfo.rt_v * scale + rightShift );
-    _v->push_back( iconInfo.rb_v * scale + rightShift );
+    _v->push_back( iconInfo.lb_v + rightShift );
+    _v->push_back( iconInfo.lt_v + rightShift );
+    _v->push_back( iconInfo.rt_v + rightShift );
+    _v->push_back( iconInfo.rb_v + rightShift );
 
     // push colors
     _c->push_back( color );
