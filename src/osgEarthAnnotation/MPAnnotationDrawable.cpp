@@ -85,6 +85,7 @@ MPAnnotationDrawable::MPAnnotationDrawable(const Style &style, const osgDB::Opti
     _mainFontSize = textSymbol && textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.;
     _multi_text_margin = textSymbol && textSymbol->predefinedOrganisationMargin().isSet() ? textSymbol->predefinedOrganisationMargin().value() : 4.f;
     _altFirstLevel = textSymbol && textSymbol->minRange().isSet() ? textSymbol->minRange().get() : DBL_MAX;
+    _alt2ndLevel = textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : _altFirstLevel;
 
     const TextSymbol* textSym = style.get<TextSymbol>();
     if ( textSym && textSym->encoding().isSet() )
@@ -213,7 +214,9 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
             // add the separator if necessary
             if ( iconList.size() > 1 )
                 mainText += " | ";
-            else if ( ! textSymbol->predefinedOrganisation().isSetTo("airway") && textList.size() >= 2 && textList[1].find("I:") != 0 )
+            else if ( ! textSymbol->predefinedOrganisation().isSetTo("airway")
+                      && ! textSymbol->predefinedOrganisation().isSetTo("thresholdApproach")
+                      && textList.size() >= 2 && textList[1].find("I:") != 0 )
                 mainText += " | " + textList[1];
 
             int nbVert = appendText(mainText, _mainFont, _mainTextColor, _mainFontSize, _altFirstLevel, true);
@@ -397,7 +400,6 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         float fontSizeSmaller = _mainFontSize / 18.f * 15.f;
         float fontSizeList[] = {fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller, fontSizeSmaller};
         Color colorList[] = {_mainTextColor, _mainTextColor, _mainTextColor, magenta, _mainTextColor, _mainTextColor};
-        double alt2ndLevel = textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : _altFirstLevel;
         // make the font regular for the secondary texts
         std::string subFont(_mainFont);
         replaceIn(subFont, "Bold", "Regular");
@@ -405,7 +407,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         // for each text (except the first one)
         for ( unsigned int i=1 ; i<textList.size() ; ++i )
         {
-            int nbVert = appendText(textList[i], subFont, colorList[i-1], fontSizeList[i-1], alt2ndLevel);
+            int nbVert = appendText(textList[i], subFont, colorList[i-1], fontSizeList[i-1], _alt2ndLevel);
             if (nbVert > 0)
             {
                 moveTextPosition(nbVert, refBbox, alignList[i-1]);
@@ -433,7 +435,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                     osg::BoundingBox box;
                     for (unsigned int j = _v->size() - nbVert ; j < _v->size() ; j++)
                         box.expandBy( (*_v)[j] );
-                    appendBox( box, Color::Black, Color::White, BBoxSymbol::GEOM_BOX, false, 1.f, 0.f, 3.f, alt2ndLevel);
+                    appendBox( box, Color::Black, Color::White, BBoxSymbol::GEOM_BOX, false, 1.f, 0.f, 3.f, _alt2ndLevel);
                 }
             }
         }
@@ -516,6 +518,45 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         }
     }
 
+    // build threshold and approach
+    else if ( textSymbol && textSymbol->predefinedOrganisation().isSetTo("thresholdApproach") && textList.size() == 2 )
+    {
+        osg::BoundingBox refBbox;
+        for (unsigned int i = 0 ; i < _v->size() ; ++i)
+            refBbox.expandBy( (*_v)[i] );
+        const osg::Vec3 marginVec(_multi_text_margin+_bbox_margin, _multi_text_margin+_bbox_margin, 0.);
+        refBbox.set( refBbox._min - marginVec, refBbox._max + marginVec);
+
+        int nbVert = appendText( textList[1], _mainFont, _mainTextColor, _mainFontSize, _alt2ndLevel );
+        if (nbVert > 0)
+        {
+            moveTextPosition(nbVert, refBbox, TextSymbol::ALIGN_RIGHT_CENTER);
+            osg::Vec4 fillColor = bboxsymbol->fill().isSet() ? bboxsymbol->fill().get().color() : Color::Black;
+            float borderThickness = bboxsymbol->border().isSet() && bboxsymbol->border().get().width().isSet() ? bboxsymbol->border().get().width().get() : 0.f;
+            osg::BoundingBox box;
+            for (unsigned int j = _v->size() - nbVert ; j < _v->size() ; j++)
+                box.expandBy( (*_v)[j] );
+            appendBox( box, fillColor, Color::White, BBoxSymbol::GEOM_BOX, false, 0.f, 0.f, _bbox_margin-borderThickness, _alt2ndLevel );
+
+            float xMin = FLT_MAX;
+            float xMax = -FLT_MAX;
+            ShiftInfo shiftData;
+            for (unsigned int j = _v->size() - nbVert-4 ; j < _v->size() ; j++)
+            {
+                float x = (*_v)[j].x();
+                if ( x < xMin )
+                    xMin = x;
+                if ( x > xMax )
+                    xMax = x;
+                shiftData.first.push_back(j);
+            }
+            shiftData.second = osg::Vec3(xMax + xMin, 0., 0.);
+            _rot_verticesToShift.push_back( shiftData );
+            // approach labels are displayed by defaut and are hidden when zoomed in
+            _invertLOD = true;
+        }
+    }
+
     setVertexArray( _v.get() );
     setTexCoordArray( 0u, _t.get(), osg::Array::BIND_PER_VERTEX );
     setColorArray( _c.get(), osg::Array::BIND_PER_VERTEX );
@@ -526,8 +567,16 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
     if ( getVertexArray()->getVertexBufferObject() )
         getVertexArray()->getVertexBufferObject()->setUsage(GL_STATIC_DRAW_ARB);
 
-    _camAlt = 0.;
-    _LOD = _LODlist.size()-1;
+    if ( _invertLOD )
+    {
+        _camAlt = DBL_MAX;
+        _LOD = 0;
+    }
+    else
+    {
+        _camAlt = 0.;
+        _LOD = _LODlist.size()-1;
+    }
     const osg::BoundingSphere &bSphere = getBound();
     osg::Vec3 radius(bSphere.radius(), bSphere.radius(), 0.);
     _bboxSymetric.set( bSphere.center() - radius, bSphere.center() + radius);
@@ -940,7 +989,7 @@ void MPAnnotationDrawable::moveTextPosition(int nbVertices, const osg::BoundingB
     {
         osg::Vec3 refCenter(refBBox.center());
         osg::Vec3 textCenter(textBBox.center());
-        translate.set( refCenter.x() - textBBox.xMax() - _multi_text_margin,  - textCenter.y() + refCenter.y(), 0. );
+        translate.set( refBBox.xMin() - textBBox.xMax() - _multi_text_margin,  - textCenter.y() + refCenter.y(), 0. );
         doTranslation = true;
     }
 
@@ -995,7 +1044,15 @@ void MPAnnotationDrawable::setAltitude(double alt)
             {
                 // hide elements
 //                OE_WARN << LC << "    zoom out NEW LOD " << i-1 << "\n";
-                _d->resizeElements(_d->size() - _LODlist[i].drawElts.size());
+                if ( _invertLOD )
+                {
+                    for ( auto elt : _LODlist[i].drawElts )
+                        _d->addElement(elt);
+                }
+                else
+                {
+                    _d->resizeElements(_d->size() - _LODlist[i].drawElts.size());
+                }
                 for ( const auto& xShift : _LODlist[i].shiftVec )
                 {
                     for ( auto i : xShift.first )
@@ -1026,9 +1083,17 @@ void MPAnnotationDrawable::setAltitude(double alt)
         {
             if ( alt <= _LODlist[i].altitudeMax )
             {
-                // push elements
-                for ( auto elt : _LODlist[i].drawElts )
-                    _d->addElement(elt);
+                // push elements (or remove if logics are inverted)
+                if ( _invertLOD )
+                {
+                    _d->resizeElements(_d->size() - _LODlist[i].drawElts.size());
+                }
+                else
+                {
+                    for ( auto elt : _LODlist[i].drawElts )
+                        _d->addElement(elt);
+                }
+
 //                OE_WARN << LC << "    zoom in NEW LOD " << i << "\n";
                 for ( const auto& shift : _LODlist[i].shiftVec )
                 {

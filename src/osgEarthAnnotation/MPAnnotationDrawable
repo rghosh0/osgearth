@@ -146,12 +146,14 @@ protected:
     Color _mainTextColor {Color::White};
     double _mainFontSize {16.};
     double _altFirstLevel {DBL_MAX};
+    double _alt2ndLevel {DBL_MAX};
     osgText::String::Encoding _text_encoding{osgText::String::ENCODING_UNDEFINED};
     double _camAlt {0.};
     int _LOD {-1};
     bool _inverted{false};
     std::vector<unsigned int> _rot_verticesToInvert;
     std::vector<ShiftInfo> _rot_verticesToShift;
+    bool _invertLOD { false };
 };
 
 } }
