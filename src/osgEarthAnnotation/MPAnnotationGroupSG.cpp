@@ -41,6 +41,7 @@ namespace
 {
     const osg::Node::NodeMask nodeNoMask = 0xffffffff;
     const float PIby2 = osg::PI / 2.f;
+    const GeoPoint undefPoint;
 
 
     // Callback to properly cull the MPAnnotationGroup2
@@ -399,4 +400,25 @@ MPAnnotationGroupSG::updateGeometry(long id, osgEarth::Symbology::Geometry *geom
         static_cast<MPAnnotationDrawable*>( itr->second.get() )->updateGeometry( geom, geographicCourse );
 
     dirtyBound();
+}
+
+// change the position of this annotation
+void
+MPAnnotationGroupSG::updateGeometry(long id, GeoPoint &pos , double geographicCourse)
+{
+    MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
+    if ( itr != _mainGeomDrawableList.end() )
+        static_cast<MPAnnotationDrawable*>( itr->second.get() )->updateGeometry( pos, geographicCourse );
+
+    dirtyBound();
+}
+
+const GeoPoint&
+MPAnnotationGroupSG::getPosition(long id) const
+{
+    MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
+    if ( itr != _mainGeomDrawableList.end() )
+        return static_cast<MPAnnotationDrawable*>( itr->second.get() )->getPosition();
+
+    return undefPoint;
 }

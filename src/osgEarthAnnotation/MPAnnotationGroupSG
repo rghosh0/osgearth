@@ -52,8 +52,12 @@ public:
     // Need a custom bounding sphere for the culling process
     virtual osg::BoundingSphere computeBound () const override;
 
-    // change the position of this annotation
+    // change the position of one annotation
     void updateGeometry(long id, osgEarth::Symbology::Geometry *geom , double geographicCourse = DBL_MAX);
+    void updateGeometry(long id, GeoPoint &pos , double geographicCourse = DBL_MAX);
+
+    // get the current position of one annotation
+    const GeoPoint& getPosition(long id) const;
 
 protected:
 
