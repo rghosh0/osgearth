@@ -15,9 +15,8 @@
 #define OSGEARTH_ANNOTATION_DRAWABLE_H 1
 
 
-#include <osg/Geometry>
-
 #include <osgEarthSymbology/Style>
+#include <osgEarthSymbology/Geometry>
 #include <osgEarthAnnotation/MPStateSetFontAltas>
 #include <osgEarth/MPScreenSpaceLayoutSG>
 
@@ -86,6 +85,13 @@ public:
     /** active the decluttered mode of this annotation **/
     void activeClutteredDrawMode( bool cluttered ) override;
 
+    /** change the position of this annotation **/
+    void updateGeometry(GeoPoint &pos , double geographicCourse = DBL_MAX);
+    void updateGeometry(const Symbology::Geometry *geom, double geographicCourse = DBL_MAX );
+
+    /** get the current position **/
+    const GeoPoint& getPosition() const { return _position; };
+
 protected:
 
     virtual ~MPAnnotationDrawable() { }
@@ -123,6 +129,9 @@ protected:
 
     // false if this annotation must be hidden
     bool _isVisible {true};
+
+    // the current position
+    GeoPoint _position;
 
     // main icon vertices
     std::vector<unsigned int> _mainIconVertices;

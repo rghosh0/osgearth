@@ -208,11 +208,8 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     annoDrawable->setDataVariance(DataVariance::DYNAMIC);
 
     // compute the anchor point as the centroid of the geometry
-    const osg::Vec3d center = geom->getCentroid();
-    GeoPoint pos( osgEarth::SpatialReference::get("wgs84"), center.x(), center.y(), center.z(), ALTMODE_ABSOLUTE );
-    osg::Vec3d p0;
-    pos.toWorld(p0);
-    annoDrawable->setAnchorPoint(p0);
+    annoDrawable->updateGeometry( geom );
+    GeoPoint pos = annoDrawable->getPosition();
     //osg::BoundingSphere bSphere(annoDrawable->getBound());
 
     // priority
@@ -312,6 +309,7 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
             if( ts->autoOffsetGeomWKT().isSet() )
             {
                 // Direction to the longest distance
+                const osg::Vec3d center = pos.vec3d();
                 if( (geoStart.vec3d() - center).length2() > (geoEnd.vec3d() - center).length2() )
                 {
                     geoEnd.toWorld(p1);
@@ -373,8 +371,32 @@ MPAnnotationGroupSG::setIconColor(long id, const Color& color)
 void
 MPAnnotationGroupSG::setVisible( long id, bool visible )
 {
-
     MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
     if ( itr != _mainGeomDrawableList.end() )
         static_cast<MPAnnotationDrawable*>( itr->second.get() )->setVisible( visible );
+}
+
+// remove one annotation
+void
+MPAnnotationGroupSG::removeAnnotation( long id )
+{
+    MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
+    if ( itr != _mainGeomDrawableList.end() )
+    {
+        removeChild( itr->second.get() );
+        _mainGeomDrawableList.erase( itr );
+    }
+
+    dirtyBound();
+}
+
+// change the position of this annotation
+void
+MPAnnotationGroupSG::updateGeometry(long id, osgEarth::Symbology::Geometry *geom , double geographicCourse)
+{
+    MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
+    if ( itr != _mainGeomDrawableList.end() )
+        static_cast<MPAnnotationDrawable*>( itr->second.get() )->updateGeometry( geom, geographicCourse );
+
+    dirtyBound();
 }

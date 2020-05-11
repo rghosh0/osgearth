@@ -32,3 +32,4 @@ void MPAnnotationGroup::setIconColor(long id, const Color &color ) {}
 
 // change the visibility status
 void MPAnnotationGroup::setVisible( long id, bool visible ) {}
+

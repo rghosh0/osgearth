@@ -46,8 +46,14 @@ public:
     // change the visibility status
     virtual void setVisible( long id, bool visible ) override;
 
+    // remove one annotation
+    void removeAnnotation( long id );
+
     // Need a custom bounding sphere for the culling process
     virtual osg::BoundingSphere computeBound () const override;
+
+    // change the position of this annotation
+    void updateGeometry(long id, osgEarth::Symbology::Geometry *geom , double geographicCourse = DBL_MAX);
 
 protected:
 

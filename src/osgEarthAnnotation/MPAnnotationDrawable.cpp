@@ -3,6 +3,7 @@
 #include <osgEarthSymbology/InstanceSymbol>
 #include <osgEarth/Registry>
 #include <osgEarthAnnotation/AnnotationUtils>
+#include <osgEarth/GeoMath>
 
 #include <osgText/String>
 #include <osgDB/FileNameUtils>
@@ -1191,4 +1192,53 @@ void MPAnnotationDrawable::activeClutteredDrawMode( bool cluttered )
         _d->_cluttered = cluttered;
 
     _cluttered = cluttered;
+}
+
+void MPAnnotationDrawable::updateGeometry(const Symbology::Geometry *geom, double geographicCourse )
+{
+    const osg::Vec3d center = geom->getCentroid();
+    GeoPoint pos( osgEarth::SpatialReference::get("wgs84"), center.x(), center.y(), center.z(), ALTMODE_ABSOLUTE );
+    updateGeometry( pos, geographicCourse );
+}
+
+void MPAnnotationDrawable::updateGeometry(GeoPoint &pos, double geographicCourse )
+{
+    // compute the anchor point as the centroid of the geometry
+    osg::Vec3d p0;
+    pos.toWorld(p0);
+    setAnchorPoint(p0);
+    _position = pos;
+    //osg::BoundingSphere bSphere(annoDrawable->getBound());
+
+    // orientation
+    // technic is to create a at 2500m from the anchor with the given bearing
+    // then the projection in screenspace of both points will be used to compute the screen-space angle
+    if ( geographicCourse != DBL_MAX )
+    {
+        double labelRotationRad = osg::DegreesToRadians ( geographicCourse );
+
+        double latRad;
+        double longRad;
+        GeoMath::destination(osg::DegreesToRadians(pos.y()),
+                             osg::DegreesToRadians(pos.x()),
+                             labelRotationRad,
+                             2500.,
+                             latRad,
+                             longRad);
+
+        osgEarth::GeoPoint lineEndPoint;
+        lineEndPoint.set(osgEarth::SpatialReference::get("wgs84"),
+                         osg::RadiansToDegrees(longRad),
+                         osg::RadiansToDegrees(latRad),
+                         0,
+                         osgEarth::ALTMODE_ABSOLUTE);
+
+        osg::Vec3d p1;
+        lineEndPoint.toWorld(p1);
+        setLineEndPoint(p1);
+        setAutoRotate(true);
+    }
+
+    // dirty bound done at parent level
+    //dirtyBound();
 }
