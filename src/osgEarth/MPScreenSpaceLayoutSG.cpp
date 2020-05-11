@@ -1032,7 +1032,6 @@ class MPScreenSpaceLayoutSGExtension : public Extension,
 {
 public:
     META_OE_Extension(osgEarth, MPScreenSpaceLayoutSGExtension, mp_screen_space_layout_sg)
-    //META_OE_Extension(osgEarth, MPScreenSpaceLayoutExtension, screen_space_layout);
 
     MPScreenSpaceLayoutSGExtension() { }
 

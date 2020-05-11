@@ -22,7 +22,7 @@ namespace  {
     const Color magenta(1., 135./255., 195./255.);
     const Color almostRed("fe332d");
     const osg::BoundingBox bboxZero(0., 0., 0., 0., 0., 0.);
-    const float rightMarginInnerRndBox(2.);
+    const float rightMarginInnerRndBox(4.);
 }
 
 
@@ -31,7 +31,7 @@ void ScreenSpaceDrawElements::draw(osg::State& state, bool useVertexBufferObject
     // standard draw
     if (! _cluttered)
     {
-        DrawElementsUShort::draw(state, useVertexBufferObjects);
+        DrawElementsUByte::draw(state, useVertexBufferObjects);
     }
 
     // specific draw when culled. Draw only main icon.
@@ -45,20 +45,20 @@ void ScreenSpaceDrawElements::draw(osg::State& state, bool useVertexBufferObject
             if (ebo)
             {
                 state.getCurrentVertexArrayState()->bindElementBufferObject(ebo);
-                if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_SHORT, (const GLvoid *)(ebo->getOffset(getBufferIndex()) + _drawOffset), _numInstances);
-                else glDrawElements(_mode, _drawSize, GL_UNSIGNED_SHORT, (const GLvoid *)(ebo->getOffset(getBufferIndex()) + _drawOffset) );
+                if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_BYTE, (const GLvoid *)(ebo->getOffset(getBufferIndex()) + _drawOffset), _numInstances);
+                else glDrawElements(_mode, _drawSize, GL_UNSIGNED_BYTE, (const GLvoid *)(ebo->getOffset(getBufferIndex()) + _drawOffset) );
             }
             else
             {
                 state.getCurrentVertexArrayState()->unbindElementBufferObject();
-                if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset, _numInstances);
-                else glDrawElements(_mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset);
+                if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_BYTE, &front() + _drawOffset, _numInstances);
+                else glDrawElements(_mode, _drawSize, GL_UNSIGNED_BYTE, &front() + _drawOffset);
             }
         }
         else
         {
-            if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset, _numInstances);
-            else glDrawElements(_mode, _drawSize, GL_UNSIGNED_SHORT, &front() + _drawOffset);
+            if (_numInstances>=1) state.glDrawElementsInstanced(_mode, _drawSize, GL_UNSIGNED_BYTE, &front() + _drawOffset, _numInstances);
+            else glDrawElements(_mode, _drawSize, GL_UNSIGNED_BYTE, &front() + _drawOffset);
         }
     }
 }
@@ -160,7 +160,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                 // when decluttered the main icon is still drawn
                 _drawInClutteredMode = true;
                 if ( ! bboxsymbol )
-                    _d->_drawOffset = 0; // no bbox drawing / no offset needed
+                    _d->setNumEltOffset(0); // no bbox drawing / no offset needed
 
                 _mainIconDrawIndex.insert(_mainIconDrawIndex.begin(), _d->begin(), _d->end());
                 for ( unsigned int i = 0 ; i < _v->getNumElements() ; i++ )
@@ -585,7 +585,7 @@ float MPAnnotationDrawable::appendIcon(const std::string& urlPath, const osg::Ve
 
     // push the draw elements
     unsigned int last = _v->getNumElements() - 1;
-    std::vector<GLushort> drawIndices { GLushort(last-3), GLushort(last-2), GLushort(last-1), GLushort(last-3), GLushort(last-1), GLushort(last)};
+    std::vector<GLubyte> drawIndices { GLubyte(last-3), GLubyte(last-2), GLubyte(last-1), GLubyte(last-3), GLubyte(last-1), GLubyte(last)};
     pushDrawElements(alt, drawIndices);
 
     return iconInfo.rt_v.x() + rightShift.x();
@@ -684,7 +684,7 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
     }
 
     // push the draw elements
-    std::vector<GLushort> drawIndices { GLushort(last-3), GLushort(last-2), GLushort(last-1), GLushort(last-3), GLushort(last-1), GLushort(last)};
+    std::vector<GLubyte> drawIndices { GLubyte(last-3), GLubyte(last-2), GLubyte(last-1), GLubyte(last-3), GLubyte(last-1), GLubyte(last)};
     return pushDrawElements(alt, drawIndices);
 }
 
@@ -820,7 +820,7 @@ int MPAnnotationDrawable::appendText(const std::string& text, const std::string&
         _infoArray->push_back( osg::Vec4(glyphInfo.size.x(), glyphInfo.size.y(), MPStateSetFontAltas::TYPE_CHARACTER_MSDF, msdfUnit) );
 
         unsigned int last = _v->getNumElements() - 1;
-        std::vector<GLushort> drawIndices { GLushort(last-3), GLushort(last-2), GLushort(last-1), GLushort(last-3), GLushort(last-1), GLushort(last)};
+        std::vector<GLubyte> drawIndices { GLubyte(last-3), GLubyte(last-2), GLubyte(last-1), GLubyte(last-3), GLubyte(last-1), GLubyte(last)};
         pushDrawElements(alt, drawIndices, pushDrawAfter);
 
         advance.x() += glyphInfo.advance * scale;
@@ -831,7 +831,7 @@ int MPAnnotationDrawable::appendText(const std::string& text, const std::string&
 }
 
 
-int MPAnnotationDrawable::pushDrawElements(double alt, const std::vector<GLushort> &pDrawElt, bool pushDrawAfter)
+int MPAnnotationDrawable::pushDrawElements(double alt, const std::vector<GLubyte> &pDrawElt, bool pushDrawAfter)
 {
     int nbEltBefore = 0;
     int indexBefore = 0;

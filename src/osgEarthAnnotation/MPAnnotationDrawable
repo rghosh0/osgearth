@@ -26,18 +26,21 @@ namespace osgEarth { namespace Annotation
 {
 
 // specific draw array to manage the cluttered case
-struct OSGEARTHANNO_EXPORT ScreenSpaceDrawElements : public osg::DrawElementsUShort
+struct OSGEARTHANNO_EXPORT ScreenSpaceDrawElements : public osg::DrawElementsUByte
 {
-    ScreenSpaceDrawElements(GLenum mode=0) : DrawElementsUShort(mode) {}
+    ScreenSpaceDrawElements(GLenum mode=0) : DrawElementsUByte(mode) {}
 
     ScreenSpaceDrawElements(const ScreenSpaceDrawElements& array, const osg::CopyOp& copyop=osg::CopyOp::SHALLOW_COPY):
-        DrawElementsUShort(array, copyop), _cluttered(array._cluttered), _drawOffset(array._drawOffset), _drawSize(array._drawSize)
+        DrawElementsUByte(array, copyop), _cluttered(array._cluttered), _drawOffset(array._drawOffset), _drawSize(array._drawSize)
         {}
 
     void draw(osg::State& state, bool useVertexBufferObjects) const override;
 
+    void setNumEltOffset(int nbElt) { _drawOffset = nbElt * _sizeOfElt; /** sizeof(GLubyte) **/ }
+
+    const int _sizeOfElt { sizeof(vector_type::value_type) };
     bool _cluttered {false};
-    int _drawOffset {6*2}; // by default, when declutter, the main icon quad still drawn but not the background box
+    int _drawOffset {6 * _sizeOfElt}; // by default, when declutter, the main icon quad still drawn but not the background box
     int _drawSize {6}; // one quad
 };
 
@@ -52,9 +55,9 @@ public:
     struct LODAnno
     {
     public:
-        LODAnno(double alt, const std::vector<GLushort> &pDrawElt) : altitudeMax{alt}, drawElts{pDrawElt} {}
+        LODAnno(double alt, const std::vector<GLubyte> &pDrawElt) : altitudeMax{alt}, drawElts{pDrawElt} {}
         double altitudeMax{DBL_MAX};
-        std::vector<GLushort> drawElts;
+        std::vector<GLubyte> drawElts;
         std::vector<ShiftInfo> shiftVec;
     };
 
@@ -108,7 +111,7 @@ protected:
     void moveTextPosition(int nbVertices, const osg::BoundingBox& refBBox,
                           osgEarth::Symbology::TextSymbol::Alignment alignment = osgEarth::Symbology::TextSymbol::Alignment::ALIGN_CENTER_CENTER);
 
-    int pushDrawElements(double alt, const std::vector<GLushort> &pDrawElt, bool pushDrawAfter = false);
+    int pushDrawElements(double alt, const std::vector<GLubyte> &pDrawElt, bool pushDrawAfter = false);
 
     void dirty();
 
