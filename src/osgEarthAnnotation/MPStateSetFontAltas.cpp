@@ -61,7 +61,7 @@ GlyphInfo::GlyphInfo(double x, double y, double scale, double w, double h, doubl
 IconInfo::IconInfo(double x, double y, double s, double textureSize)
 {
     // quad vertexes
-    double halftSize = s / Registry::instance()->getDevicePixelRatio() / 2.;
+    double halftSize = s / 2.;
     lb_v.set(-halftSize, -halftSize, 0.);
     lt_v.set(-halftSize, halftSize, 0.);
     rt_v.set(halftSize, halftSize, 0.);
@@ -73,13 +73,12 @@ IconInfo::IconInfo(double x, double y, double s, double textureSize)
     rt_t.set( (x+s) / textureSize, y / textureSize);
     rb_t.set( (x+s) / textureSize, (y+s) / textureSize);
 
-    size.set(s / Registry::instance()->getDevicePixelRatio(), s / Registry::instance()->getDevicePixelRatio());
+    size.set(s, s);
 }
 
 MPStateSetFontAltas::MPStateSetFontAltas(const std::string &iconAtlasPath, const osgDB::Options *readOptions) : StateSet()
 {
     // get the pixel density
-    //int dpi = Registry::instance()->getDeviceDensityMultiplier();
     int dpi = Registry::instance()->getDeviceImageCategoryDensity();
     std::string iconAtlasPathWithDPI = osgDB::getNameLessExtension(iconAtlasPath) + std::to_string(dpi) + "." + osgDB::getFileExtension(iconAtlasPath);
 
