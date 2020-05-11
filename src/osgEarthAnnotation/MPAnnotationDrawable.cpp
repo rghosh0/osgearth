@@ -1173,6 +1173,8 @@ void MPAnnotationDrawable::setIconColor(const Color &color )
 
     for ( auto i : _mainIconVertices )
         (*_c)[i] = color;
+
+    _c->dirty();
 }
 
 void MPAnnotationDrawable::setVisible(bool visible)
