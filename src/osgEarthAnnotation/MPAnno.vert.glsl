@@ -31,25 +31,30 @@ flat out int selected;
 
 void oe_anno_VS(inout vec4 vertex)
 {
-    oe_anno_info = oe_anno_attr_info;
-    widthBy2 = oe_anno_info.x * 0.5;
-    heightBy2 = oe_anno_info.y * 0.5;
     oe_anno_texcoord = gl_MultiTexCoord0.st;
-
-    if ( oe_anno_info.z != TYPE_CHARACTER_MSDF && oe_anno_info.z != TYPE_ICON )
-        oe_anno_fill_white_threshold = floor(oe_anno_info.w);
-
+    oe_anno_info = oe_anno_attr_info;
     // is this item selected ?
     selected = (objectid_to_highlight > 1u && objectid_to_highlight == oe_index_objectid) ? 1 : 0;
-    if ( selected == 1 )
+
+    if ( oe_anno_info.z != TYPE_CHARACTER_MSDF && oe_anno_info.z != TYPE_ICON )
     {
-        oe_anno_stroke_width = oe_anno_highlightStrokeWidth;
-        oe_anno_color2 = oe_anno_highlightStrokeColor;
-    }
-    else
-    {
+        oe_anno_fill_white_threshold = floor(oe_anno_info.w);
         oe_anno_stroke_width = (oe_anno_info.w - oe_anno_fill_white_threshold) * 10.;
-        oe_anno_color2 = oe_anno_attr_color2;
+
+        if ( selected == 1 )
+        {
+            vec2 deltaStroke = vec2(oe_anno_highlightStrokeWidth - oe_anno_stroke_width);
+            oe_anno_stroke_width = oe_anno_highlightStrokeWidth;
+            oe_anno_color2 = oe_anno_highlightStrokeColor;
+            vertex.xy += mix(-deltaStroke, deltaStroke, oe_anno_texcoord);
+        }
+        else
+        {
+            oe_anno_color2 = oe_anno_attr_color2;
+        }
+
+        widthBy2 = oe_anno_info.x * 0.5;
+        heightBy2 = oe_anno_info.y * 0.5;
     }
 }
 
