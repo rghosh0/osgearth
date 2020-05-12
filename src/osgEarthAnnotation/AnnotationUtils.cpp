@@ -163,8 +163,8 @@ AnnotationUtils::createImageGeometry(osg::Image*       image,
     geom->setStateSet(dstate);
 
     // no need to rescale because the image is already scaled according to the DPI
-    float s = Registry::instance()->getDevicePixelRatio() * image->s(); // * scale
-    float t = Registry::instance()->getDevicePixelRatio() * image->t(); // * scale
+    float s = image->s(); // * scale
+    float t = image->t(); // * scale
 
     float x0 = (float)pixelOffset.x() - s/2.0;
     float y0 = (float)pixelOffset.y() - t/2.0;
