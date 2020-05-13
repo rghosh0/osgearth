@@ -335,7 +335,6 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
 
     // The bounding box can enclose either the text, or the image, or both
     // the bbox symbol for change over point will be calculated after
-    osg::ref_ptr<osg::Drawable> bboxDrawable;
     if ( bboxsymbol && (! predefinedOrganisation || ! textSymbol->predefinedOrganisation().isSetTo("changeoverpoint") ))
     {
         osg::Vec4 fillColor = bboxsymbol->fill().isSet() ? bboxsymbol->fill().get().color() : Color::Black;
@@ -382,6 +381,11 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
             // add the xShift to do in the right LOD
             _LODlist[_LODlist.size()-1].shiftVec.push_back( ShiftInfo({_v->getNumElements()-1, _v->getNumElements()-2},
                                          osg::Vec3(mainBBoxText.xMax() - mainBBoxIcon.xMax() - correction, 0., 0.)) );
+        }
+        else if (! mainBBoxIcon.valid() && ! mainBBoxText.valid() )
+        {
+            appendBox(bboxZero, fillColor, strokeColor, geomType, oppose,
+                      borderThickness, reverseVideoXThreshold, _bbox_margin);
         }
     }
 
