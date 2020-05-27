@@ -97,6 +97,7 @@ BuildGeometryFilter::BuildGeometryFilter( const Style& style ) :
 _style        ( style ),
 _maxAngle_deg ( 180.0 ),
 _geoInterp    ( GEOINTERP_RHUMB_LINE ),
+_mergeGeometry( true ),
 _maxPolyTilingAngle_deg( 45.0f ),
 _optimizeVertexOrdering( false ),
 _maximumCreaseAngle( 0.0f ),
@@ -111,6 +112,7 @@ BuildGeometryFilter::processPolygons(FeatureList& features, FilterContext& conte
     osg::Geode* geode = new osg::Geode();
 
     bool makeECEF = false;
+    bool transparent = true;
     const SpatialReference* featureSRS = 0L;
     //const SpatialReference* mapSRS = 0L;
     const SpatialReference* outputSRS = 0L;
@@ -162,6 +164,7 @@ BuildGeometryFilter::processPolygons(FeatureList& features, FilterContext& conte
 
             // resolve the color:
             osg::Vec4f primaryColor = poly->fill()->color();
+            transparent &= primaryColor.a() == 0.f;
 
             osg::ref_ptr<osg::Geometry> osgGeom = new osg::Geometry();
             osgGeom->setUseVertexBufferObjects( true );
@@ -252,6 +255,10 @@ BuildGeometryFilter::processPolygons(FeatureList& features, FilterContext& conte
             }
         }
     }
+
+    // don't draw this geode in case color is transparent (picking polygons for example)
+    if ( transparent )
+        geode->setNodeMask( 0x0000000f );
 
     OE_TEST << LC << "Num drawables = " << geode->getNumDrawables() << "\n";
     return geode;
@@ -576,7 +583,7 @@ BuildGeometryFilter::processLines(FeatureList& features, FilterContext& context)
     // Finally, optimize the finished group for rendering.
     if (drawables)
     {
-        drawables->optimize();
+        drawables->optimize( _mergeGeometry.getOrUse( true ) );
     }
 
     return drawables;

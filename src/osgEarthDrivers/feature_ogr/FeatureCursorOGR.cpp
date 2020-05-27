@@ -93,6 +93,13 @@ _filters          ( filters )
     {
         OGR_SCOPED_LOCK;
 
+
+        // provide some performance info
+        osg::Timer_t t_start;
+        if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
+            t_start = osg::Timer::instance()->tick();
+
+
         std::string expr;
         std::string from = OGR_FD_GetName( OGR_L_GetLayerDefn( _layerHandle ));        
         
@@ -197,7 +204,17 @@ _filters          ( filters )
         {
             OGR_L_ResetReading( _resultSetHandle );
         }
+
+        // provide some performance info
+        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+        {
+            osg::Timer_t t_end = osg::Timer::instance()->tick();
+            double t = osg::Timer::instance()->delta_s(t_start, t_end);
+            OE_DEBUG << LC << "Profiling the time to fetch new data:\n";
+            OE_DEBUG << LC << "    execution of the query " << t << "s\n";
+        }
     }
+
 
     readChunk();
 }
@@ -252,6 +269,13 @@ FeatureCursorOGR::readChunk()
         return;
     
     OGR_SCOPED_LOCK;
+
+
+    // provide some performance info
+    osg::Timer_t t_start;
+    if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
+        t_start = osg::Timer::instance()->tick();
+
 
     while( _queue.size() < _chunkSize && !_resultSetEndReached )
     {
@@ -326,6 +350,14 @@ FeatureCursorOGR::readChunk()
         for(FeatureList::const_iterator i = filterList.begin(); i != filterList.end(); ++i)
         {
             _queue.push( i->get() );
+        }
+
+        // provide some performance info
+        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+        {
+            osg::Timer_t t_end = osg::Timer::instance()->tick();
+            double t = osg::Timer::instance()->delta_s(t_start, t_end);
+            OE_DEBUG << LC << "    readChunk " << t << "s (for " <<_queue.size() << " features)\n";
         }
     }
 }

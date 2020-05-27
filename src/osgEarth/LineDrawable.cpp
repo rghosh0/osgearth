@@ -275,7 +275,7 @@ LineGroup::import(osg::Node* node, bool removePrimitiveSets)
 }
 
 void
-LineGroup::optimize()
+LineGroup::optimize( bool mergeGeometries )
 {
     // Optimize state sharing so the MergeGeometryVisitor can work better.
     // Without this step, the #defines used for width and stippling will
@@ -285,9 +285,14 @@ LineGroup::optimize()
 
     // Merge all non-dynamic drawables to reduce the total number of 
     // OpenGL calls.
-    osgUtil::Optimizer::MergeGeometryVisitor mg;
-    mg.setTargetMaximumNumberOfVertices(65536);
-    accept(mg);
+    // Note that it is not always a performance win as it also prevents
+    // from having an efficient culling
+    if ( mergeGeometries )
+    {
+        osgUtil::Optimizer::MergeGeometryVisitor mg;
+        mg.setTargetMaximumNumberOfVertices(65536);
+        accept(mg);
+    }
 }
 
 LineDrawable*

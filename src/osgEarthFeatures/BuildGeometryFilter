@@ -66,6 +66,10 @@ namespace osgEarth { namespace Features
         optional<GeoInterpolation>& geoInterp() { return _geoInterp; }
         const optional<GeoInterpolation>& geoInterp() const { return _geoInterp; }
 
+        /** Whether to merge geometry from multiple features */
+        optional<bool>& mergeGeometry() { return _mergeGeometry; }
+        const optional<bool>& mergeGeometry() const { return _mergeGeometry; }
+
         /**
          * Sets an expression to evaluate for setting the name of a Geometry.
          * Warning: this will disable some performance optimizations since the filter
@@ -107,6 +111,7 @@ namespace osgEarth { namespace Features
 
         optional<double>           _maxAngle_deg;
         optional<GeoInterpolation> _geoInterp;
+        optional<bool>             _mergeGeometry;
         optional<StringExpression> _featureNameExpr;
         optional<float>            _maxPolyTilingAngle_deg;
         optional<bool>             _optimizeVertexOrdering;
