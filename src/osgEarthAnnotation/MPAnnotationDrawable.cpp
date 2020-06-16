@@ -82,11 +82,12 @@ MPAnnotationDrawable::MPAnnotationDrawable(const Style &style, const osgDB::Opti
     _mainFont = textSymbol && textSymbol->font().isSet() ? textSymbol->font().get()
                  : ( MPScreenSpaceLayoutSG::getOptions().defaultFont().isSet() ?
                          MPScreenSpaceLayoutSG::getOptions().defaultFont().get() : "" );
-    _mainTextColor = textSymbol->fill().isSet() ? textSymbol->fill()->color() : Color::White;
+    _mainTextColor = textSymbol && textSymbol->fill().isSet() ? textSymbol->fill()->color() : Color::White;
     _mainFontSize = textSymbol && textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.;
     _multi_text_margin = textSymbol && textSymbol->predefinedOrganisationMargin().isSet() ? textSymbol->predefinedOrganisationMargin().value() : 4.f;
-    _altFirstLevel = textSymbol && textSymbol->minRange().isSet() ? textSymbol->minRange().get() : DBL_MAX;
-    _alt2ndLevel = textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : _altFirstLevel;
+    _altTextFirstLevel = textSymbol && textSymbol->minRange().isSet() ? textSymbol->minRange().get() : DBL_MAX;
+    _altIconFirstLevel = iconSym && iconSym->minRange().isSet() ? iconSym->minRange().get() : DBL_MAX;
+    _alt2ndLevel = textSymbol && textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : _altTextFirstLevel;
 
     const TextSymbol* textSym = style.get<TextSymbol>();
     if ( textSym && textSym->encoding().isSet() )
@@ -135,8 +136,8 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
     StringVector iconList;
     if ( iconSym && iconSym->url().isSet() )
     {
-        if ( ! iconSym->alignment().isSet() || ! iconSym->alignment().isSetTo(IconSymbol::ALIGN_CENTER_CENTER) )
-            OE_WARN << LC << "The icon alignment " << iconSym->alignment().value() << " is not supported yet.\n";
+        //if ( ! iconSym->alignment().isSet() || ! iconSym->alignment().isSetTo(IconSymbol::ALIGN_CENTER_CENTER) )
+        //    OE_WARN << LC << "The icon alignment " << iconSym->alignment().value() << " is not supported yet.\n";
 
         std::string iconTxt = iconSym->url()->eval();
 
@@ -155,7 +156,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         // Build the main centered icon
         if (! iconTxt.empty() )
         {
-            appendIcon(iconTxt);
+            appendIcon(iconTxt, Color::White, _altIconFirstLevel);
 
             if ( _v->getNumElements() > 0)
             {
@@ -220,7 +221,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                       && textList.size() >= 2 && textList[1].find("I:") != 0 )
                 mainText += " | " + textList[1];
 
-            int nbVert = appendText(mainText, _mainFont, _mainTextColor, _mainFontSize, _altFirstLevel, true);
+            int nbVert = appendText(mainText, _mainFont, _mainTextColor, _mainFontSize, _altTextFirstLevel, true);
             if (nbVert > 0)
             {
                 TextSymbol::Alignment align = textSymbol->alignment().isSet() ?
@@ -265,7 +266,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         float deltaSize = 0.;
         for ( unsigned int i=1 ; i<iconList.size() ; ++i )
         {
-            newXMax = appendIcon(iconList[i], Color::White, _altFirstLevel, xMax);
+            newXMax = appendIcon(iconList[i], Color::White, _altTextFirstLevel, xMax);
             deltaSize += (newXMax - xMax);
             xMax = newXMax;
         }
@@ -304,7 +305,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         // other labels
         if ( iconList.size() >= 2 && textList.size() >= 2 && textList[1].find("I:") != 0)
         {
-            int nbVert = appendText( textList[1], _mainFont, _mainTextColor, _mainFontSize, _altFirstLevel);
+            int nbVert = appendText( textList[1], _mainFont, _mainTextColor, _mainFontSize, _altTextFirstLevel);
             if ( nbVert > 0 )
             {
                 moveTextPosition( nbVert, mainBBoxText, TextSymbol::Alignment::ALIGN_LEFT_CENTER );
@@ -318,7 +319,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         if ( textList[textList.size()-1].find("I:") == 0 )
         {
             // color must be inverted... but for now setting it to black is sufficient
-            int nbVert = appendText( textList[textList.size()-1], _mainFont, Color::Black, _mainFontSize, _altFirstLevel);
+            int nbVert = appendText( textList[textList.size()-1], _mainFont, Color::Black, _mainFontSize, _altTextFirstLevel);
             if ( nbVert > 0 )
             {
                 moveTextPosition( nbVert, mainBBoxText, TextSymbol::Alignment::ALIGN_LEFT_CENTER );
@@ -357,7 +358,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                       borderThickness, reverseVideoXThreshold, _bbox_margin);
         else if ( groupType == BBoxSymbol::GROUP_TEXT_ONLY && mainBBoxText.valid() )
             appendBox(mainBBoxText, fillColor, strokeColor, geomType, oppose,
-                      borderThickness, reverseVideoXThreshold, _bbox_margin, _altFirstLevel);
+                      borderThickness, reverseVideoXThreshold, _bbox_margin, _altTextFirstLevel);
         else if ( groupType == BBoxSymbol::GROUP_ICON_AND_TEXT && mainBBoxIcon.valid() && mainBBoxText.valid() )
         {
             osg::BoundingBox groupBbox( mainBBoxIcon );

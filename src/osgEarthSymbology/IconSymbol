@@ -83,6 +83,10 @@ namespace osgEarth { namespace Symbology
         optional<float>& margin() { return _margin; }
         const optional<float>& margin() const { return _margin; }
 
+        /** The minimum range altitude for the central icon to be display */
+        optional<double>& minRange() { return _minRange; }
+        const optional<double>& minRange() const { return _minRange; }
+
     public: // non-serialized properties (for programmatic use only)
 
         /** Explicit image to use for 2D icon placemet */
@@ -105,6 +109,7 @@ namespace osgEarth { namespace Symbology
         optional<bool>                   _occlusionCull;
         optional<double>                 _occlusionCullAltitude;
         optional<float>                  _margin;
+        optional<double>                 _minRange;
     };
 
 } } // namespace osgEarth::Symbology

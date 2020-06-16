@@ -37,7 +37,8 @@ _declutter(rhs._declutter),
 _image(rhs._image),
 _occlusionCull(rhs._occlusionCull),
 _occlusionCullAltitude(rhs._occlusionCullAltitude),
-_margin(rhs._margin)
+_margin(rhs._margin),
+_minRange(rhs._minRange)
 {
 }
 
@@ -48,7 +49,8 @@ _heading              ( NumericExpression(0.0) ),
 _declutter            ( true ),
 _occlusionCull        ( false ),
 _occlusionCullAltitude( 200000 ),
-_margin               ( 0.0 )
+_margin               ( 0.0 ),
+_minRange             ( DBL_MAX )
 {
     mergeConfig( conf );
 }
@@ -76,6 +78,9 @@ IconSymbol::getConfig() const
     conf.set( "margin",    _margin );
 
     conf.setNonSerializable( "IconSymbol::image", _image.get() );
+
+    conf.set( "icon-min-range", _minRange );
+
     return conf;
 }
 
@@ -99,6 +104,8 @@ IconSymbol::mergeConfig( const Config& conf )
     conf.get( "margin",    _margin );
 
     _image = conf.getNonSerializable<osg::Image>( "IconSymbol::image" );
+
+    conf.get( "icon-min-range", _minRange );
 }
 
 namespace
@@ -216,5 +223,8 @@ IconSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "icon-script") ) {
         style.getOrCreate<IconSymbol>()->script() = StringExpression(c.value());
+    }
+    else if ( match(c.key(), "icon-min-range") ) {
+        style.getOrCreate<IconSymbol>()->minRange() = as<double>(c.value(), defaults.minRange().get() );
     }
 }
