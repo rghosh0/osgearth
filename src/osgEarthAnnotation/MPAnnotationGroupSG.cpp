@@ -218,17 +218,18 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
     const TextSymbol* ts = style.get<TextSymbol>();
     
-   
+ 
+    float priority =0;
     if (ts && ts->priority().isSet()){
-        float priority =static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval());
-        OE_FATAL<<LC<<"priority log"<<ts->textPriority().isSet()<<std::endl;
-        if(ts->textPriority().isSet()){
-            priority+=(static_cast<float>(style.getSymbol<TextSymbol>()->textPriority()->eval()));
-            OE_FATAL<<LC<<"priority2 = "<<priority<<(static_cast<float>(style.getSymbol<TextSymbol>()->textPriority()->eval()))<<std::endl;
-        }
+        priority =static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval());    
         annoDrawable->setPriority(priority);
         
+    } 
+    if(ts && ts->textPriority().isSet()){
+        priority+=(static_cast<float>(style.getSymbol<TextSymbol>()->textPriority()->eval()));
+        annoDrawable->setPriority(priority);   
     }
+    
     if ( (iconSym && iconSym->declutter().isSetTo(false)) || (ts && ts->declutter().isSetTo(false)))
         annoDrawable->_declutterActivated = false;
 
