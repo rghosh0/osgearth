@@ -59,8 +59,8 @@ struct SortByPriority : public DeclutterSortFunctor
         const MPScreenSpaceGeometry* lhsanno = static_cast<const MPScreenSpaceGeometry*>(lhs->_drawable.get());
         const MPScreenSpaceGeometry* rhsanno = static_cast<const MPScreenSpaceGeometry*>(rhs->_drawable.get());
 
-        float lhsPriority = lhsanno->_priority ;
-        float rhsPriority = rhsanno->_priority;
+        double lhsPriority = lhsanno->_priority ;
+        double rhsPriority = rhsanno->_priority;
         if ( lhsPriority != rhsPriority )
             return lhsPriority > rhsPriority;
 
@@ -517,7 +517,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             {
 
                 // A max priority => never occlude.
-                float priority = annoDrawable->_priority;
+                double priority = annoDrawable->_priority;
 
                 if ( useScreenGrid )
                 {
@@ -527,7 +527,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                     mapEndY = osg::clampTo(static_cast<int>(floor((box.yMax() - vpYMin) / mapSizeY)), 0, screenMapNbRow-1);
                 }
 
-                if ( priority == FLT_MAX || ! annoDrawable->_declutterActivated)
+                if ( priority == DBL_MAX || ! annoDrawable->_declutterActivated)
                 {
                     visible = true;
                 }
