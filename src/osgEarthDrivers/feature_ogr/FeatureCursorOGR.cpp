@@ -298,6 +298,14 @@ FeatureCursorOGR::readChunk()
 
                 if (feature.valid())
                 {
+                    // If a fid attribute has been defined, override the fid of the feature
+                    if (_source.valid() && _source->getFeatureSourceOptions().fidAttribute().isSet())
+                    {
+                        std::string attr = feature->getString(_source->getFeatureSourceOptions().fidAttribute().get());
+                        FeatureID fid = as<long>(attr, 0);
+                        feature->setFID( fid );
+                    }
+
                     if (!_source->isBlacklisted(feature->getFID()))
                     {
                         if (validateGeometry( feature->getGeometry() ))
