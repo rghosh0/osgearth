@@ -42,7 +42,7 @@ namespace
     const osg::Node::NodeMask nodeNoMask = 0xffffffff;
     const float PIby2 = osg::PI / 2.f;
     const GeoPoint undefPoint;
-    const double finePriorityRange = 1000000;
+    const double finePriorityRange = 1000000.0;
     
     // Callback to properly cull the MPAnnotationGroup2
     class AnnotationNodeGroupCullCallbackSG : public osg::NodeCallback
@@ -219,14 +219,16 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     const TextSymbol* ts = style.get<TextSymbol>();
     
  
-    double priority =0;
-    if (ts && ts->priority().isSet()){
-        priority =style.getSymbol<TextSymbol>()->priority()->eval();    
-        annoDrawable->setPriority(priority);
-        
+    double priority = 0;
+    if (ts && ts->priority().isSet())
+    {
+        priority = style.getSymbol<TextSymbol>()->priority()->eval();    
+        annoDrawable->setPriority(priority);        
     } 
-    if(ts && ts->textPriority().isSet()){
-        priority+=(style.getSymbol<TextSymbol>()->textPriority()->eval()/finePriorityRange);
+    
+    if(ts && ts->priorityFine().isSet())
+    {
+        priority += ( style.getSymbol<TextSymbol>()->priorityFine()->eval() / finePriorityRange );
         annoDrawable->setPriority(priority);   
     }
     

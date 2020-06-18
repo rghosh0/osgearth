@@ -205,8 +205,8 @@ public:
     inline const optional<bool>& backEarthCull() const { return _backEarthCull; }
 
     /** The priority defined between symbols  */
-    optional<NumericExpression>& textPriority() { return _textPriority; }
-    const optional<NumericExpression>& textPriority() const { return _textPriority; }
+    optional<NumericExpression>& priorityFine() { return _textPriority; }
+    const optional<NumericExpression>& priorityFine() const { return _textPriority; }
     
 public:
     virtual Config getConfig() const;

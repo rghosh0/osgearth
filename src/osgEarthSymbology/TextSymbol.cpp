@@ -435,7 +435,7 @@ TextSymbol::parseSLD(const Config& c, Style& style)
         style.getOrCreate<TextSymbol>()->predefinedOrganisationMargin() = as<double>(c.value(), defaults.predefinedOrganisationMargin().get() );
     }
     else if ( match(c.key(), "text-priority-fine") ) {     
-        style.getOrCreate<TextSymbol>()->textPriority() = NumericExpression( c.value() );       
+        style.getOrCreate<TextSymbol>()->priorityFine() = NumericExpression( c.value() );       
     }
     else if ( match(c.key(), "text-back-earth-cull") ) {
         style.getOrCreate<TextSymbol>()->backEarthCull() = as<bool>(c.value(), defaults.backEarthCull().get() );
