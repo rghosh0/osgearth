@@ -219,7 +219,7 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     const TextSymbol* ts = style.get<TextSymbol>();
     
  
-    double priority = 0;
+    double priority = 0.0;
     if (ts && ts->priority().isSet())
     {
         priority = style.getSymbol<TextSymbol>()->priority()->eval();    
