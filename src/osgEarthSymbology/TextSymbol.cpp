@@ -85,7 +85,7 @@ TextSymbol::TextSymbol( const Config& conf ) :
                                              _minRange             ( DBL_MAX ),
                                              _minRange2ndlevel     ( DBL_MAX ),
                                              _predefinedOrganisationMargin( 4. ),
-                                             _textPriority(0.0)
+                                             _textPriority         ( 0.0 )
 {
     mergeConfig(conf);
 }
@@ -257,7 +257,7 @@ TextSymbol::mergeConfig( const Config& conf )
     conf.get( "predefined-organisation", _predefinedOrganisation );
     conf.get( "predefined-organisation-margin", _predefinedOrganisationMargin );
     
-    conf.get( "priority-fine",_textPriority);
+    conf.get( "priority-fine", _textPriority );
 
     conf.get( "back-earth-cull", _backEarthCull );
 }
@@ -434,10 +434,8 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     else if ( match(c.key(), "text-predefined-organisation-margin") ) {
         style.getOrCreate<TextSymbol>()->predefinedOrganisationMargin() = as<double>(c.value(), defaults.predefinedOrganisationMargin().get() );
     }
-    else if ( match(c.key(), "text-priority-fine") ) {
-     
-        style.getOrCreate<TextSymbol>()->textPriority() = NumericExpression( c.value() );
-       
+    else if ( match(c.key(), "text-priority-fine") ) {     
+        style.getOrCreate<TextSymbol>()->textPriority() = NumericExpression( c.value() );       
     }
     else if ( match(c.key(), "text-back-earth-cull") ) {
         style.getOrCreate<TextSymbol>()->backEarthCull() = as<bool>(c.value(), defaults.backEarthCull().get() );
