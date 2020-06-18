@@ -46,16 +46,16 @@ class OSGEARTH_EXPORT MPScreenSpaceGeometry : public osg::Geometry
 public:
     /** Constructor */
     MPScreenSpaceGeometry() : osg::Geometry(),
-                              _priority(0.f),
-                              _originalPriority(0.f),
+                              _priority(0.0),
+                              _originalPriority(0.0),
                               _pixelOffset(0, 0),
                               _autoRotate(false),
                               _autoFollowLine(false),
                               _id(-1) { }
 
     /** Decluttering priority - FLT_MAX means don't declutter */
-    void setPriority(float value) { _originalPriority = _priority = value; }
-    float getPriority() const     { return _priority; }
+    void setPriority(double value) { _originalPriority = _priority = value; }
+    double getPriority() const     { return _priority; }
 
     /** Offset from geoposition in screen pixels */
     void setPixelOffset(const osg::Vec2s& value) { _pixelOffset = value; }
@@ -101,8 +101,8 @@ public:
 
 public:
     long       _id{1};
-    float      _originalPriority{0.f};
-    float      _priority{0.f};
+    double      _originalPriority{0.0};
+    double      _priority{0.0};
     bool       _declutterActivated{true} ;
     osg::Vec2s _pixelOffset{0, 0};
     bool       _autoRotate{false}, _autoFollowLine{false};

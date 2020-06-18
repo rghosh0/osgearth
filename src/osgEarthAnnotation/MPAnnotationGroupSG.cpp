@@ -42,8 +42,8 @@ namespace
     const osg::Node::NodeMask nodeNoMask = 0xffffffff;
     const float PIby2 = osg::PI / 2.f;
     const GeoPoint undefPoint;
-
-
+    const double finePriorityRange = 1000000.0;
+    
     // Callback to properly cull the MPAnnotationGroup2
     class AnnotationNodeGroupCullCallbackSG : public osg::NodeCallback
     {
@@ -217,8 +217,21 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
     const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
     const TextSymbol* ts = style.get<TextSymbol>();
+    
+ 
+    double priority = 0.0;
     if (ts && ts->priority().isSet())
-        annoDrawable->setPriority(static_cast<float>(style.getSymbol<TextSymbol>()->priority()->eval()));
+    {
+        priority = style.getSymbol<TextSymbol>()->priority()->eval();    
+        annoDrawable->setPriority(priority);        
+    } 
+    
+    if(ts && ts->priorityFine().isSet())
+    {
+        priority += ( style.getSymbol<TextSymbol>()->priorityFine()->eval() / finePriorityRange );
+        annoDrawable->setPriority(priority);   
+    }
+    
     if ( (iconSym && iconSym->declutter().isSetTo(false)) || (ts && ts->declutter().isSetTo(false)))
         annoDrawable->_declutterActivated = false;
 

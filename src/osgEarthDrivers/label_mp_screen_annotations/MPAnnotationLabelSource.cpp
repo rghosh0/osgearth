@@ -81,10 +81,12 @@ public:
         NumericExpression textRotationExpr( text ? *text->onScreenRotation() : NumericExpression() );
         NumericExpression textCourseExpr  ( text ? *text->geographicCourse() : NumericExpression() );
         StringExpression  textOffsetSupportExpr ( text ? *text->autoOffsetGeomWKT()  : StringExpression() );
+        NumericExpression textPriorityFineExpr ( text ? *text->priorityFine()  : NumericExpression() );
         StringExpression  bboxDirectionExpr     ( bbox ? *bbox->direction()  : StringExpression() );
         StringExpression  iconUrlExpr     ( icon ? *icon->url()      : StringExpression() );
         NumericExpression iconScaleExpr   ( icon ? *icon->scale()    : NumericExpression() );
         NumericExpression iconHeadingExpr ( icon ? *icon->heading()  : NumericExpression() );
+      
 
         for( FeatureList::const_iterator i = input.begin(); i != input.end(); ++i )
         {
@@ -135,6 +137,9 @@ public:
 
                 if ( text->autoOffsetGeomWKT().isSet() )
                     tempStyle.get<TextSymbol>()->autoOffsetGeomWKT()->setLiteral( feature->eval( textOffsetSupportExpr, &context ) );
+                
+                if ( text->priorityFine().isSet() )
+                    tempStyle.get<TextSymbol>()->priorityFine()->setLiteral( feature->eval( textPriorityFineExpr, &context ) );
             }
 
             if ( bbox )
