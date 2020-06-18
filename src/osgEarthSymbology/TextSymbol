@@ -205,8 +205,8 @@ public:
     inline const optional<bool>& backEarthCull() const { return _backEarthCull; }
 
     /** The priority defined between symbols  */
-    optional<NumericExpression>& priorityFine() { return _textPriority; }
-    const optional<NumericExpression>& priorityFine() const { return _textPriority; }
+    optional<NumericExpression>& priorityFine() { return _priorityFine; }
+    const optional<NumericExpression>& priorityFine() const { return _priorityFine; }
     
 public:
     virtual Config getConfig() const;
@@ -243,7 +243,7 @@ protected:
     optional<std::string>       _predefinedOrganisation;
     optional<double>            _predefinedOrganisationMargin;
     optional<bool>              _backEarthCull;
-    optional<NumericExpression> _textPriority;
+    optional<NumericExpression> _priorityFine;
 };
 
 } } // namespace osgEarth::Symbology

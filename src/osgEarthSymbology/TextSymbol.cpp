@@ -58,7 +58,7 @@ TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
                                                                            _predefinedOrganisation(rhs._predefinedOrganisation),
                                                                            _predefinedOrganisationMargin( rhs._predefinedOrganisationMargin),
                                                                            _backEarthCull(rhs._backEarthCull),
-                                                                           _textPriority(rhs._textPriority)
+                                                                           _priorityFine(rhs._priorityFine)
 {
 }
 
@@ -85,7 +85,7 @@ TextSymbol::TextSymbol( const Config& conf ) :
                                              _minRange             ( DBL_MAX ),
                                              _minRange2ndlevel     ( DBL_MAX ),
                                              _predefinedOrganisationMargin( 4. ),
-                                             _textPriority         ( 0.0 )
+                                             _priorityFine         ( 0.0 )
 {
     mergeConfig(conf);
 }
@@ -171,7 +171,7 @@ TextSymbol::getConfig() const
     conf.set( "predefined-organisation", _predefinedOrganisation );
     conf.set( "predefined-organisation-margin", _predefinedOrganisationMargin );
 
-    conf.set( "priority-fine", _textPriority );
+    conf.set( "priority-fine", _priorityFine );
     
     conf.set( "back-earth-cull", _backEarthCull );
 
@@ -257,7 +257,7 @@ TextSymbol::mergeConfig( const Config& conf )
     conf.get( "predefined-organisation", _predefinedOrganisation );
     conf.get( "predefined-organisation-margin", _predefinedOrganisationMargin );
     
-    conf.get( "priority-fine", _textPriority );
+    conf.get( "priority-fine", _priorityFine );
 
     conf.get( "back-earth-cull", _backEarthCull );
 }
