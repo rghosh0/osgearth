@@ -780,7 +780,7 @@ ExtrudeGeometryFilter::buildRoofGeometry(const Structure&     structure,
     int v = verts->size();
 
     // Tessellate the roof lines into polygons.
-    osgEarth::Tessellator oeTess;
+    osgEarth::Util::Tessellator oeTess;
     if (!oeTess.tessellateGeometry(*roof))
     {
         //fallback to osg tessellator

@@ -758,7 +758,7 @@ void convertToDrawElementsUInt(osg::Geometry* geometry)
  */
 bool tesselateGeometry(osg::Geometry* geometry)
 {
-    osgEarth::Tessellator oeTess;
+    osgEarth::Util::Tessellator oeTess;
     if ( !oeTess.tessellateGeometry(*geometry) )
     {
         osgUtil::Tessellator tess;
