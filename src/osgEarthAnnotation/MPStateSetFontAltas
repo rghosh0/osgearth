@@ -74,6 +74,10 @@ public:
     static const int ATTRIB_ANNO_INFO;
     static const int ATTRIB_ANNO_COLOR2;
 
+    static const std::string UNIFORM_HIGHLIGHT_FILL_COLOR;
+    static const std::string UNIFORM_HIGHLIGHT_STROKE_COLOR;
+    static const std::string UNIFORM_HIGHLIGHT_STROKE_WIDTH;
+
     enum DrawType
     {
         TYPE_CHARACTER_MSDF,

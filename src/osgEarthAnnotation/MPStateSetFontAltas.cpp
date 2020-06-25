@@ -32,10 +32,14 @@ using namespace osgEarth::Annotation;
 const int MPStateSetFontAltas::ATTRIB_ANNO_INFO = osg::Drawable::ATTRIBUTE_6;
 const int MPStateSetFontAltas::ATTRIB_ANNO_COLOR2 = osg::Drawable::ATTRIBUTE_7;
 
+const std::string MPStateSetFontAltas::UNIFORM_HIGHLIGHT_FILL_COLOR = "oe_anno_highlightFillColor";
+const std::string MPStateSetFontAltas::UNIFORM_HIGHLIGHT_STROKE_COLOR = "oe_anno_highlightStrokeColor";
+const std::string MPStateSetFontAltas::UNIFORM_HIGHLIGHT_STROKE_WIDTH = "oe_anno_highlightStrokeWidth";
+
 namespace  {
-    const osgEarth::Symbology::Color    _highlightFillColor     { 0x3a6caaff };
-    const osgEarth::Symbology::Color    _highlightStrokeColor   { 0x4b96ffff };
-    const float                         _highlightStrokeWidth   { 3.f };
+    const osgEarth::Symbology::Color    _defaultHighlightFillColor     { 0x3a6caaff };
+    const osgEarth::Symbology::Color    _defaultHighlightStrokeColor   { 0x4b96ffff };
+    const float                         _defaultHighlightStrokeWidth   { 3.f };
 }
 
 
@@ -149,9 +153,9 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string &iconAtlasPath, const
     pkg.load( vp, pkg.MPAnno_Vertex );
     pkg.load( vp, pkg.MPAnno_Fragment );
     addUniform(new osg::Uniform("oe_anno_font_tex", 0));
-    addUniform(new osg::Uniform("oe_anno_highlightFillColor", _highlightFillColor));
-    addUniform(new osg::Uniform("oe_anno_highlightStrokeColor", _highlightStrokeColor));
-    addUniform(new osg::Uniform("oe_anno_highlightStrokeWidth", _highlightStrokeWidth));
+    addUniform(new osg::Uniform(UNIFORM_HIGHLIGHT_FILL_COLOR.c_str(), _defaultHighlightFillColor));
+    addUniform(new osg::Uniform(UNIFORM_HIGHLIGHT_STROKE_COLOR.c_str(), _defaultHighlightStrokeColor));
+    addUniform(new osg::Uniform(UNIFORM_HIGHLIGHT_STROKE_WIDTH.c_str(), _defaultHighlightStrokeWidth));
     DefineList defineList;
     defineList["TYPE_CHARACTER_MSDF"] = osg::StateSet::DefinePair(std::to_string(TYPE_CHARACTER_MSDF) + ".", osg::StateAttribute::ON);
     defineList["TYPE_ICON"] = osg::StateSet::DefinePair(std::to_string(TYPE_ICON) + ".", osg::StateAttribute::ON);

@@ -233,7 +233,10 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     }
     
     if ( (iconSym && iconSym->declutter().isSetTo(false)) || (ts && ts->declutter().isSetTo(false)))
+    {
         annoDrawable->_declutterActivated = false;
+        annoDrawable->_originalDeclutterActivated = false;
+    }
 
     // orientation
     // technic is to create a at 2500m from the anchor with the given bearing

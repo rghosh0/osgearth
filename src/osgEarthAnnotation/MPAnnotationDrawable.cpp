@@ -1170,6 +1170,7 @@ void MPAnnotationDrawable::setInverted(bool inverted)
 void MPAnnotationDrawable::setHighlight( bool highlight )
 {
     _priority = ( highlight ? DBL_MAX : _originalPriority );
+    _declutterActivated = ( highlight ? false : _originalDeclutterActivated );
 }
 
 

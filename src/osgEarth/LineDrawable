@@ -45,6 +45,10 @@ namespace osgEarth
     {
     public:
 
+        static const std::string UNIFORM_HIGHLIGHT_COLOR;
+
+    public:
+
         //! Create new LineDrawable in GL_LINE_STRIP mode
         explicit LineDrawable(bool gpu = true);
 
