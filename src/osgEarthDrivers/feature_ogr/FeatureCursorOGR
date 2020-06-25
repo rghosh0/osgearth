@@ -79,7 +79,8 @@ private:
     bool                                _resultSetEndReached;
 
 private:
-    void readChunk();    
+    void readChunk();
+    std::string addSQLWhereCondition(const std::string query, const std::string& whereCond) const;
 };
 
 

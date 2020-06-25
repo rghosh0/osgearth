@@ -77,6 +77,10 @@ namespace osgEarth { namespace Features
         optional<std::string>& fidAttribute() { return _fidAttribute; }
         const optional<std::string>& fidAttribute() const { return _fidAttribute; }
 
+        /** Request of one specific feature. */
+        optional<int>& featureId() { return _featureId; }
+        const optional<int>& featureId() const { return _featureId; }
+
     public:
         FeatureSourceOptions( const ConfigOptions& options =ConfigOptions() );
         virtual ~FeatureSourceOptions();
@@ -98,6 +102,7 @@ namespace osgEarth { namespace Features
         optional<CachePolicy>      _cachePolicy;
         optional<GeoInterpolation> _geoInterp;
         optional<std::string>      _fidAttribute;
+        optional<int>              _featureId;
     };
 
     /**

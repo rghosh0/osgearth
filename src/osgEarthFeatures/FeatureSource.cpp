@@ -55,6 +55,7 @@ FeatureSourceOptions::fromConfig(const Config& conf)
     conf.get( "geo_interpolation", "great_circle", _geoInterp, GEOINTERP_GREAT_CIRCLE );
     conf.get( "geo_interpolation", "rhumb_line",   _geoInterp, GEOINTERP_RHUMB_LINE );
     conf.get( "fid_attribute", _fidAttribute );
+    conf.get( "feature_id", _featureId );
 
     // For backwards-compatibility (before adding the "filters" block)
     // TODO: Remove at some point in the distant future.
@@ -82,6 +83,7 @@ FeatureSourceOptions::getConfig() const
     conf.set( "geo_interpolation", "great_circle", _geoInterp, GEOINTERP_GREAT_CIRCLE );
     conf.set( "geo_interpolation", "rhumb_line",   _geoInterp, GEOINTERP_RHUMB_LINE );
     conf.set( "fid_attribute", _fidAttribute );
+    conf.set( "feature_id", _featureId );
 
     if ( !_filterOptions.empty() )
     {

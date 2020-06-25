@@ -139,6 +139,19 @@ _filters          ( filters )
             expr = buf.str();
         }
 
+        //Include id clause if it's set
+        //by default 'ogc_fid' is assumed to be the feature id
+        if ( _source.valid() && _source->getFeatureSourceOptions().featureId().isSet() )
+        {
+            int featureId = _source->getFeatureSourceOptions().featureId().value();
+            std::string fidAttribute = _source->getFeatureSourceOptions().fidAttribute().isSet() ?
+                        _source->getFeatureSourceOptions().fidAttribute().value() : "ogc_fid";
+
+            std::string whereFIDEquals = ( fidAttribute + " = \'" + std::to_string(featureId) + "\'" );
+
+            expr = addSQLWhereCondition(expr, whereFIDEquals);
+        }
+
         //Include the order by clause if it's set
         if (_query.orderby().isSet())
         {                     
@@ -370,3 +383,44 @@ FeatureCursorOGR::readChunk()
     }
 }
 
+// returns the new SQL query by adding the whereCond clause to the original query
+std::string
+FeatureCursorOGR::addSQLWhereCondition(const std::string query, const std::string& whereCond) const
+{
+    std::string temp = osgEarth::toLower(query);
+
+    std::size_t endPos = temp.find( "limit" );
+    if ( endPos == std::string::npos )
+        endPos = temp.find( "order by" );
+
+    // case where clause not already defined
+    std::size_t wherePos = temp.find( "where" );
+    if ( wherePos == std::string::npos )
+    {
+        std::string completedWhereCond = " WHERE " + whereCond + " ";
+        if ( endPos == std::string::npos )
+        {
+            return (query + completedWhereCond);
+        }
+        else
+        {
+            std::string result = query;
+            return result.insert( endPos, completedWhereCond);
+        }
+    }
+
+    // case where clause already defined
+    else
+    {
+        std::string result = query;
+        result.insert(wherePos+5, " " + whereCond + " AND ( ");
+        if ( endPos == std::string::npos )
+        {
+            return result + " )";
+        }
+        else
+        {
+            return result.insert( endPos, " ) ");
+        }
+    }
+}
