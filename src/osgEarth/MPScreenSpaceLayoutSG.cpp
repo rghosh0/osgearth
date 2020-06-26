@@ -434,7 +434,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             osgUtil::RenderLeaf* leaf = *i;
             if ( ! leaf->_drawable.valid() )
                 continue;
-
+ 
             MPScreenSpaceGeometry* annoDrawable = static_cast<MPScreenSpaceGeometry*>(leaf->_drawable.get());
 
             // transform the bounding box of the drawable into window-space.
@@ -510,7 +510,14 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //            }
 
             box.set( box._min + pos - buffer, box._max + pos + buffer);
+            
+            float leftOffset=-(box._max.x()-box._min.x())*0.65;
+            
+                osg::Vec3 leftOffsetVec(leftOffset,0.,0.);
+            osg::BoundingBox leftBB( box._min+leftOffsetVec,box._max+leftOffsetVec);
 
+            bool hasFreeLeft=true;
+             bool hasFreeRight=true;
             int mapStartX,  mapStartY, mapEndX, mapEndY;
 
             if ( s_mp_sg_declutteringEnabledGlobally )
@@ -534,10 +541,11 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 else
                 {
+               
 
                     // declutter only on screen cells that intersects the current bbox cells
                     if ( useScreenGrid )
-                    {
+                    {  
                         for ( int mapX = mapStartX ; mapX <= mapEndX && visible ; ++mapX )
                             for ( int mapY = mapStartY ; mapY <= mapEndY && visible ; ++mapY )
                                 for( std::vector<RenderLeafBox>::const_iterator j = _usedMap[mapX][mapY].begin(); j != _usedMap[mapX][mapY].end(); ++j )
@@ -562,14 +570,32 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         // weed out any drawables that are obscured by closer drawables.
                         // TODO: think about a more efficient algorithm - right now we are just using
                         // brute force to compare all bbox's
+                         
                         for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
                         {
                             // only need a 2D test since we're in clip space
-                            bool isClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
-                                    osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
-
+                            RenderLeafBox leftJ(j->_min+leftOffsetVec,j->_max);
+                            
+                            bool isClearRight = osg::maximum(box.xMin(),leftJ.xMin()) > osg::minimum(box.xMax(),leftJ.xMax()) ||
+                                    osg::maximum(box.yMin(),leftJ.yMin()) > osg::minimum(box.yMax(),leftJ.yMax());
+//                            isClearRight =isClearRight && ( osg::maximum(box.xMin(),leftJ.xMin()) > osg::minimum(box.xMax(),leftJ.xMax()) ||
+//                                    osg::maximum(box.yMin(),leftJ.yMin()) > osg::minimum(box.yMax(),leftJ.yMax()));
+                             
+                            bool isClearLeft = osg::maximum(leftBB.xMin(),leftJ.xMin()) > osg::minimum(leftBB.xMax(),leftJ.xMax()) ||
+                                    osg::maximum(leftBB.yMin(),leftJ.yMin()) > osg::minimum(leftBB.yMax(),leftJ.yMax());
+                            
+//                            isClearLeft =isClearLeft && ( osg::maximum(leftBB.xMin(),leftJ.xMin()) > osg::minimum(leftBB.xMax(),leftJ.xMax()) ||
+//                                                          osg::maximum(leftBB.yMin(),leftJ.yMin()) > osg::minimum(leftBB.yMax(),leftJ.yMax()));
+                            
+                            if(!isClearLeft ){
+                               hasFreeLeft=false;
+                            }
+                            if(!isClearRight){
+                               hasFreeRight=false;
+                            }
+                            
                             // if there's an overlap then the leaf is culled.
-                            if ( ! isClear )
+                            if ( ! isClearRight && ! isClearLeft )
                             {
                                 visible = false;
                                 break;
@@ -608,7 +634,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             }
 
             osg::Matrix newModelView;
-            newModelView.makeTranslate(static_cast<double>(pos.x()), static_cast<double>(pos.y()), 0);
+            newModelView.makeTranslate(static_cast<double>(pos.x()+(( hasFreeLeft && !hasFreeRight )?leftOffset:0.0f)), static_cast<double>(pos.y()), 0);
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);
             //newModelView.preMultTranslate(offset);
