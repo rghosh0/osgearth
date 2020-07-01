@@ -513,11 +513,11 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             
             float leftOffset=-(box._max.x()-box._min.x())*0.65;
             
-                osg::Vec3 leftOffsetVec(leftOffset,0.,0.);
+            osg::Vec3 leftOffsetVec( leftOffset ,0. ,0. );
             osg::BoundingBox leftBB( box._min+leftOffsetVec,box._max+leftOffsetVec);
 
             bool hasFreeLeft=true;
-             bool hasFreeRight=true;
+            bool hasFreeRight=true;
             int mapStartX,  mapStartY, mapEndX, mapEndY;
 
             if ( s_mp_sg_declutteringEnabledGlobally )
@@ -525,6 +525,10 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 // A max priority => never occlude.
                 double priority = annoDrawable->_priority;
+                
+                 
+//                float cumulForces=0.0;
+//                float signedForces=0.0;
 
                 if ( useScreenGrid )
                 {
@@ -570,22 +574,33 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         // weed out any drawables that are obscured by closer drawables.
                         // TODO: think about a more efficient algorithm - right now we are just using
                         // brute force to compare all bbox's
-                         
+                        
+                     
+                        
                         for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
                         {
                             // only need a 2D test since we're in clip space
-                            RenderLeafBox leftJ(j->_min+leftOffsetVec,j->_max);
+                          
                             
-                            bool isClearRight = osg::maximum(box.xMin(),leftJ.xMin()) > osg::minimum(box.xMax(),leftJ.xMax()) ||
-                                    osg::maximum(box.yMin(),leftJ.yMin()) > osg::minimum(box.yMax(),leftJ.yMax());
-//                            isClearRight =isClearRight && ( osg::maximum(box.xMin(),leftJ.xMin()) > osg::minimum(box.xMax(),leftJ.xMax()) ||
-//                                    osg::maximum(box.yMin(),leftJ.yMin()) > osg::minimum(box.yMax(),leftJ.yMax()));
+//                            float v=0.0;
+//                            if( (-j->xMin() <= box.xMax() ) && ( box.xMax() <=j->xMax() ) )
+//                                v=(box.xMax()-j->xMin())*0.5;
+//                            else if( ( -j->xMin() <= box.xMin() ) && ( box.xMin() <=j->xMax() ) )
+//                                v=(box.xMin()-j->xMax())*0.5;
+                           
+                            
+                            
+//                            cumulForces+=osg::absolute(v);
+//                              signedForces+=v;
+                              
+                            bool isClearRight = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
+                                    osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
+
                              
-                            bool isClearLeft = osg::maximum(leftBB.xMin(),leftJ.xMin()) > osg::minimum(leftBB.xMax(),leftJ.xMax()) ||
-                                    osg::maximum(leftBB.yMin(),leftJ.yMin()) > osg::minimum(leftBB.yMax(),leftJ.yMax());
+                            bool isClearLeft = osg::maximum(leftBB.xMin(),j->xMin()) > osg::minimum(leftBB.xMax(),j->xMax()) ||
+                                    osg::maximum(leftBB.yMin(),j->yMin()) > osg::minimum(leftBB.yMax(),j->yMax());
                             
-//                            isClearLeft =isClearLeft && ( osg::maximum(leftBB.xMin(),leftJ.xMin()) > osg::minimum(leftBB.xMax(),leftJ.xMax()) ||
-//                                                          osg::maximum(leftBB.yMin(),leftJ.yMin()) > osg::minimum(leftBB.yMax(),leftJ.yMax()));
+
                             
                             if(!isClearLeft ){
                                hasFreeLeft=false;
@@ -595,7 +610,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             }
                             
                             // if there's an overlap then the leaf is culled.
-                            if ( ! isClearRight && ! isClearLeft )
+                            if ( ! hasFreeLeft && ! hasFreeRight )
                             {
                                 visible = false;
                                 break;
@@ -603,9 +618,14 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         }
                     }
                 }
+              
 
                 if ( visible )
-                {
+                {  
+                    if(hasFreeLeft && !hasFreeRight){
+                        box.xMax()+=leftOffset;
+                        box.xMin()+=leftOffset;
+                     }
                     // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
                     // to the final draw list.
                     if ( annoDrawable->_declutterActivated )
@@ -632,9 +652,10 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 local._used.push_back( box );
                 local._passed.push_back( leaf );
             }
-
+          
             osg::Matrix newModelView;
             newModelView.makeTranslate(static_cast<double>(pos.x()+(( hasFreeLeft && !hasFreeRight )?leftOffset:0.0f)), static_cast<double>(pos.y()), 0);
+           
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);
             //newModelView.preMultTranslate(offset);
