@@ -73,7 +73,7 @@ public:
     bool isInverted() const { return _inverted; }
 
     /** make this annotation highlighted or dehighlighted **/
-    void setHighlight( bool highlight );
+    void setHighlight( bool highlight, optional<bool> declutterActive = optional<bool>() );
 
     /** change main icon color **/
     void setIconColor( const Color& color );
