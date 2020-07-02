@@ -37,6 +37,8 @@
 
 using namespace osgEarth;
 
+const std::string LineDrawable::UNIFORM_HIGHLIGHT_COLOR = "oe_LineDrawable_highlight_color";
+
 
 // References:
 // https://mattdesl.svbtle.com/drawing-lines-is-hard
@@ -275,7 +277,7 @@ LineGroup::import(osg::Node* node, bool removePrimitiveSets)
 }
 
 void
-LineGroup::optimize()
+LineGroup::optimize( bool mergeGeometries )
 {
     // Optimize state sharing so the MergeGeometryVisitor can work better.
     // Without this step, the #defines used for width and stippling will
@@ -285,9 +287,14 @@ LineGroup::optimize()
 
     // Merge all non-dynamic drawables to reduce the total number of 
     // OpenGL calls.
-    osgUtil::Optimizer::MergeGeometryVisitor mg;
-    mg.setTargetMaximumNumberOfVertices(65536);
-    accept(mg);
+    // Note that it is not always a performance win as it also prevents
+    // from having an efficient culling
+    if ( mergeGeometries )
+    {
+        osgUtil::Optimizer::MergeGeometryVisitor mg;
+        mg.setTargetMaximumNumberOfVertices(65536);
+        accept(mg);
+    }
 }
 
 LineDrawable*
@@ -1203,8 +1210,8 @@ LineDrawable::setupShaders()
                 vp->addBindAttribLocation("oe_LineDrawable_prev", LineDrawable::PreviousVertexAttrLocation);
                 vp->addBindAttribLocation("oe_LineDrawable_next", LineDrawable::NextVertexAttrLocation);
                 s_gpuStateSet->getOrCreateUniform("oe_LineDrawable_limits", osg::Uniform::FLOAT_VEC2)->set(osg::Vec2f(-1, -1));
-                // TODO make the highlight color customizable
-                s_gpuStateSet->getOrCreateUniform("oe_LineDrawable_highlight_color", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4f(75.f / 255.f, 150.f / 255.f, 1.f, 1.f));
+                // set of a default highlight color (can be customized by overriding the uniform in a parent node)
+                s_gpuStateSet->getOrCreateUniform(UNIFORM_HIGHLIGHT_COLOR.c_str(), osg::Uniform::FLOAT_VEC4)->set(osg::Vec4f(75.f / 255.f, 150.f / 255.f, 1.f, 1.f));
                 s_gpuStateSet->setMode(GL_CULL_FACE, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED);
             }
         }

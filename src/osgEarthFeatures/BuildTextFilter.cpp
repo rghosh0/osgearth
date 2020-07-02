@@ -21,6 +21,7 @@
 #include <osgEarthFeatures/LabelSource>
 #include <osgEarthSymbology/TextSymbol>
 #include <osgEarth/MPScreenSpaceLayout>
+#include <osgEarth/MPScreenSpaceLayoutSG>
 #include <osgText/Text>
 
 #define LC "[BuildTextFilter] "
@@ -54,7 +55,7 @@ BuildTextFilter::push( FeatureList& input, FilterContext& context )
     // select the right driver
     if( text && !text->provider()->empty() )
         options.setDriver( *text->provider() );
-    else if ( osgEarth::MPScreenSpaceLayout::isExtensionLoaded() )
+    else if ( osgEarth::MPScreenSpaceLayout::isExtensionLoaded() || osgEarth::MPScreenSpaceLayoutSG::isExtensionLoaded() )
         options.setDriver( "mp_screen_annotations" );
     else
         options.setDriver( "annotation" );

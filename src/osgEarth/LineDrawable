@@ -45,6 +45,10 @@ namespace osgEarth
     {
     public:
 
+        static const std::string UNIFORM_HIGHLIGHT_COLOR;
+
+    public:
+
         //! Create new LineDrawable in GL_LINE_STRIP mode
         explicit LineDrawable(bool gpu = true);
 
@@ -241,9 +245,9 @@ namespace osgEarth
         
         //! Optimize the LineDrawables under this group for performance.
         //! Only call this after you finish adding drawables to your group.
-        //! It will attempt to combine drawables and state sets, but it will also
-        //! render the graph henceforth immutable.
-        void optimize();
+        //! It will attempt to combine drawables (if requested) and state sets,
+        //! but it will also render the graph henceforth immutable.
+        void optimize( bool mergeGeometries = true );
 
         //! Get child i as a LineDrawable
         LineDrawable* getLineDrawable(unsigned i);

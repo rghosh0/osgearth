@@ -70,6 +70,9 @@ main(int argc, char** argv)
     // disable the small-feature culling
     viewer.getCamera()->setSmallFeatureCullingPixelSize(-1.0f);
 
+    // avoid drawing of the picking polygons
+    viewer.getCamera()->setCullMask( 0xfffffff0 );
+
     // set a near/far ratio that is smaller than the default. This allows us to get
     // closer to the ground without near clipping. If you need more, use --logdepth
     viewer.getCamera()->setNearFarRatio(0.0001);

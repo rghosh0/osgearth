@@ -60,7 +60,10 @@ _terrainEngineDriver( "rex" ),
 _cacheDriver        ( "filesystem" ),
 _overrideCachePolicyInitialized( false ),
 _threadPoolSize(2u),
-_devicePixelRatio(1.0f)
+_devicePixelRatio(1.0f),
+_deviceDensityMultiplier(1.0f),
+_deviceImageCategoryMultiplier(1.0f),
+_deviceImageCategoryDensity(96)
 {
     // set up GDAL and OGR.
     OGRRegisterAll();
@@ -745,6 +748,64 @@ Registry::setDevicePixelRatio(float devicePixelRatio)
 {
     _devicePixelRatio = devicePixelRatio;
 }
+
+
+/**
+ * Gets the device pixel density multiplier
+ */
+float
+Registry::getDeviceDensityMultiplier() const
+{
+    return _deviceDensityMultiplier;
+}
+
+/**
+ * Sets the device pixel density multiplier
+ */
+void
+Registry::setDeviceDensityMultiplier(float deviceDensityMultiplier)
+{
+    _deviceDensityMultiplier = deviceDensityMultiplier;
+}
+
+/**
+ * Gets the device image category multiplier
+ */
+float
+Registry::getDeviceImageCategoryMultiplier() const
+{
+    return _deviceImageCategoryMultiplier;
+}
+
+/**
+ * Gets the device image category density
+ */
+int
+Registry::getDeviceImageCategoryDensity() const
+{
+    return _deviceImageCategoryDensity;
+}
+
+/**
+ * Sets the device image category multiplier
+ */
+void
+Registry::setDeviceImageCategoryMultiplier(float deviceImageCategoryMultiplier)
+{
+    _deviceImageCategoryMultiplier = deviceImageCategoryMultiplier;
+
+    if ( _deviceImageCategoryMultiplier <= 0.75 )
+        _deviceImageCategoryDensity = 72;
+    else if ( _deviceImageCategoryMultiplier <= 1. )
+        _deviceImageCategoryDensity = 96;
+    else if ( _deviceImageCategoryMultiplier <= 1.5 )
+        _deviceImageCategoryDensity = 144;
+    else if ( _deviceImageCategoryMultiplier <= 2. )
+        _deviceImageCategoryDensity = 192;
+    else if ( _deviceImageCategoryMultiplier <= 3. )
+        _deviceImageCategoryDensity = 288;
+}
+
 
 
 //Simple class used to add a file extension alias for the earth_tile to the earth plugin

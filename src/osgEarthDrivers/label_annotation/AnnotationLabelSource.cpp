@@ -206,7 +206,7 @@ public:
 
         if ( autoLineFollowing )
         {
-            const Geometry* geom = feature->getGeometry();
+            osg::ref_ptr<const Geometry> geom = feature->getGeometry();
             if( style.getSymbol<TextSymbol>()->autoOffsetGeomWKT().isSet() )
             {
                 StringExpression autoOffset = *(style.getSymbol<TextSymbol>()->autoOffsetGeomWKT());
@@ -220,11 +220,11 @@ public:
             {
                 if( geom->getType() == Geometry::TYPE_LINESTRING)
                 {
-                    geomLineString = dynamic_cast<const LineString*>( geom );
+                    geomLineString = dynamic_cast<const LineString*>( geom.get() );
                 }
                 else
                 {
-                    const MultiGeometry* geomMulti = dynamic_cast<const MultiGeometry*>(geom);
+                    const MultiGeometry* geomMulti = dynamic_cast<const MultiGeometry*>( geom.get() );
                     if( geomMulti )
                         geomLineString = dynamic_cast<const LineString*>( geomMulti->getComponents().front().get() );
                 }

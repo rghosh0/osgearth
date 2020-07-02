@@ -20,6 +20,7 @@
 #include <osgEarth/PrimitiveIntersector>
 #include <osgEarth/Utils>
 #include <osgEarth/MPScreenSpaceLayout>
+#include <osgEarth/MPScreenSpaceLayoutSG>
 #include <osgEarth/GeoTransform>
 #include <osg/TemplatePrimitiveFunctor>
 #include <osgText/Text>
@@ -508,6 +509,16 @@ void PrimitiveIntersector::intersect(osgUtil::IntersectionVisitor& iv, osg::Draw
 
         geoTransform->getPosition().toWorld(ssPt);
         osg::Vec3d screenSpacePoint = ssPt * _camMatrix;
+        if ((osg::Vec2d(screenSpacePoint.x(), screenSpacePoint.y()) - _pickCoord).length() > _buffer)
+            return;
+
+        inScreenSpace = true;
+    }
+    // new screenspacelayout 2
+    else if (MPScreenSpaceGeometry* ssGeom = dynamic_cast<MPScreenSpaceGeometry*>(drawable))
+    {
+        ssPt = ssGeom->getAnchorPoint();
+        osg::Vec3d screenSpacePoint = ssGeom->getAnchorPoint() * _camMatrix;
         if ((osg::Vec2d(screenSpacePoint.x(), screenSpacePoint.y()) - _pickCoord).length() > _buffer)
             return;
 

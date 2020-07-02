@@ -222,6 +222,18 @@ public:
     optional<int>& screenGridNbRow() { return _screenGridNbRow; }
     const optional<int>& screenGridNbRow() const { return _screenGridNbRow; }
 
+    /** Name of the default font. */
+    optional<std::string>& defaultFont() { return _defaultFont; }
+    const optional<std::string>& defaultFont() const { return _defaultFont; }
+
+    /** Path of the text font altas. */
+    optional<std::string>& fontAltas() { return _fontAltas; }
+    const optional<std::string>& fontAltas() const { return _fontAltas; }
+
+    /** Path of the icon altas. */
+    optional<std::string>& iconAltas() { return _iconAltas; }
+    const optional<std::string>& iconAltas() const { return _iconAltas; }
+
 public:
 
     Config getConfig() const;
@@ -239,6 +251,9 @@ protected:
     optional<bool>     _useScreenGrid;
     optional<int>      _screenGridNbCol;
     optional<int>      _screenGridNbRow;
+    optional<std::string>  _defaultFont;
+    optional<std::string>  _fontAltas;
+    optional<std::string>  _iconAltas;
 
     void fromConfig( const Config& conf );
 };

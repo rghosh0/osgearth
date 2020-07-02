@@ -445,6 +445,7 @@ GeometryCompiler::compile(FeatureList&          workingSet,
 
         filter.maxGranularity() = *_options.maxGranularity();
         filter.geoInterp()      = *_options.geoInterp();
+        filter.mergeGeometry()  = *_options.mergeGeometry();
         filter.shaderPolicy()   = *_options.shaderPolicy();
 
         if (_options.maxPolygonTilingAngle().isSet())

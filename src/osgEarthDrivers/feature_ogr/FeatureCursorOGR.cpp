@@ -93,6 +93,13 @@ _filters          ( filters )
     {
         OGR_SCOPED_LOCK;
 
+
+        // provide some performance info
+        osg::Timer_t t_start;
+        if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
+            t_start = osg::Timer::instance()->tick();
+
+
         std::string expr;
         std::string from = OGR_FD_GetName( OGR_L_GetLayerDefn( _layerHandle ));        
         
@@ -130,6 +137,19 @@ _filters          ( filters )
             std::stringstream buf;
             buf << "SELECT * FROM " << from;
             expr = buf.str();
+        }
+
+        //Include id clause if it's set
+        //by default 'ogc_fid' is assumed to be the feature id
+        if ( _source.valid() && _source->getFeatureSourceOptions().featureId().isSet() )
+        {
+            int featureId = _source->getFeatureSourceOptions().featureId().value();
+            std::string fidAttribute = _source->getFeatureSourceOptions().fidAttribute().isSet() ?
+                        _source->getFeatureSourceOptions().fidAttribute().value() : "ogc_fid";
+
+            std::string whereFIDEquals = ( fidAttribute + " = \'" + std::to_string(featureId) + "\'" );
+
+            expr = addSQLWhereCondition(expr, whereFIDEquals);
         }
 
         //Include the order by clause if it's set
@@ -197,7 +217,17 @@ _filters          ( filters )
         {
             OGR_L_ResetReading( _resultSetHandle );
         }
+
+        // provide some performance info
+        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+        {
+            osg::Timer_t t_end = osg::Timer::instance()->tick();
+            double t = osg::Timer::instance()->delta_s(t_start, t_end);
+            OE_DEBUG << LC << "Profiling the time to fetch new data:\n";
+            OE_DEBUG << LC << "    execution of the query " << t << "s\n";
+        }
     }
+
 
     readChunk();
 }
@@ -253,6 +283,13 @@ FeatureCursorOGR::readChunk()
     
     OGR_SCOPED_LOCK;
 
+
+    // provide some performance info
+    osg::Timer_t t_start;
+    if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
+        t_start = osg::Timer::instance()->tick();
+
+
     while( _queue.size() < _chunkSize && !_resultSetEndReached )
     {
         FeatureList filterList;
@@ -274,6 +311,14 @@ FeatureCursorOGR::readChunk()
 
                 if (feature.valid())
                 {
+                    // If a fid attribute has been defined, override the fid of the feature
+                    if (_source.valid() && _source->getFeatureSourceOptions().fidAttribute().isSet())
+                    {
+                        std::string attr = feature->getString(_source->getFeatureSourceOptions().fidAttribute().get());
+                        FeatureID fid = as<long>(attr, 0);
+                        feature->setFID( fid );
+                    }
+
                     if (!_source->isBlacklisted(feature->getFID()))
                     {
                         if (validateGeometry( feature->getGeometry() ))
@@ -327,6 +372,55 @@ FeatureCursorOGR::readChunk()
         {
             _queue.push( i->get() );
         }
+
+        // provide some performance info
+        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+        {
+            osg::Timer_t t_end = osg::Timer::instance()->tick();
+            double t = osg::Timer::instance()->delta_s(t_start, t_end);
+            OE_DEBUG << LC << "    readChunk " << t << "s (for " <<_queue.size() << " features)\n";
+        }
     }
 }
 
+// returns the new SQL query by adding the whereCond clause to the original query
+std::string
+FeatureCursorOGR::addSQLWhereCondition(const std::string query, const std::string& whereCond) const
+{
+    std::string temp = osgEarth::toLower(query);
+
+    std::size_t endPos = temp.find( "limit" );
+    if ( endPos == std::string::npos )
+        endPos = temp.find( "order by" );
+
+    // case where clause not already defined
+    std::size_t wherePos = temp.find( "where" );
+    if ( wherePos == std::string::npos )
+    {
+        std::string completedWhereCond = " WHERE " + whereCond + " ";
+        if ( endPos == std::string::npos )
+        {
+            return (query + completedWhereCond);
+        }
+        else
+        {
+            std::string result = query;
+            return result.insert( endPos, completedWhereCond);
+        }
+    }
+
+    // case where clause already defined
+    else
+    {
+        std::string result = query;
+        result.insert(wherePos+5, " " + whereCond + " AND ( ");
+        if ( endPos == std::string::npos )
+        {
+            return result + " )";
+        }
+        else
+        {
+            return result.insert( endPos, " ) ");
+        }
+    }
+}

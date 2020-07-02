@@ -223,6 +223,7 @@ SET(LIB_PUBLIC_HEADERS
     XmlUtils
 	
     MPScreenSpaceLayout
+    MPScreenSpaceLayoutSG
 )
 
 
@@ -393,6 +394,7 @@ set(TARGET_SRC
     XmlUtils.cpp
 	
     MPScreenSpaceLayout.cpp
+    MPScreenSpaceLayoutSG.cpp
 	
     ${SHADERS_CPP} )
 

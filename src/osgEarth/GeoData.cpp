@@ -453,55 +453,70 @@ GeoPoint::interpolate(const GeoPoint& rhs, double t) const
 
     GeoPoint result;
 
-    // Geometric slerp in unit sphere space
-    // https://en.wikipedia.org/wiki/Slerp#Geometric_Slerp
+    GeoPoint to = rhs.transform(getSRS());
 
-    GeoPoint p1 = transform(getSRS()->getGeodeticSRS());
-    GeoPoint p2 = rhs.transform(p1.getSRS());
+    if (getSRS()->isProjected())
+    {
+        osg::Vec3d w1, w2;
+        toWorld(w1);
+        rhs.toWorld(w2);
 
-    double deltaZ = p2.z()-p1.z();
+        osg::Vec3d r(
+            w1.x() + (w2.x()-w1.x())*t,
+            w1.y() + (w2.y()-w1.y())*t,
+            w1.z() + (w2.z()-w1.z())*t);
 
-    // Convert each point to unit sphere world space:
-    osg::Vec3d unitToEllip(
-        getSRS()->getEllipsoid()->getRadiusEquator(),
-        getSRS()->getEllipsoid()->getRadiusEquator(),
-        getSRS()->getEllipsoid()->getRadiusPolar());
+        result.fromWorld(getSRS(), r);
+    }
 
-    osg::Vec3d ellipToUnit = osg::componentDivide(
-        osg::Vec3d(1,1,1), unitToEllip);
-        
-    osg::Vec3d w1;
-    p1.toWorld(w1);
-    w1 = osg::componentMultiply(w1, ellipToUnit);
-    w1.normalize();
+    else // geographic
+    {
+        // Geometric slerp in unit sphere space
+        // https://en.wikipedia.org/wiki/Slerp#Geometric_Slerp
 
-    osg::Vec3d w2;
-    p2.toWorld(w2);
-    w2 = osg::componentMultiply(w2, ellipToUnit);
-    w2.normalize();
+        double deltaZ = to.z()-z();
 
-    // perform geometric slerp:
-    double dp = w1*w2;
-    if (dp == 1.0)
-        return *this;
+        // Convert each point to unit sphere world space:
+        osg::Vec3d unitToEllip(
+            getSRS()->getEllipsoid()->getRadiusEquator(),
+            getSRS()->getEllipsoid()->getRadiusEquator(),
+            getSRS()->getEllipsoid()->getRadiusPolar());
 
-    double angle = acos(dp);
+        osg::Vec3d ellipToUnit = osg::componentDivide(
+            osg::Vec3d(1,1,1), unitToEllip);
 
-    double s = sin(angle);
-    if (s == 0.0)
-        return *this;
+        osg::Vec3d w1;
+        toWorld(w1);
+        w1 = osg::componentMultiply(w1, ellipToUnit);
+        w1.normalize();
 
-    double c1 = sin((1.0-t)*angle)/s;
-    double c2 = sin(t*angle)/s;
+        osg::Vec3d w2;
+        to.toWorld(w2);
+        w2 = osg::componentMultiply(w2, ellipToUnit);
+        w2.normalize();
 
-    osg::Vec3d n = w1*c1 + w2*c2;
+        // perform geometric slerp:
+        double dp = w1*w2;
+        if (dp == 1.0)
+            return *this;
 
-    // convert back to world space and apply altitude lerp
-    n = osg::componentMultiply(n, unitToEllip);
-    result.fromWorld(getSRS(), n);
-    result.z() = p1.z() + t*deltaZ;
+        double angle = acos(dp);
 
-    result.transformInPlace(getSRS());
+        double s = sin(angle);
+        if (s == 0.0)
+            return *this;
+
+        double c1 = sin((1.0-t)*angle)/s;
+        double c2 = sin(t*angle)/s;
+
+        osg::Vec3d n = w1*c1 + w2*c2;
+
+        // convert back to world space and apply altitude lerp
+        n = osg::componentMultiply(n, unitToEllip);
+        result.fromWorld(getSRS(), n);
+        result.z() = z() + t*deltaZ;
+    }
+
     return result;
 }
 

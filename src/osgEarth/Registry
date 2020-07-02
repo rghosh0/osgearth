@@ -284,7 +284,32 @@ namespace osgEarth
         * This value is useful when running in high dpi environments on high resolution displays.
         */
         void setDevicePixelRatio(float devicePixelRatio);
-        
+
+        /**
+         * Gets the device pixel density multiplier
+         */
+        float getDeviceDensityMultiplier() const;
+
+        /**
+         * Sets the device pixel density multiplier
+         */
+        void setDeviceDensityMultiplier(float deviceDensityMultiplier);
+
+        /**
+         * Gets the device image category multiplier
+         */
+        float getDeviceImageCategoryMultiplier() const;
+
+        /**
+         * Sets the device image category multiplier
+         */
+        void setDeviceImageCategoryMultiplier(float deviceImageCategoryMultiplier);
+
+        /**
+         * Gets the device image category density
+         */
+        int getDeviceImageCategoryDensity() const;
+
         //! Release any resources held by the registry so it can be re-used
         void release();
 
@@ -368,7 +393,10 @@ namespace osgEarth
         unsigned _threadPoolSize;
 
         float _devicePixelRatio;
-        
+        float _deviceDensityMultiplier;
+        float _deviceImageCategoryMultiplier;
+        int   _deviceImageCategoryDensity;
+
         typedef std::map<SpatialReference::Key, osg::ref_ptr<SpatialReference> > SRSCache;
         mutable SRSCache _srsCache;
         mutable Threading::Mutex _srsMutex;
@@ -386,7 +414,7 @@ struct osgEarthRegisterUnits {
     extern "C" void osgearth_units_##NAME(void) {} \
     static osgEarthRegisterUnits s_osgEarthRegistryUnitsProxy##NAME (INSTANCE)
 
-    
+
 #define USE_OSGEARTH_UNITS(NAME ) \
     extern "C" void osgearth_units_##NAME(void); \
     static osgDB::PluginFunctionProxy proxy_osgearth_units_##NAME(osgearth_units_##NAME);

@@ -1,6 +1,6 @@
 /* -*-c++-*- */
 /* osgEarth - Geospatial SDK for OpenSceneGraph
-* Copyright 2020 Pelican Mapping
+* Copyright 2008-2012 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -19,30 +19,22 @@
 * You should have received a copy of the GNU Lesser General Public License
 * along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
-#ifndef OSGEARTH_TESSELLATOR_H
-#define OSGEARTH_TESSELLATOR_H 1
+#ifndef OSGEARTH_ANNOTATION_SHADERS
+#define OSGEARTH_ANNOTATION_SHADERS 1
 
-#include <osgEarth/Common>
+#include <osgEarthAnnotation/Export>
+#include <osgEarth/ShaderLoader>
 
-#include <osg/Geometry>
-
-namespace osgEarth { namespace Util
+namespace osgEarth { namespace Annotation
 {
-    /**
-     * Polygon tessellator using a modified ear clipping technique
-     */
-    class OSGEARTH_EXPORT Tessellator
-    {
-    public:
-        bool tessellateGeometry(osg::Geometry &geom);
+    struct OSGEARTHANNO_EXPORT Shaders : public osgEarth::ShaderPackage
+	{
+        Shaders();
 
-    protected:
-        osg::PrimitiveSet* tessellatePrimitive(osg::PrimitiveSet* primitive, osg::Vec3Array* vertices);
-        osg::PrimitiveSet* tessellatePrimitive(unsigned int first, unsigned int last, osg::Vec3Array* vertices);
+		std::string
+            MPAnno_Vertex,
+            MPAnno_Fragment;
+	};	
+} } // namespace osgEarth::Annotation
 
-        bool isConvex(const osg::Vec3Array &vertices, const std::vector<unsigned int> &activeVerts, unsigned int cursor);
-        bool isEar(const osg::Vec3Array &vertices, const std::vector<unsigned int> &activeVerts, unsigned int cursor, bool &tradEar);
-    };
-} }
-
-#endif // OSGEARTH_TESSELLATOR_H
+#endif // OSGEARTH_SHADERS
