@@ -193,7 +193,7 @@ MPAnnotationGroupSG::MPAnnotationGroupSG(const osgDB::Options *readOptions , Tex
     ShaderGenerator::setIgnoreHint(this, true);
 }
 
-long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions)
+long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions, unsigned long long instanceIndex)
 {
     if ( ! _atlasStateSet.valid() )
         return -1;
@@ -205,6 +205,7 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     // buid the single geometry which will gather all sub items and LODs
     MPAnnotationDrawable* annoDrawable = new MPAnnotationDrawable(style, readOptions, _atlasStateSet.get());
     annoDrawable->setId(localId);
+    annoDrawable->setInstanceIndex(instanceIndex);
     annoDrawable->setCullingActive(false);
     annoDrawable->setDataVariance(DataVariance::DYNAMIC);
 

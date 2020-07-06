@@ -52,7 +52,8 @@ public:
                               _autoRotate(false),
                               _autoFollowLine(false),
                               _id(-1),
-                              _screenClamping(false) { }
+                              _screenClamping(false),
+                              _instanceIndex(0) { }
 
     /** Decluttering priority - FLT_MAX means don't declutter */
     void setPriority(double value) { _originalPriority = _priority = value; }
@@ -104,6 +105,10 @@ public:
 
     /** true if this annotation still draw something even when fully cluttered **/
     bool drawInClutteredMode( ) const { return _drawInClutteredMode; }
+    
+    /** the index of a drawable inside for a same given feature  (in case of multiple instances per feature)*/
+   unsigned long long  getInstanceIndex() const { return _instanceIndex; }
+   void setInstanceIndex(unsigned long long  instanceIndex) { _instanceIndex = instanceIndex; }
 
 public:
     long       _id{1};
@@ -117,7 +122,7 @@ public:
     osg::BoundingBox    _bbox;
     osg::BoundingSphere _bsphereInitial {osg::Vec3d(0., 0., 0), 0.};
     osg::BoundingBox    _bboxSymetric;
-
+    unsigned long long  _instanceIndex{0};
     // draw in cluttered state
     bool        _drawInClutteredMode {false};
     bool        _cluttered {false};
