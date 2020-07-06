@@ -23,7 +23,7 @@
 #include <osgEarth/Utils>
 #include <osgEarth/Containers>
 #include <osgEarth/Extension>
-
+#include <osg/LineSegment>
 
 // -----------------------------------------------------------
 // This class is mainly copied from ScreenSpaceLayout.cpp
@@ -477,7 +477,100 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 updateOffsetForAutoLabelOnLine(box, vp, pos, annoDrawable, camVPW, slidingOffset, to);
                 pos += slidingOffset;
             }
-
+            
+            
+            if(annoDrawable->screenClamping()){
+                
+                // Calculate the "clip to world" matrix = MVPinv.
+                osg::Matrix MVP = (cam->getViewMatrix()) * cam->getProjectionMatrix();
+                osg::Matrix MVPinv;
+                MVPinv.invert(MVP);
+                    
+                osg::Vec3d pw1=annoDrawable->getLineStartPoint();
+                osg::Vec3d pw2=annoDrawable->getLineEndPoint();
+                
+                osg::Vec3d pc1=pw1*MVP;
+                osg::Vec3d pc2=pw2*MVP;
+                               
+                
+                bool p1_in_width=pc1.x()<1.0 && pc1.x()>-1.0;
+                bool p1_in_height=pc1.y()<1.0 && pc1.y()>-1.0;
+             
+                bool p1_inside_screen = p1_in_width && p1_in_height;
+                
+                bool p2_in_width=pc2.x()<1.0 && pc2.x()>-1.0;
+                bool p2_in_height=pc2.y()<1.0 && pc2.y()>-1.0;
+         
+                bool p2_inside_screen = p2_in_width && p2_in_height;                
+                
+                
+                bool line_inside_screen=p1_inside_screen && p2_inside_screen;  
+                
+             
+                
+                osg::BoundingBox bb (-1.0,-1.0,-1.0,1.0,1.0,1.0); 
+                visible = ( !line_inside_screen) && !bb.contains(pc1);
+           
+                osg::ref_ptr<osg::LineSegment> seg;
+                
+                if(visible){ 
+                    
+                    if(!seg.valid())
+                        seg = new osg::LineSegment (pc1,pc2);
+                    else
+                        seg->set(pc1,pc2);
+                    float r1=0,r2=0;
+                    visible = seg->intersectAndComputeRatios(bb,r1,r2) ;
+                    
+                    if(visible)
+                    {
+    
+    //                    if( layoutData->getInstanceIndex() ==0) 
+    //                    {
+                          //  OE_DEBUG<<" r1= "<<r1<<"r2"<<r2 <<std::endl;
+                            
+                            pos= (pw1 + (pw2-pw1)*r1)*MVP;
+                            
+                            0.5*(pw1.length()+pw2.length());
+                            
+    //                    }
+    //                    else
+    //                    {
+    //                         OE_DEBUG<<" r2= "<<r2<<std::endl;
+    //                        pos= (pc1 - (pc2-pc1)*r2);
+    //                    }
+                        
+                        float x_bbox=0;
+                        float y_bbox=0;
+                        
+                        if(pos.x() >=0.99){
+                            x_bbox = box.xMax() ;
+                        }else if(pos.x() <=-0.99){
+                            x_bbox = box.xMin() ;
+                        }
+                        
+                        if(pos.y() >=0.99){
+                            y_bbox = box.yMax() ;
+                        }else if(pos.y() <=-0.99){
+                            y_bbox = box.yMin() ;
+                        }
+                        
+                        
+                        pos = pos * windowMatrix;
+                        pos.x()-=x_bbox;
+                        pos.y()-=y_bbox;
+                    }
+                     
+                     
+//                    OE_DEBUG<<" geomLineString "<<layoutData->getId()<<" "<<layoutData->getInstanceIndex() 
+//                           <<" p1"<<pw1.x()<<" "<<pw1.y()<<" "<<pw1.z()<<"  p2"<<pw2.x()<<" "<<pw2.y()<<" "<<pw2.z()<<std::endl;
+//                    OE_DEBUG<<layoutData->getInstanceIndex() <<" p2="<<pc2.x()<<" "<<pc2.y()<<" "<<pc2.z()
+//                           <<" p1="<<pc1.x()<<" "<<pc1.y()<<" "<<pc1.z()
+                             
+//                          <<" i="<<pos.x()<<" "<<pos.y()<<" "<<pos.z()<<std::endl;
+                }
+                
+          }
 
 
             //            // Expand the box if this object is currently not visible, so that it takes a little

@@ -51,7 +51,8 @@ public:
                               _pixelOffset(0, 0),
                               _autoRotate(false),
                               _autoFollowLine(false),
-                              _id(-1) { }
+                              _id(-1),
+                              _screenClamping(false) { }
 
     /** Decluttering priority - FLT_MAX means don't declutter */
     void setPriority(double value) { _originalPriority = _priority = value; }
@@ -93,6 +94,11 @@ public:
     //void expandBboxBy ( const osg::BoundingBox& bbox) { _bbox.expandBy(bbox); _bsphere.expandRadiusBy(bbox); _bboxSymetric.expandBy(_bsphere); }
     const osg::BoundingBox& getBBoxSymetric() const { return _bboxSymetric; }
 
+    
+    /** Wether the label shall automatically replace itself along a line */
+    void setScreenClamping(bool screenClamping) { _screenClamping = screenClamping; }
+    bool screenClamping() const { return _screenClamping; }
+    
     /** active the decluttered mode of this annotation **/
     virtual void activeClutteredDrawMode( bool cluttered ) {}
 
@@ -115,6 +121,7 @@ public:
     // draw in cluttered state
     bool        _drawInClutteredMode {false};
     bool        _cluttered {false};
+    bool        _screenClamping {false};
 
 public:
     // computed at cull step

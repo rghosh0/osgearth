@@ -218,6 +218,7 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
     const TextSymbol* ts = style.get<TextSymbol>();
     
+    
  
     double priority = 0.0;
     if (ts && ts->priority().isSet())
@@ -353,6 +354,62 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
         annoDrawable->setAutoFollowLine( ts->autoOffsetAlongLine().get() );
         annoDrawable->setAutoRotate( ts->autoRotateAlongLine().get() );
     }
+    
+    //label placement technique
+    
+    if( ts && ts->placementTechnique().isSet()){
+      const osg::Vec3d center = geom->getCentroid();
+        osg::Vec3d p1, p2;
+          geomSupport = geom;
+        if( geomSupport->getType() == Geometry::TYPE_LINESTRING)
+        {
+            geomLineString = dynamic_cast<LineString*>( geomSupport.get() );
+        }
+        else
+        {
+            const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport.get());
+            if( geomMulti )
+                geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
+        }
+
+        if( geomLineString )
+        {
+            GeoPoint geoStart( osgEarth::SpatialReference::get("wgs84"), geomLineString->front().x(), geomLineString->front().y(),
+                    geomLineString->front().z(), ALTMODE_ABSOLUTE );
+            GeoPoint geoEnd( osgEarth::SpatialReference::get("wgs84"), geomLineString->back().x(), geomLineString->back().y(),
+                    geomLineString->back().z(), ALTMODE_ABSOLUTE );
+
+            if( ts->autoOffsetGeomWKT().isSet() )
+            {
+                // Direction to the longest distance
+                if( (geoStart.vec3d() - center).length2() > (geoEnd.vec3d() - center).length2() )
+                {
+                    geoEnd.toWorld(p1);
+                    geoStart.toWorld(p2);
+                }
+                else
+                {
+                    geoStart.toWorld(p1);
+                    geoEnd.toWorld(p2);
+                }
+            }
+            else
+            {
+                geoEnd.toWorld(p1);
+                geoStart.toWorld(p2);
+            }
+        }else{
+            OE_WARN<<"no geomLineString avail"<<std::endl;
+        }
+
+        annoDrawable->setLineStartPoint(p1);
+        annoDrawable->setLineEndPoint(p2);
+         OE_DEBUG<<" geomLineString store"<<annoDrawable->getId()<<" "<<annoDrawable->getLineStartPoint().x()<<" "<<annoDrawable->getLineStartPoint().y()<<" "<<annoDrawable->getLineStartPoint().y()<<
+                   "  p2"<<annoDrawable->getLineEndPoint().x()<<" "<<annoDrawable->getLineEndPoint().y()<<" "<<annoDrawable->getLineEndPoint().y()<<std::endl;
+        annoDrawable->setScreenClamping(true);
+        
+    }  
+    
 
     this->addChild( annoDrawable );
     _mainGeomDrawableList[localId] = annoDrawable;
