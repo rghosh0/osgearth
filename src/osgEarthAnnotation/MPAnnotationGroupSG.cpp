@@ -55,6 +55,7 @@ namespace
         void operator()(osg::Node* node, osg::NodeVisitor* nv)
         {
             osg::ref_ptr<osgUtil::CullVisitor> cullVisitor = nv->asCullVisitor();
+            
             if ( ! cullVisitor->isCulled(node->getBound()) )
             {
                 const osg::Matrix& MVPW = *(cullVisitor->getMVPW());
@@ -93,7 +94,7 @@ namespace
                     }
 
                     // chek if it is out of viewport
-                    if ( ! annoDrawable->isAutoFollowLine() )
+                    if ( ! annoDrawable->isAutoFollowLine() && ! annoDrawable->screenClamping() )
                     {
                         // out of viewport
                         if ( osg::maximum(annoDrawable->_cull_bboxSymetricOnScreen.xMin(), vpXmin) > osg::minimum(annoDrawable->_cull_bboxSymetricOnScreen.xMax(), vpXmax) ||
@@ -147,7 +148,7 @@ osg::BoundingSphere MPAnnotationGroupSG::computeBound () const
         {
             osg::ref_ptr<const MPAnnotationDrawable> annoDrawable = static_cast<MPAnnotationDrawable*>(itr->get());
             bsphere.expandBy(annoDrawable->getAnchorPoint());
-            if (annoDrawable->isAutoFollowLine())
+            if (annoDrawable->isAutoFollowLine() || annoDrawable->screenClamping())
             {
                 bsphere.expandBy(annoDrawable->getLineStartPoint());
                 bsphere.expandBy(annoDrawable->getLineEndPoint());
@@ -403,6 +404,7 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
             OE_WARN<<"no geomLineString avail"<<std::endl;
         }
 
+       
         annoDrawable->setLineStartPoint(p1);
         annoDrawable->setLineEndPoint(p2);
          OE_DEBUG<<" geomLineString store"<<annoDrawable->getId()<<" "<<annoDrawable->getLineStartPoint().x()<<" "<<annoDrawable->getLineStartPoint().y()<<" "<<annoDrawable->getLineStartPoint().y()<<
