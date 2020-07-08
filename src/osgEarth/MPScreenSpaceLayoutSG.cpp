@@ -24,6 +24,8 @@
 #include <osgEarth/Containers>
 #include <osgEarth/Extension>
 #include <osg/LineSegment>
+#include <osgEarth/GeoMath>
+#include <osgEarth/GeoData>
 
 // -----------------------------------------------------------
 // This class is mainly copied from ScreenSpaceLayout.cpp
@@ -78,6 +80,7 @@ struct SortByPriority : public DeclutterSortFunctor
 struct MPScreenSpaceSGLayoutContext : public osg::Referenced
 {
     ScreenSpaceLayoutOptions _options;
+    
 };
 
 typedef osg::BoundingBox RenderLeafBox;
@@ -506,12 +509,12 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 
                 bool line_inside_screen=p1_inside_screen && p2_inside_screen;  
                 
-             
+                float margin=0.00;
                 
-                osg::BoundingBox bb (-1.0,-1.0,-1.0,1.0,1.0,1.0); 
+                osg::BoundingBox bb (-1.0+margin,-1.0+margin,-1.0+margin,1.0-margin,1.0-margin,1.0-margin); 
                 visible = ( !line_inside_screen) && !bb.contains(pc1);
            
-                osg::ref_ptr<osg::LineSegment> seg;
+                osg::ref_ptr<osg::LineSegment> seg,subseg;
                 
                 if(visible){ 
                     
@@ -521,25 +524,73 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         seg->set(pc1,pc2);
                     float r1=0,r2=0;
                     visible = seg->intersectAndComputeRatios(bb,r1,r2) ;
+       
                     
                     if(visible)
-                    {
-    
-    //                    if( layoutData->getInstanceIndex() ==0) 
-    //                    {
-                          //  OE_DEBUG<<" r1= "<<r1<<"r2"<<r2 <<std::endl;
-                            
-                            pos= (pw1 + (pw2-pw1)*r1)*MVP;
-                            
-                            0.5*(pw1.length()+pw2.length());
-                            
-    //                    }
-    //                    else
-    //                    {
-    //                         OE_DEBUG<<" r2= "<<r2<<std::endl;
-    //                        pos= (pc1 - (pc2-pc1)*r2);
-    //                    }
+                    {             
+                       
+
+                        const osgEarth::SpatialReference* srs = osgEarth::SpatialReference::create("epsg:4326");
+                        GeoPoint gp1,gp2,gp3;
+                        gp1.fromWorld(srs,pw1);
+                        gp2.fromWorld(srs,pw2);  
+                        double lat1=osg::DegreesToRadians( gp1.y());
+                        double lon1=osg::DegreesToRadians( gp1.x());
+                        double lat2=osg::DegreesToRadians( gp2.y());
+                        double lon2=osg::DegreesToRadians( gp2.x());
                         
+                        double b=GeoMath::rhumbBearing(lat1,lon1,lat2,lon2);
+                        double d=GeoMath::rhumbDistance(lat1,lon1,lat2,lon2);
+                         double la=0.,lo=0.;
+                         
+                         /* fine intersection */
+                         
+                         osg::Vec3d mid;
+                         double d1=d;
+                        for(int s=0;s<10;s++){
+                            
+                            d1=d*0.5;
+                            GeoMath::rhumbDestination(lat1,lon1,b,d1,la,lo);
+                             gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
+                             gp3.toWorld(mid);
+                             gp1.toWorld(pw1);
+                             
+                            subseg = new osg::LineSegment (pw1*MVP,mid*MVP);
+                            bool intersect1=subseg->intersectAndComputeRatios(bb,r1,r2); 
+                            
+                            if(!intersect1){
+                                gp1=gp3;
+                                 lat1=osg::DegreesToRadians( gp1.y());
+                                 lon1=osg::DegreesToRadians( gp1.x());
+                            }
+                            
+                        }
+                        
+                        //                            osg::Vec3d pw1z=pw1;
+                        //                            osg::Vec3d pw2z=pw2;
+                        //                            pw1z.z()=0;
+                        //                            pw2z.z()=0;
+                        //                            pos= (pw1z + (pw2z-pw1z)*r1);
+                        //                            pos.normalize();
+                        //                            pos*=  0.5*(pw1z.length()+pw2z.length());
+                        
+                        //                            pos.z()= (pw1.z() + (pw2.z()-pw1.z())*r1);
+                        
+                    
+                       
+                        GeoMath::rhumbDestination(lat1,lon1,b,d1*r1,la,lo);
+                        
+                        // compute the label orientation along the line
+                        gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
+                        gp3.toWorld(to);
+                        pos=to*MVP;
+                        osg::Vec3f pos2=pw2*MVP;   
+                        pos2=(pos2*windowMatrix)-(pos*windowMatrix);
+                        
+                        double rlabel=atan2(pos2.y(),pos2.x());
+                        rot.makeRotate ( rlabel, osg::Vec3d(0, 0, 1) );
+                        
+                        /*
                         float x_bbox=0;
                         float y_bbox=0;
                         
@@ -555,10 +606,11 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             y_bbox = box.yMin() ;
                         }
                         
+                        */
                         
                         pos = pos * windowMatrix;
-                        pos.x()-=x_bbox;
-                        pos.y()-=y_bbox;
+                        pos.x()+=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*cos(rlabel) ;
+                        pos.y()+=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*sin(rlabel) ;
                     }
                      
                      
