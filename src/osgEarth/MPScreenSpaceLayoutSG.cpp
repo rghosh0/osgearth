@@ -547,6 +547,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                          
                          osg::Vec3d mid;
                          double d1=d;
+                         
+                         // computes a rhumb intersection with a dichotomy 
                         for(int s=0;s<10;s++){
                             
                             d1=d*0.5;
@@ -584,11 +586,15 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
                         gp3.toWorld(to);
                         pos=to*MVP;
-                        osg::Vec3f pos2=pw2*MVP;   
+                        osg::Vec3f pos2=pw1*MVP;   
                         pos2=(pos2*windowMatrix)-(pos*windowMatrix);
                         
                         double rlabel=atan2(pos2.y(),pos2.x());
-                        rot.makeRotate ( rlabel, osg::Vec3d(0, 0, 1) );
+                        
+                        double rlabel2=fmod(rlabel+osg::PI*1.5,osg::PI)-osg::PI*0.5;
+                        rot.makeRotate ( rlabel2, osg::Vec3d(0, 0, 1) );
+                        
+                        OE_DEBUG<<" rlabel y"<<pos2.y()<<"x "<<pos2.x()<<" r" <<osg::RadiansToDegrees(rlabel)<<std::endl;
                         
                         /*
                         float x_bbox=0;
@@ -609,8 +615,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         */
                         
                         pos = pos * windowMatrix;
-                        pos.x()+=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*cos(rlabel) ;
-                        pos.y()+=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*sin(rlabel) ;
+                        pos.x()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*cos(rlabel) ;
+                        pos.y()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*sin(rlabel) ;
                     }
                      
                      
