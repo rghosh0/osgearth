@@ -594,7 +594,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         double rlabel2=fmod(rlabel+osg::PI*1.5,osg::PI)-osg::PI*0.5;
                         rot.makeRotate ( rlabel2, osg::Vec3d(0, 0, 1) );
                         
-                        OE_DEBUG<<" rlabel y"<<pos2.y()<<"x "<<pos2.x()<<" r" <<osg::RadiansToDegrees(rlabel)<<std::endl;
+                        //OE_DEBUG<<" rlabel y"<<pos2.y()<<"x "<<pos2.x()<<" r" <<osg::RadiansToDegrees(rlabel)<<std::endl;
                         
                         /*
                         float x_bbox=0;

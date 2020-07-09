@@ -172,7 +172,7 @@ public:
                 feature->getGeometry()->getComponentType() == Geometry::TYPE_LINESTRING) {
                 
                 
-                OE_DEBUG << LC << "per vertex multiline n";
+                OE_DEBUG << LC << "per vertex multiline \n";
                  LineString * geomLineString ;
                 if(feature->getGeometry()->getType() == Geometry::TYPE_MULTI )
                 {
@@ -192,21 +192,31 @@ public:
                     sampledLine->push_back(geomLineString->at(i));
                     int  nextOrPrevious=(i==geomLineString->size()-1)?-step:step;
                     sampledLine->push_back(geomLineString->at((i+nextOrPrevious)));
-                            
+                    
                     // actually build the scenegraph related to this feature
-                    long id = root->addAnnotation(tempStyle,sampledLine, context.getDBOptions(),ii);
+                    long id = root->addAnnotation(tempStyle,sampledLine, context.getDBOptions());
                     
+                    //\todo add geo interpolation management       
+                    feature->geoInterp();
                     
+                    //OE_DEBUG << LC << "add anno "<<id<<sampledLine->at(0).x()<<" "<<sampledLine->at(1).x()<<" "<<sampledLine->at(0).x()<<" "<<sampledLine->at(1).x()<<std::endl;
                     
                     // tag the drawables for that the feature can be retrieved when picking
                     if ( context.featureIndex() && id >= 0 )
                     {
-                        std::vector<MPAnnotationGroup::AnnoInfo> drawableList = root->getDrawableList(id);
-                        for (auto iAnno : drawableList )
-                        context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                        if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
+                        {
+                            context.featureIndex()->tagDrawable(root->getChild(root->getNumChildren()-1)->asDrawable(), feature);
                         }
+                        else
+                        {
+                            std::vector<MPAnnotationGroupMG::AnnoInfo> drawableList = static_cast<MPAnnotationGroupMG*>(root)->getDrawableList(id);
+                            for (auto iAnno : drawableList )
+                                context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                        }
+                    }
                     
-                    ii++;
+                    
                 
                 }
                  
