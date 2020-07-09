@@ -1032,7 +1032,7 @@ void MPAnnotationDrawable::moveTextPosition(int nbVertices, const osg::BoundingB
 
 void MPAnnotationDrawable::setAltitude(double alt)
 {
-    if ( _camAlt == alt )
+    if ( _camAlt == alt || _isHighlighted )
         return;
 
 //    OE_WARN << LC << "CAM MOVE\n";
@@ -1167,10 +1167,19 @@ void MPAnnotationDrawable::setInverted(bool inverted)
 }
 
 
-void MPAnnotationDrawable::setHighlight( bool highlight )
+void MPAnnotationDrawable::setHighlight( bool highlight, optional<bool> declutterActive )
 {
-    _priority = ( highlight ? DBL_MAX : _originalPriority );
-    _declutterActivated = ( highlight ? false : _originalDeclutterActivated );
+    if ( _isHighlighted != highlight )
+    {
+        _priority = ( highlight ? DBL_MAX : _originalPriority );
+        if ( ! highlight )
+            _declutterActivated = _originalDeclutterActivated;
+        else if ( declutterActive.isSet() ) // AND highlight
+            _declutterActivated = declutterActive.value();
+        // show this annotation with its highest level of detail
+        setAltitude(0.);
+        _isHighlighted = highlight;
+    }
 }
 
 
