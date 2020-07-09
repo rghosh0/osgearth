@@ -541,12 +541,12 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         
                         double b=GeoMath::rhumbBearing(lat1,lon1,lat2,lon2);
                         double d=GeoMath::rhumbDistance(lat1,lon1,lat2,lon2);
-                         double la=0.,lo=0.;
+                        double la=0.,lo=0.;
                          
                          /* fine intersection */
                          
-                         osg::Vec3d mid;
-                         double d1=d;
+                        osg::Vec3d mid;
+                        double d1=d;
                          
                          // computes a rhumb intersection with a dichotomy 
                         for(int s=0;s<10;s++){

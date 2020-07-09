@@ -14,8 +14,8 @@ class OsgEarthConan(ConanFile):
     url = "https://github.com/MPcoreDev/osgearth"
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "qt_version": "ANY"}
-    default_options = {"shared": False, "qt_version": "5.12.0"}
-    default_options = {"shared": False, "boost:header_only": True}
+    #default_options = {"shared": False, "qt_version": "5.12.4"}
+    #default_options = {"shared": False, "boost:header_only": True}
     generators = ["cmake"]
     short_paths = True #enable short path for windows builds
     exports = ["CMakeLists.txt"]
@@ -27,10 +27,10 @@ class OsgEarthConan(ConanFile):
     source_folder = ""
     
     def requirements(self):
-        self.requires.add("boost/[1.69]@conan/stable") #link with boost geometry
+        #self.requires.add("boost/[1.69]@conan/stable") #link with boost geometry
         #self.requires.add("geos/3.6.3@conan/stable")
         #self.requires.add("gdal/2.2.4@conan/stable")
-        self.requires.add("OpenSceneGraph/3.6.4a@conan/stable")#geos and gdal included by OpenSceneGraph
+        self.requires.add("OpenSceneGraph/3.6.4b@conan/stable")#geos and gdal included by OpenSceneGraph
         self.requires.add("ConanSharedFunctions/0.0.1@navblue/stable")
 
     def imports(self):
