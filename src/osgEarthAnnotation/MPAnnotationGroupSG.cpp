@@ -381,25 +381,10 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
             GeoPoint geoEnd( osgEarth::SpatialReference::get("wgs84"), geomLineString->back().x(), geomLineString->back().y(),
                     geomLineString->back().z(), ALTMODE_ABSOLUTE );
 
-            if( ts->autoOffsetGeomWKT().isSet() )
-            {
-                // Direction to the longest distance
-                if( (geoStart.vec3d() - center).length2() > (geoEnd.vec3d() - center).length2() )
-                {
-                    geoEnd.toWorld(p1);
-                    geoStart.toWorld(p2);
-                }
-                else
-                {
-                    geoStart.toWorld(p1);
-                    geoEnd.toWorld(p2);
-                }
-            }
-            else
-            {
+           
                 geoEnd.toWorld(p1);
                 geoStart.toWorld(p2);
-            }
+           
         }else{
             OE_WARN<<"no geomLineString avail"<<std::endl;
         }

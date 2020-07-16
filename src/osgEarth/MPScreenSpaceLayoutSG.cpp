@@ -483,6 +483,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             
             
             if(annoDrawable->screenClamping()){
+                const osgEarth::SpatialReference* srs = osgEarth::SpatialReference::create("epsg:4326");
                 
                 // Calculate the "clip to world" matrix = MVPinv.
                 osg::Matrix MVP = (cam->getViewMatrix()) * cam->getProjectionMatrix();
@@ -494,6 +495,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 
                 osg::Vec3d pc1=pw1*MVP;
                 osg::Vec3d pc2=pw2*MVP;
+                
+            
                                
                 
                 bool p1_in_width=pc1.x()<1.0 && pc1.x()>-1.0;
@@ -530,7 +533,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                     {             
                        
 
-                        const osgEarth::SpatialReference* srs = osgEarth::SpatialReference::create("epsg:4326");
+                      
                         GeoPoint gp1,gp2,gp3;
                         gp1.fromWorld(srs,pw1);
                         gp2.fromWorld(srs,pw2);  
@@ -585,6 +588,18 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         // compute the label orientation along the line
                         gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
                         gp3.toWorld(to);
+                        
+                        // hide labels that are on the other side of the globe
+                        const osg::Matrix& MV = cam->getViewMatrix();
+                        osg::Vec3d viewAnchor = to * MV;
+                        osg::Vec3d centerEarth = osg::Vec3d(0,0,0) * MV;
+                        
+                        if(viewAnchor.length()>centerEarth.length()) //on the other side of earth
+                        {
+                            visible=false;
+                        }
+                        
+                        
                         pos=to*MVP;
                         osg::Vec3f pos2=pw1*MVP;   
                         pos2=(pos2*windowMatrix)-(pos*windowMatrix);
