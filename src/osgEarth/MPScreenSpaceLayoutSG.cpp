@@ -76,6 +76,24 @@ struct SortByPriority : public DeclutterSortFunctor
     }
 };
 
+// rotates a bbox for proper decluttering of rotated labels and updates the associated quaternion
+void rotateBBox( osg::BoundingBox& box, double angle, osg::Quat &rot ){    
+    
+    rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
+    osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
+    osg::Vec3f lu = rot * ( osg::Vec3f(box.xMin(), box.yMax(), 0.) );
+    osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
+    osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
+    if ( angle > - osg::PI / 2. && angle < osg::PI / 2. )
+    box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
+             osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
+    else
+    box.set( osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
+             osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0 );
+
+}
+
+
 // Data structure shared across entire layout system.
 struct MPScreenSpaceSGLayoutContext : public osg::Referenced
 {
@@ -460,17 +478,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             // handle the local rotation
             if ( angle != 0. )
             {
-                rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
-                osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
-                osg::Vec3f lu = rot * ( osg::Vec3f(box.xMin(), box.yMax(), 0.) );
-                osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
-                osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
-                if ( angle > - osg::PI / 2. && angle < osg::PI / 2. )
-                    box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
-                             osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
-                else
-                    box.set(osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
-                            osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0);
+                rotateBBox(box,angle,rot);
             }
 
             // adapt the offset for auto sliding label
@@ -606,7 +614,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         double rlabel=atan2(pos2.y(),pos2.x());
                         
                         double rlabel2=fmod(rlabel+osg::PI*1.5,osg::PI)-osg::PI*0.5;
-                        rot.makeRotate ( rlabel2, osg::Vec3d(0, 0, 1) );
+                        
+                        rotateBBox(box,rlabel2,rot);
                         
                         //OE_DEBUG<<" rlabel y"<<pos2.y()<<"x "<<pos2.x()<<" r" <<osg::RadiansToDegrees(rlabel)<<std::endl;
                         
@@ -635,16 +644,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         pos.y()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*sin(rlabel) ;
                         
                     }
-                     
-                     
-//                    OE_DEBUG<<" geomLineString "<<layoutData->getId()<<" "<<layoutData->getInstanceIndex() 
-//                           <<" p1"<<pw1.x()<<" "<<pw1.y()<<" "<<pw1.z()<<"  p2"<<pw2.x()<<" "<<pw2.y()<<" "<<pw2.z()<<std::endl;
-//                    OE_DEBUG<<layoutData->getInstanceIndex() <<" p2="<<pc2.x()<<" "<<pc2.y()<<" "<<pc2.z()
-//                           <<" p1="<<pc1.x()<<" "<<pc1.y()<<" "<<pc1.z()
-                             
-//                          <<" i="<<pos.x()<<" "<<pos.y()<<" "<<pos.z()<<std::endl;
                 }
-                
           }
 
 
