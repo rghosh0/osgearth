@@ -443,7 +443,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             // transform the bounding box of the drawable into window-space.
             //osg::BoundingBox box = annoDrawable->isAutoFollowLine() ? annoDrawable->getBBox() : annoDrawable->getBoundingBox();
             osg::BoundingBox box = annoDrawable->getBoundingBox();
-
+        
             double angle = 0;
             osg::Quat rot;
             osg::Vec3d to;
@@ -590,17 +590,16 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         gp3.toWorld(to);
                         
                         // hide labels that are on the other side of the globe
-                        const osg::Matrix& MV = cam->getViewMatrix();
-                        osg::Vec3d viewAnchor = to * MV;
-                        osg::Vec3d centerEarth = osg::Vec3d(0,0,0) * MV;
-                        
-                        if(viewAnchor.length()>centerEarth.length()) //on the other side of earth
-                        {
+                         if((eye-to).length2()>eye.length2()) //on the other side of earth
+                        {    
+                             visible=false;                            
+                        }
+                                            
+                        pos=to*MVP;
+                        if(pos.isNaN())
+                        { //sometimes, the computed intersections lands outside of screen space which can produce a NaN coordinates
                             visible=false;
                         }
-                        
-                        
-                        pos=to*MVP;
                         osg::Vec3f pos2=pw1*MVP;   
                         pos2=(pos2*windowMatrix)-(pos*windowMatrix);
                         
@@ -629,9 +628,12 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         
                         */
                         
+                        
                         pos = pos * windowMatrix;
+                        
                         pos.x()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*cos(rlabel) ;
                         pos.y()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*sin(rlabel) ;
+                        
                     }
                      
                      
@@ -676,7 +678,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //            }
 
             box.set( box._min + pos - buffer, box._max + pos + buffer);
-
+           
             int mapStartX,  mapStartY, mapEndX, mapEndY;
 
             if ( s_mp_sg_declutteringEnabledGlobally )
@@ -724,7 +726,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                     // declutter in full screen
                     else
-                    {
+                    { 
                         // weed out any drawables that are obscured by closer drawables.
                         // TODO: think about a more efficient algorithm - right now we are just using
                         // brute force to compare all bbox's
