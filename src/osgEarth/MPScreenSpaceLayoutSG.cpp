@@ -489,7 +489,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 pos += slidingOffset;
             }
             
-            
+            //computes the clamped labels (used for graticules)
             if(annoDrawable->screenClamping()){
                 const osgEarth::SpatialReference* srs = osgEarth::SpatialReference::create("epsg:4326");
                 
@@ -503,10 +503,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 
                 osg::Vec3d pc1=pw1*MVP;
                 osg::Vec3d pc2=pw2*MVP;
-                
-            
-                               
-                
+                                               
+                // checks that the screen space coordinates of the lines are within the screen
                 bool p1_in_width=pc1.x()<1.0 && pc1.x()>-1.0;
                 bool p1_in_height=pc1.y()<1.0 && pc1.y()>-1.0;
              
@@ -535,13 +533,11 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         seg->set(pc1,pc2);
                     float r1=0,r2=0;
                     visible = seg->intersectAndComputeRatios(bb,r1,r2) ;
-       
                     
+                    //if the line intersects the screen edges                  
                     if(visible)
-                    {             
-                       
-
-                      
+                    {          
+                        // \todo performance could be improved if the radians coordinates of the line were stored in the drawable
                         GeoPoint gp1,gp2,gp3;
                         gp1.fromWorld(srs,pw1);
                         gp2.fromWorld(srs,pw2);  
@@ -554,12 +550,11 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         double d=GeoMath::rhumbDistance(lat1,lon1,lat2,lon2);
                         double la=0.,lo=0.;
                          
-                         /* fine intersection */
-                         
+                      
                         osg::Vec3d mid;
                         double d1=d;
                          
-                         // computes a rhumb intersection with a dichotomy 
+                         // computes a more accurate rhumb intersection with a dichotomy 
                         for(int s=0;s<10;s++){
                             
                             d1=d*0.5;
@@ -581,7 +576,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                                              
                         GeoMath::rhumbDestination(lat1,lon1,b,d1*r1,la,lo);
                         
-                        // compute the label orientation along the line
+                       
                         gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
                         gp3.toWorld(to);
                         
@@ -593,20 +588,21 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                                             
                         pos=to*MVP;
                         if(pos.isNaN())
-                        { //sometimes, the computed intersections lands outside of screen space which can produce a NaN coordinates
+                        { //sometimes, the computed intersection lands outside of screen space which can produce a NaN coordinates
                             visible=false;
-                        }
+                        } 
+                        // computes the label orientation along the line
                         osg::Vec3f pos2=pw1*MVP;   
                         pos2=(pos2*windowMatrix)-(pos*windowMatrix);
                         
                         double rlabel=atan2(pos2.y(),pos2.x());
                         
                         double rlabel2=fmod(rlabel+osg::PI*1.5,osg::PI)-osg::PI*0.5;
-                        
+                        // rotates the bbox for proper collision computation
                         rotateBBox(box,rlabel2,rot);
                         
                         pos = pos * windowMatrix;
-                        
+                        //offset the label from the edge of the screen so it can be seen entierely
                         pos.x()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*cos(rlabel) ;
                         pos.y()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*sin(rlabel) ;
                         

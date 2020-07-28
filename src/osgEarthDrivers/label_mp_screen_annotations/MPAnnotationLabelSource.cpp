@@ -163,17 +163,14 @@ public:
                 
                 if ( icon->placement().isSetTo(IconSymbol::PLACEMENT_VERTEX) ) 
                 {
-                     OE_DEBUG << LC << "mp_icon per vertex\n";
                      isPerVertex=true;
                 }
             }
             
             if(isPerVertex &&                 
                 feature->getGeometry()->getComponentType() == Geometry::TYPE_LINESTRING) {
-                
-                
-                OE_DEBUG << LC << "per vertex multiline \n";
-                 LineString * geomLineString ;
+              
+                LineString * geomLineString ;
                 if(feature->getGeometry()->getType() == Geometry::TYPE_MULTI )
                 {
                     const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(feature->getGeometry());           

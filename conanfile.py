@@ -3,7 +3,7 @@ import os
 
 def get_version():
     defaultFullVersion='2.10.2-0-00000'
-    defaultVersion='2.10.2_branch'
+    defaultVersion='2.10.2_4'
     return (defaultFullVersion, defaultVersion)
 
 class OsgEarthConan(ConanFile):
