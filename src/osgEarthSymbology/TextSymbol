@@ -72,6 +72,12 @@ public:
         LAYOUT_VERTICAL
     };
 
+    
+    enum PlacementTechnique {
+        SCREEN_EDGE_ONLY,
+        CLAMP_TO_SCREEN_EDGE,
+        NONE
+    };
     META_Object(osgEarthSymbology, TextSymbol);
 
     TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop=osg::CopyOp::SHALLOW_COPY);
@@ -163,6 +169,9 @@ public:
     optional<bool>& autoOffsetAlongLine() { return _autoOffsetAlongLine; }
     const optional<bool>& autoOffsetAlongLine() const { return _autoOffsetAlongLine; }
 
+    /** Halo backdrop type */
+    optional<PlacementTechnique>& placementTechnique() { return _placementTechnique; }
+    const optional<PlacementTechnique>& placementTechnique() const { return _placementTechnique; }
     /**
      * Whether to enable the automatic label rotation along a line
      * Note: The feature must be one straigth line and short enough as the algorithm considers it straigth on screen
@@ -234,6 +243,7 @@ protected:
     optional<bool>              _occlusionCull;
     optional<double>            _occlusionCullAltitude;
     optional<bool>              _autoOffsetAlongLine;
+    optional<PlacementTechnique>_placementTechnique;
     optional<bool>              _autoRotateAlongLine;
     optional<StringExpression>  _autoOffsetGeomWKT;
     optional<bool>              _attachedLabel;

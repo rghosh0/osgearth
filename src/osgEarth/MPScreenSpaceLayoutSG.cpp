@@ -23,7 +23,9 @@
 #include <osgEarth/Utils>
 #include <osgEarth/Containers>
 #include <osgEarth/Extension>
-
+#include <osg/LineSegment>
+#include <osgEarth/GeoMath>
+#include <osgEarth/GeoData>
 
 // -----------------------------------------------------------
 // This class is mainly copied from ScreenSpaceLayout.cpp
@@ -74,10 +76,29 @@ struct SortByPriority : public DeclutterSortFunctor
     }
 };
 
+// rotates a bbox for proper decluttering of rotated labels and updates the associated quaternion
+void rotateBBox( osg::BoundingBox& box, double angle, osg::Quat &rot ){    
+    
+    rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
+    osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
+    osg::Vec3f lu = rot * ( osg::Vec3f(box.xMin(), box.yMax(), 0.) );
+    osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
+    osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
+    if ( angle > - osg::PI / 2. && angle < osg::PI / 2. )
+        box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
+                 osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
+    else
+        box.set( osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
+                 osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0 );
+
+}
+
+
 // Data structure shared across entire layout system.
 struct MPScreenSpaceSGLayoutContext : public osg::Referenced
 {
     ScreenSpaceLayoutOptions _options;
+    
 };
 
 typedef osg::BoundingBox RenderLeafBox;
@@ -440,7 +461,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             // transform the bounding box of the drawable into window-space.
             //osg::BoundingBox box = annoDrawable->isAutoFollowLine() ? annoDrawable->getBBox() : annoDrawable->getBoundingBox();
             osg::BoundingBox box = annoDrawable->getBoundingBox();
-
+        
             double angle = 0;
             osg::Quat rot;
             osg::Vec3d to;
@@ -457,17 +478,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             // handle the local rotation
             if ( angle != 0. )
             {
-                rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
-                osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
-                osg::Vec3f lu = rot * ( osg::Vec3f(box.xMin(), box.yMax(), 0.) );
-                osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
-                osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
-                if ( angle > - osg::PI / 2. && angle < osg::PI / 2. )
-                    box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
-                             osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
-                else
-                    box.set(osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
-                            osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0);
+                rotateBBox(box,angle,rot);
             }
 
             // adapt the offset for auto sliding label
@@ -477,7 +488,123 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 updateOffsetForAutoLabelOnLine(box, vp, pos, annoDrawable, camVPW, slidingOffset, to);
                 pos += slidingOffset;
             }
-
+            
+            //computes the clamped labels (used for graticules)
+            if(annoDrawable->screenClamping()){
+                const osgEarth::SpatialReference* srs = osgEarth::SpatialReference::create("epsg:4326");
+                
+                // Calculate the "clip to world" matrix = MVPinv.
+                osg::Matrix MVP = (cam->getViewMatrix()) * cam->getProjectionMatrix();
+                osg::Matrix MVPinv;
+                MVPinv.invert(MVP);
+                    
+                osg::Vec3d pw1=annoDrawable->getLineStartPoint();
+                osg::Vec3d pw2=annoDrawable->getLineEndPoint();
+                
+                osg::Vec3d pc1=pw1*MVP;
+                osg::Vec3d pc2=pw2*MVP;
+                                               
+                // checks that the screen space coordinates of the lines are within the screen
+                bool p1_in_width=pc1.x()<1.0 && pc1.x()>-1.0;
+                bool p1_in_height=pc1.y()<1.0 && pc1.y()>-1.0;             
+                bool p1_inside_screen = p1_in_width && p1_in_height;
+                
+                bool p2_in_width=pc2.x()<1.0 && pc2.x()>-1.0;
+                bool p2_in_height=pc2.y()<1.0 && pc2.y()>-1.0;         
+                bool p2_inside_screen = p2_in_width && p2_in_height; 
+                
+                bool line_inside_screen=p1_inside_screen && p2_inside_screen;  
+                
+                float margin=0.00;
+                
+                osg::BoundingBox bb (-1.0+margin,-1.0+margin,-1.0+margin,1.0-margin,1.0-margin,1.0-margin); 
+                visible = ( !line_inside_screen) && !bb.contains(pc1);
+           
+                osg::ref_ptr<osg::LineSegment> seg,subseg;
+                
+                if(visible){ 
+                    
+                    if(!seg.valid())
+                        seg = new osg::LineSegment (pc1,pc2);
+                    else
+                        seg->set(pc1,pc2);
+                    float r1=0,r2=0;
+                    visible = seg->intersectAndComputeRatios(bb,r1,r2) ;
+                    
+                    //if the line intersects the screen edges                  
+                    if(visible)
+                    {          
+                        // \todo performance could be improved if the radians coordinates of the line were stored in the drawable
+                        GeoPoint gp1,gp2,gp3;
+                        gp1.fromWorld(srs,pw1);
+                        gp2.fromWorld(srs,pw2);  
+                        double lat1=osg::DegreesToRadians( gp1.y());
+                        double lon1=osg::DegreesToRadians( gp1.x());
+                        double lat2=osg::DegreesToRadians( gp2.y());
+                        double lon2=osg::DegreesToRadians( gp2.x());
+                        
+                        double b=GeoMath::rhumbBearing(lat1,lon1,lat2,lon2);
+                        double d=GeoMath::rhumbDistance(lat1,lon1,lat2,lon2);
+                        double la=0.,lo=0.;                         
+                      
+                        osg::Vec3d mid;
+                        double d1=d;
+                         
+                         // computes a more accurate rhumb intersection with a dichotomy 
+                        for(int s=0;s<10;s++){
+                            
+                            d1=d*0.5;
+                            GeoMath::rhumbDestination(lat1,lon1,b,d1,la,lo);
+                             gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
+                             gp3.toWorld(mid);
+                             gp1.toWorld(pw1);
+                             
+                            subseg = new osg::LineSegment (pw1*MVP,mid*MVP);
+                            bool intersect1=subseg->intersectAndComputeRatios(bb,r1,r2); 
+                            
+                            if(!intersect1){
+                                gp1=gp3;
+                                 lat1=osg::DegreesToRadians( gp1.y());
+                                 lon1=osg::DegreesToRadians( gp1.x());
+                            }
+                            
+                        }
+                                             
+                        GeoMath::rhumbDestination(lat1,lon1,b,d1*r1,la,lo);                        
+                       
+                        gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
+                        gp3.toWorld(to);
+                        
+                        // hide labels that are on the other side of the globe
+                         if((eye-to).length2()>eye.length2()) //on the other side of earth
+                        {    
+                             visible=false;                            
+                        }
+                                            
+                        pos=to*MVP;
+                        if(pos.isNaN())
+                        { //sometimes, the computed intersection lands outside of screen space which can produce a NaN coordinates
+                            visible=false;
+                        } 
+                        // computes the label orientation along the line
+                        osg::Vec3f pos2=pw1*MVP;   
+                        pos2=(pos2*windowMatrix)-(pos*windowMatrix);
+                        
+                        float rlabel=atan2(pos2.y(),pos2.x());
+                        
+                        double rlabel2=fmod(rlabel+osg::PI*1.5,osg::PI)-osg::PI*0.5;
+                        // rotates the bbox for proper collision computation
+                        rotateBBox(box,rlabel2,rot);
+                        
+                        pos = pos * windowMatrix;
+                        float edgeoffset=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5f;
+                        //offset the label from the edge of the screen so it can be seen entierely
+                        pos.x()-=edgeoffset*cos(rlabel) ;
+                        pos.y()-=edgeoffset*sin(rlabel) ;
+                        
+                    }
+                }
+          }
 
 
             //            // Expand the box if this object is currently not visible, so that it takes a little
@@ -510,7 +637,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //            }
 
             box.set( box._min + pos - buffer, box._max + pos + buffer);
-
+           
             int mapStartX,  mapStartY, mapEndX, mapEndY;
 
             if ( s_mp_sg_declutteringEnabledGlobally )
@@ -558,7 +685,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                     // declutter in full screen
                     else
-                    {
+                    { 
                         // weed out any drawables that are obscured by closer drawables.
                         // TODO: think about a more efficient algorithm - right now we are just using
                         // brute force to compare all bbox's
