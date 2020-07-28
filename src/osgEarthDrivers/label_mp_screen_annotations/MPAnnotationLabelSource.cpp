@@ -196,11 +196,8 @@ public:
                     // actually build the scenegraph related to this feature
                     long id = root->addAnnotation(tempStyle,sampledLine, context.getDBOptions());
                     
-                    //\todo add geo interpolation management       
-                    feature->geoInterp();
-                    
-                    //OE_DEBUG << LC << "add anno "<<id<<sampledLine->at(0).x()<<" "<<sampledLine->at(1).x()<<" "<<sampledLine->at(0).x()<<" "<<sampledLine->at(1).x()<<std::endl;
-                    
+                    //\todo add geo interpolation management with feature->geoInterp();                    
+                      
                     // tag the drawables for that the feature can be retrieved when picking
                     if ( context.featureIndex() && id >= 0 )
                     {
@@ -215,36 +212,27 @@ public:
                                 context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
                         }
                     }
-                    
-                    
-                
                 }
-                 
-            
-                
                 
             } else { 
 
-            // actually build the scenegraph related to this feature
-            long id = root->addAnnotation(tempStyle, feature->getGeometry(), context.getDBOptions());
-
-            
-            
-            // tag the drawables for that the feature can be retrieved when picking
-            if ( context.featureIndex() && id >= 0 )
-            {
-                if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
+                // actually build the scenegraph related to this feature
+                long id = root->addAnnotation(tempStyle, feature->getGeometry(), context.getDBOptions());
+    
+                // tag the drawables for that the feature can be retrieved when picking
+                if ( context.featureIndex() && id >= 0 )
                 {
-                    context.featureIndex()->tagDrawable(root->getChild(root->getNumChildren()-1)->asDrawable(), feature);
-                }
-                else
-                {
-                    std::vector<MPAnnotationGroupMG::AnnoInfo> drawableList = static_cast<MPAnnotationGroupMG*>(root)->getDrawableList(id);
-                    for (auto iAnno : drawableList )
-                        context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
-                }
-            }
-            
+                    if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
+                    {
+                        context.featureIndex()->tagDrawable(root->getChild(root->getNumChildren()-1)->asDrawable(), feature);
+                    }
+                    else
+                    {
+                        std::vector<MPAnnotationGroupMG::AnnoInfo> drawableList = static_cast<MPAnnotationGroupMG*>(root)->getDrawableList(id);
+                        for (auto iAnno : drawableList )
+                            context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                    }
+                }            
             }
         }
 

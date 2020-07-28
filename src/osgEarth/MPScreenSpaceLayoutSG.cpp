@@ -578,19 +578,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             }
                             
                         }
-                        
-                        //                            osg::Vec3d pw1z=pw1;
-                        //                            osg::Vec3d pw2z=pw2;
-                        //                            pw1z.z()=0;
-                        //                            pw2z.z()=0;
-                        //                            pos= (pw1z + (pw2z-pw1z)*r1);
-                        //                            pos.normalize();
-                        //                            pos*=  0.5*(pw1z.length()+pw2z.length());
-                        
-                        //                            pos.z()= (pw1.z() + (pw2.z()-pw1.z())*r1);
-                        
-                    
-                       
+                                             
                         GeoMath::rhumbDestination(lat1,lon1,b,d1*r1,la,lo);
                         
                         // compute the label orientation along the line
@@ -616,27 +604,6 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         double rlabel2=fmod(rlabel+osg::PI*1.5,osg::PI)-osg::PI*0.5;
                         
                         rotateBBox(box,rlabel2,rot);
-                        
-                        //OE_DEBUG<<" rlabel y"<<pos2.y()<<"x "<<pos2.x()<<" r" <<osg::RadiansToDegrees(rlabel)<<std::endl;
-                        
-                        /*
-                        float x_bbox=0;
-                        float y_bbox=0;
-                        
-                        if(pos.x() >=0.99){
-                            x_bbox = box.xMax() ;
-                        }else if(pos.x() <=-0.99){
-                            x_bbox = box.xMin() ;
-                        }
-                        
-                        if(pos.y() >=0.99){
-                            y_bbox = box.yMax() ;
-                        }else if(pos.y() <=-0.99){
-                            y_bbox = box.yMin() ;
-                        }
-                        
-                        */
-                        
                         
                         pos = pos * windowMatrix;
                         
