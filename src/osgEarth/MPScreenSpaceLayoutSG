@@ -63,7 +63,7 @@ public:
     void setPixelOffset(const osg::Vec2s& value) { _pixelOffset = value; }
     const osg::Vec2s& getPixelOffset() const     { return _pixelOffset; }
 
-    /** Wether the label shall follow a given geographic course */
+    /** Whether the label shall follow a given geographic course */
     void setAutoRotate(bool autoRotate) { _autoRotate = autoRotate; }
     bool isAutoRotate() const { return _autoRotate; }
 
@@ -71,7 +71,7 @@ public:
     void setAnchorPoint(const osg::Vec3d& value) { _anchorPoint = value; }
     const osg::Vec3d& getAnchorPoint() const { return _anchorPoint; }
 
-    /** Wether the label shall automatically replace itself along a line */
+    /** Whether the label shall automatically replace itself along a line */
     void setAutoFollowLine(bool autoFollowLine) { _autoFollowLine = autoFollowLine; }
     bool isAutoFollowLine() const { return _autoFollowLine; }
 
@@ -96,7 +96,7 @@ public:
     const osg::BoundingBox& getBBoxSymetric() const { return _bboxSymetric; }
 
     
-    /** Wether the label shall automatically replace itself along a line */
+    /** Whether the label shall automatically be clamped to the screen edges */
     void setScreenClamping(bool screenClamping) { _screenClamping = screenClamping; }
     bool screenClamping() const { return _screenClamping; }
     

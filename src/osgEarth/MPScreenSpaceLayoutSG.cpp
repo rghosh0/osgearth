@@ -85,11 +85,11 @@ void rotateBBox( osg::BoundingBox& box, double angle, osg::Quat &rot ){
     osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
     osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
     if ( angle > - osg::PI / 2. && angle < osg::PI / 2. )
-    box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
-             osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
+        box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
+                 osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
     else
-    box.set( osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
-             osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0 );
+        box.set( osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
+                 osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0 );
 
 }
 
@@ -506,15 +506,12 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                                                
                 // checks that the screen space coordinates of the lines are within the screen
                 bool p1_in_width=pc1.x()<1.0 && pc1.x()>-1.0;
-                bool p1_in_height=pc1.y()<1.0 && pc1.y()>-1.0;
-             
+                bool p1_in_height=pc1.y()<1.0 && pc1.y()>-1.0;             
                 bool p1_inside_screen = p1_in_width && p1_in_height;
                 
                 bool p2_in_width=pc2.x()<1.0 && pc2.x()>-1.0;
-                bool p2_in_height=pc2.y()<1.0 && pc2.y()>-1.0;
-         
-                bool p2_inside_screen = p2_in_width && p2_in_height;                
-                
+                bool p2_in_height=pc2.y()<1.0 && pc2.y()>-1.0;         
+                bool p2_inside_screen = p2_in_width && p2_in_height; 
                 
                 bool line_inside_screen=p1_inside_screen && p2_inside_screen;  
                 
@@ -548,8 +545,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         
                         double b=GeoMath::rhumbBearing(lat1,lon1,lat2,lon2);
                         double d=GeoMath::rhumbDistance(lat1,lon1,lat2,lon2);
-                        double la=0.,lo=0.;
-                         
+                        double la=0.,lo=0.;                         
                       
                         osg::Vec3d mid;
                         double d1=d;
@@ -574,8 +570,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             
                         }
                                              
-                        GeoMath::rhumbDestination(lat1,lon1,b,d1*r1,la,lo);
-                        
+                        GeoMath::rhumbDestination(lat1,lon1,b,d1*r1,la,lo);                        
                        
                         gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
                         gp3.toWorld(to);

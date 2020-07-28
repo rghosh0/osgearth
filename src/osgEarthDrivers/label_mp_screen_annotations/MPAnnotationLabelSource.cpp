@@ -175,7 +175,8 @@ public:
                 {
                     const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(feature->getGeometry());           
                     geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
-                } else
+                }
+                else
                 {
                     geomLineString = dynamic_cast<LineString*>( feature->getGeometry());
                 }
@@ -201,7 +202,7 @@ public:
                         if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
                         {
                             context.featureIndex()->tagDrawable(root->getChild(root->getNumChildren()-1)->asDrawable(), feature);
-                        }
+                        } 
                         else
                         {
                             std::vector<MPAnnotationGroupMG::AnnoInfo> drawableList = static_cast<MPAnnotationGroupMG*>(root)->getDrawableList(id);
@@ -211,7 +212,9 @@ public:
                     }
                 }
                 
-            } else { 
+            } 
+            else
+            { 
 
                 // actually build the scenegraph related to this feature
                 long id = root->addAnnotation(tempStyle, feature->getGeometry(), context.getDBOptions());
