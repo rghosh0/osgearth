@@ -590,16 +590,17 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         osg::Vec3f pos2=pw1*MVP;   
                         pos2=(pos2*windowMatrix)-(pos*windowMatrix);
                         
-                        double rlabel=atan2(pos2.y(),pos2.x());
+                        float rlabel=atan2(pos2.y(),pos2.x());
                         
                         double rlabel2=fmod(rlabel+osg::PI*1.5,osg::PI)-osg::PI*0.5;
                         // rotates the bbox for proper collision computation
                         rotateBBox(box,rlabel2,rot);
                         
                         pos = pos * windowMatrix;
+                        float edgeoffset=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5f;
                         //offset the label from the edge of the screen so it can be seen entierely
-                        pos.x()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*cos(rlabel) ;
-                        pos.y()-=(box.xMax()-box.xMin()+box.yMax()-box.yMin())*0.5*sin(rlabel) ;
+                        pos.x()-=edgeoffset*cos(rlabel) ;
+                        pos.y()-=edgeoffset*sin(rlabel) ;
                         
                     }
                 }
