@@ -161,7 +161,7 @@ osg::BoundingSphere MPAnnotationGroupMG::computeBound () const
     return bsphere;
 }
 
-long MPAnnotationGroupMG::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions)
+long MPAnnotationGroupMG::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions, unsigned long long instanceIndex)
 {
     // layout data for screenspace information
     static long id{0};

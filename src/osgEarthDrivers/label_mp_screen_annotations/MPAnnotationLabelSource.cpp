@@ -113,6 +113,8 @@ public:
                 continue;
 
             Style tempStyle = styleCopy;
+            
+            bool isPerVertex=false;
 
             // evaluate expressions into literals.
             // TODO: Later we could replace this with a generate "expression evaluator" type
@@ -158,24 +160,79 @@ public:
 
                 if ( icon->heading().isSet() )
                     tempStyle.get<IconSymbol>()->heading()->setLiteral( feature->eval(iconHeadingExpr, &context) );
-            }
-
-            // actually build the scenegraph related to this feature
-            long id = root->addAnnotation(tempStyle, feature->getGeometry(), context.getDBOptions());
-
-            // tag the drawables for that the feature can be retrieved when picking
-            if ( context.featureIndex() && id >= 0 )
-            {
-                if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
+                
+                if ( icon->placement().isSetTo(IconSymbol::PLACEMENT_VERTEX) ) 
                 {
-                    context.featureIndex()->tagDrawable(root->getChild(root->getNumChildren()-1)->asDrawable(), feature);
+                     isPerVertex=true;
+                }
+            }
+            
+            if(isPerVertex &&                 
+                feature->getGeometry()->getComponentType() == Geometry::TYPE_LINESTRING) {
+              
+                LineString * geomLineString ;
+                if(feature->getGeometry()->getType() == Geometry::TYPE_MULTI )
+                {
+                    const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(feature->getGeometry());           
+                    geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
                 }
                 else
                 {
-                    std::vector<MPAnnotationGroupMG::AnnoInfo> drawableList = static_cast<MPAnnotationGroupMG*>(root)->getDrawableList(id);
-                    for (auto iAnno : drawableList )
-                        context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                    geomLineString = dynamic_cast<LineString*>( feature->getGeometry());
                 }
+                
+                unsigned long long ii=0;
+                
+                int step=(geomLineString->size()-1);
+                for( unsigned long long i =0 ; i<geomLineString->size() ; i=i+step ){
+                    
+                    osg::ref_ptr<LineString> sampledLine= new LineString();
+                    sampledLine->push_back(geomLineString->at(i));
+                    int  nextOrPrevious=(i==geomLineString->size()-1)?-step:step;
+                    sampledLine->push_back(geomLineString->at((i+nextOrPrevious)));
+                    
+                    // actually build the scenegraph related to this feature
+                    long id = root->addAnnotation(tempStyle,sampledLine, context.getDBOptions());
+                    
+                    //\todo add geo interpolation management with feature->geoInterp();                    
+                      
+                    // tag the drawables for that the feature can be retrieved when picking
+                    if ( context.featureIndex() && id >= 0 )
+                    {
+                        if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
+                        {
+                            context.featureIndex()->tagDrawable(root->getChild(root->getNumChildren()-1)->asDrawable(), feature);
+                        } 
+                        else
+                        {
+                            std::vector<MPAnnotationGroupMG::AnnoInfo> drawableList = static_cast<MPAnnotationGroupMG*>(root)->getDrawableList(id);
+                            for (auto iAnno : drawableList )
+                                context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                        }
+                    }
+                }
+                
+            } 
+            else
+            { 
+
+                // actually build the scenegraph related to this feature
+                long id = root->addAnnotation(tempStyle, feature->getGeometry(), context.getDBOptions());
+    
+                // tag the drawables for that the feature can be retrieved when picking
+                if ( context.featureIndex() && id >= 0 )
+                {
+                    if ( MPScreenSpaceLayoutSG::isExtensionLoaded() )
+                    {
+                        context.featureIndex()->tagDrawable(root->getChild(root->getNumChildren()-1)->asDrawable(), feature);
+                    }
+                    else
+                    {
+                        std::vector<MPAnnotationGroupMG::AnnoInfo> drawableList = static_cast<MPAnnotationGroupMG*>(root)->getDrawableList(id);
+                        for (auto iAnno : drawableList )
+                            context.featureIndex()->tagDrawable(root->getChild(iAnno.index)->asDrawable(), feature);
+                    }
+                }            
             }
         }
 

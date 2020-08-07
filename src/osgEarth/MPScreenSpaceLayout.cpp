@@ -1127,4 +1127,3 @@ public:
 REGISTER_OSGEARTH_EXTENSION(osgearth_mp_screen_space_layout, MPScreenSpaceLayoutExtension);
 REGISTER_OSGEARTH_EXTENSION(osgearth_mp_decluttering,        MPScreenSpaceLayoutExtension);
 }
-

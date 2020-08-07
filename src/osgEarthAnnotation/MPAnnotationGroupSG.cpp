@@ -55,6 +55,7 @@ namespace
         void operator()(osg::Node* node, osg::NodeVisitor* nv)
         {
             osg::ref_ptr<osgUtil::CullVisitor> cullVisitor = nv->asCullVisitor();
+            
             if ( ! cullVisitor->isCulled(node->getBound()) )
             {
                 const osg::Matrix& MVPW = *(cullVisitor->getMVPW());
@@ -93,7 +94,7 @@ namespace
                     }
 
                     // chek if it is out of viewport
-                    if ( ! annoDrawable->isAutoFollowLine() )
+                    if ( ! annoDrawable->isAutoFollowLine() && ! annoDrawable->screenClamping() )
                     {
                         // out of viewport
                         if ( osg::maximum(annoDrawable->_cull_bboxSymetricOnScreen.xMin(), vpXmin) > osg::minimum(annoDrawable->_cull_bboxSymetricOnScreen.xMax(), vpXmax) ||
@@ -147,7 +148,7 @@ osg::BoundingSphere MPAnnotationGroupSG::computeBound () const
         {
             osg::ref_ptr<const MPAnnotationDrawable> annoDrawable = static_cast<MPAnnotationDrawable*>(itr->get());
             bsphere.expandBy(annoDrawable->getAnchorPoint());
-            if (annoDrawable->isAutoFollowLine())
+            if (annoDrawable->isAutoFollowLine() || annoDrawable->screenClamping())
             {
                 bsphere.expandBy(annoDrawable->getLineStartPoint());
                 bsphere.expandBy(annoDrawable->getLineEndPoint());
@@ -193,7 +194,7 @@ MPAnnotationGroupSG::MPAnnotationGroupSG(const osgDB::Options *readOptions , Tex
     ShaderGenerator::setIgnoreHint(this, true);
 }
 
-long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions)
+long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, const osgDB::Options* readOptions, unsigned long long instanceIndex)
 {
     if ( ! _atlasStateSet.valid() )
         return -1;
@@ -205,6 +206,7 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     // buid the single geometry which will gather all sub items and LODs
     MPAnnotationDrawable* annoDrawable = new MPAnnotationDrawable(style, readOptions, _atlasStateSet.get());
     annoDrawable->setId(localId);
+    annoDrawable->setInstanceIndex(instanceIndex);
     annoDrawable->setCullingActive(false);
     annoDrawable->setDataVariance(DataVariance::DYNAMIC);
 
@@ -217,6 +219,7 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
     osg::ref_ptr<const InstanceSymbol> instance = style.get<InstanceSymbol>();
     const IconSymbol* iconSym = instance.valid() ? instance->asIcon() : nullptr;
     const TextSymbol* ts = style.get<TextSymbol>();
+    
     
  
     double priority = 0.0;
@@ -353,6 +356,48 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
         annoDrawable->setAutoFollowLine( ts->autoOffsetAlongLine().get() );
         annoDrawable->setAutoRotate( ts->autoRotateAlongLine().get() );
     }
+    
+    //label placement technique
+    
+    if( ts && ts->placementTechnique().isSet()){
+        const osg::Vec3d center = geom->getCentroid();
+        osg::Vec3d p1, p2;
+        geomSupport = geom;
+        if( geomSupport->getType() == Geometry::TYPE_LINESTRING)
+        {
+            geomLineString = dynamic_cast<LineString*>( geomSupport.get() );
+        }
+        else
+        {
+            const MultiGeometry* geomMulti = dynamic_cast<MultiGeometry*>(geomSupport.get());
+            if( geomMulti )
+                geomLineString = dynamic_cast<LineString*>( geomMulti->getComponents().front().get() );
+        }
+        
+        if( geomLineString )
+        {
+            GeoPoint geoStart( osgEarth::SpatialReference::get("wgs84"),
+                               geomLineString->front().x(),
+                               geomLineString->front().y(),
+                               geomLineString->front().z(),
+                               ALTMODE_ABSOLUTE );
+            GeoPoint geoEnd( osgEarth::SpatialReference::get("wgs84"),
+                             geomLineString->back().x(),
+                             geomLineString->back().y(),
+                             geomLineString->back().z(),
+                             ALTMODE_ABSOLUTE );            
+            
+            geoEnd.toWorld(p1);
+            geoStart.toWorld(p2);
+        
+        }else{
+            OE_WARN<<"no geomLineString avail"<<std::endl;
+        }
+        
+        annoDrawable->setLineStartPoint(p1);
+        annoDrawable->setLineEndPoint(p2);
+        annoDrawable->setScreenClamping(true);        
+    }      
 
     this->addChild( annoDrawable );
     _mainGeomDrawableList[localId] = annoDrawable;
