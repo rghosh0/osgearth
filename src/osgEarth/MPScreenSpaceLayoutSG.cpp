@@ -602,6 +602,9 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         pos.x()-=edgeoffset*cos(rlabel) ;
                         pos.y()-=edgeoffset*sin(rlabel) ;
                         
+                        float offsetFromLine=edgeoffset*0.5f;
+                        pos.x()+=abs(offsetFromLine*sin(rlabel));
+                        pos.y()-=abs(offsetFromLine*cos(rlabel));
                     }
                 }
           }
