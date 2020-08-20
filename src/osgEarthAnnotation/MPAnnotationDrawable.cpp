@@ -4,6 +4,7 @@
 #include <osgEarth/Registry>
 #include <osgEarthAnnotation/AnnotationUtils>
 #include <osgEarth/GeoMath>
+#include <osgEarth/StringUtils>
 
 #include <osgText/String>
 #include <osgDB/FileNameUtils>
@@ -89,10 +90,21 @@ MPAnnotationDrawable::MPAnnotationDrawable(const Style &style, const osgDB::Opti
     _altIconFirstLevel = iconSym && iconSym->minRange().isSet() ? iconSym->minRange().get() : DBL_MAX;
     _alt2ndLevel = textSymbol && textSymbol->minRange2ndlevel().isSet() ? textSymbol->minRange2ndlevel().value() : _altTextFirstLevel;
 
-    const TextSymbol* textSym = style.get<TextSymbol>();
-    if ( textSym && textSym->encoding().isSet() )
-        _text_encoding = AnnotationUtils::convertTextSymbolEncoding(textSym->encoding().value());
 
+    if ( textSymbol && textSymbol->encoding().isSet() )
+        _text_encoding = AnnotationUtils::convertTextSymbolEncoding(textSymbol->encoding().value());
+
+    if ( textSymbol
+                && ( textSymbol->placementTechnique().isSetTo( TextSymbol::PlacementTechnique::RIGHT_OR_LEFT_FROM_ICON )
+                     || ( ! textSymbol->placementTechnique().isSet()
+                          && MPScreenSpaceLayoutSG::getOptions().rightLeftPlacementActivated().isSetTo(true) ) )
+                && ! textSymbol->autoOffsetAlongLine().isSetTo(true)
+                && ! textSymbol->autoRotateAlongLine().isSetTo(true)
+                && ! textSymbol->predefinedOrganisation().isSet()
+                && iconSym )
+        setRightLeftPlacementAvail(true);
+
+    // actually build the vertices, primitives, colors...
     buildGeometry(style);
 
     // shift all vertices if pixel-offset is defined
@@ -177,19 +189,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                 if ( bboxsymbol && bboxsymbol->geom() == BBoxSymbol::GEOM_BOX_ROUNDED_ORIENTED && _v->size() >= 4 )
                 {
                     float offset = textSymbol->pixelOffset().isSet() ? textSymbol->pixelOffset().get().x() : 0.;
-                    float xMin = FLT_MAX;
-                    float xMax = -FLT_MAX;
-                    ShiftInfo shiftData;
-                    for (unsigned int j = _v->size() - 4 ; j < _v->size() ; j++)
-                    {
-                        float x = (*_v)[j].x();
-                        if ( x < xMin )
-                            xMin = x;
-                        if ( x > xMax )
-                            xMax = x;
-                        shiftData.first.push_back(j);
-                    }
-                    shiftData.second = osg::Vec3(xMax + xMin + 2.*offset, 0., 0.);
+                    ShiftInfo shiftData = buildShiftInfo( _v->size()-4, _v->size()-1, offset);
                     _rot_verticesToShift.push_back( shiftData );
                 }
             }
@@ -236,21 +236,12 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                 if ( bboxsymbol && bboxsymbol->geom() == BBoxSymbol::GEOM_BOX_ROUNDED_ORIENTED )
                 {
                     float offset = textSymbol->pixelOffset().isSet() ? textSymbol->pixelOffset().get().x() : 0.;
-                    float xMin = FLT_MAX;
-                    float xMax = -FLT_MAX;
-                    ShiftInfo shiftData;
-                    for (unsigned int j = _v->size() - nbVert ; j < _v->size() ; j++)
-                    {
-                        float x = (*_v)[j].x();
-                        if ( x < xMin )
-                            xMin = x;
-                        if ( x > xMax )
-                            xMax = x;
-                        shiftData.first.push_back(j);
-                    }
-                    shiftData.second = osg::Vec3(xMax + xMin + 2.*offset, 0., 0.);
+                    ShiftInfo shiftData = buildShiftInfo( _v->size()-nbVert, _v->size()-1, offset);
                     _rot_verticesToShift.push_back( shiftData );
                 }
+
+                if ( _rightLeftPlacementAvail )
+                    mvLeftShiftInfoForText(mainText, _v->size()-nbVert, _v->size()-1);
             }
         }
     }
@@ -269,6 +260,11 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
             newXMax = appendIcon(iconList[i], Color::White, _altTextFirstLevel, xMax);
             deltaSize += (newXMax - xMax);
             xMax = newXMax;
+            if ( _rightLeftPlacementAvail )
+            {
+                ShiftInfo shiftData = buildShiftInfo( _v->size()-4, _v->size()-1 );
+                _mvLeft_verticesToShift.push_back( shiftData );
+            }
         }
 
         // expand the text zone with these new icons (take into account only the last quad)
@@ -312,6 +308,9 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                 // expand the text zone with this new label (take into account only the last quad)
                 for ( int i = _v->getNumElements() - 4 ; i >= 0 && i < static_cast<int>(_v->getNumElements()) ; ++i )
                     mainBBoxText.expandBy( (*_v)[i] );
+
+                if ( _rightLeftPlacementAvail )
+                    mvLeftShiftInfoForText(textList[1], _v->size()-nbVert, _v->size()-1);
             }
         }
 
@@ -327,6 +326,9 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                 // expand the text zone with this new label (take into account only the last quad)
                 for ( int i = _v->getNumElements() - 4 ; i >= 0 && i < static_cast<int>(_v->getNumElements()) ; ++i )
                     mainBBoxText.expandBy( (*_v)[i] );
+
+                if ( _rightLeftPlacementAvail )
+                    mvLeftShiftInfoForText(textList[textList.size()-1], _v->size()-nbVert, _v->size()-1);
             }
         }
     }
@@ -737,6 +739,15 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
         _rot_verticesToInvert.push_back(last-3);
     }
 
+    // management of bbox shift in case left label placement
+    else if ( _rightLeftPlacementAvail )
+    {
+        _mvLeft_verticesToInvert.push_back(last);
+        _mvLeft_verticesToInvert.push_back(last-1);
+        _mvLeft_verticesToInvert.push_back(last-2);
+        _mvLeft_verticesToInvert.push_back(last-3);
+    }
+
     // push the draw elements
     std::vector<GLubyte> drawIndices { GLubyte(last-3), GLubyte(last-2), GLubyte(last-1), GLubyte(last-3), GLubyte(last-1), GLubyte(last)};
     return pushDrawElements(alt, drawIndices);
@@ -955,8 +966,6 @@ void MPAnnotationDrawable::moveTextPosition(int nbVertices, const osg::BoundingB
     {
         osg::Vec3 refCenter(refBBox.center());
         translate.set( refCenter.x() - textBBox.xMin() + _multi_text_margin, refBBox.yMax() - textBBox.yMin() + _multi_text_margin, 0. );
-
-//        translate.set( refBBox.xMax() - textBBox.xMin(), - textBBox.yMax() - refBBox.yMin(), 0. );
         doTranslation = true;
     }
 
@@ -966,7 +975,6 @@ void MPAnnotationDrawable::moveTextPosition(int nbVertices, const osg::BoundingB
     {
         osg::Vec3 refCenter(refBBox.center());
         translate.set( refCenter.x() - textBBox.xMin() + _multi_text_margin, - textBBox.yMax() + refBBox.yMin() - _multi_text_margin,  0. );
-//        translate.set( refBBox.xMax() - textBBox.xMin(), - textBBox.yMax() - refBBox.yMin(), 0. );
         doTranslation = true;
     }
 
@@ -1035,14 +1043,12 @@ void MPAnnotationDrawable::setAltitude(double alt)
     if ( _camAlt == alt || _isHighlighted )
         return;
 
-//    OE_WARN << LC << "CAM MOVE\n";
     _v = static_cast<osg::Vec3Array*>(getVertexArray());
     //_infoArray = static_cast<osg::Vec4Array*>(getVertexArray());
 
     // case zoom out
     if ( alt > _camAlt )
     {
-//        OE_WARN << LC << "  zoom out\n";
         for ( int i = _LOD ; i >= 0 ; i-- )
         {
             if ( alt > _LODlist[i].altitudeMax )
@@ -1062,11 +1068,16 @@ void MPAnnotationDrawable::setAltitude(double alt)
                 {
                     for ( auto i : xShift.first )
                     {
-                        (*_v)[i] -= xShift.second;
+                        if ( _placementLayout == TEXT_ON_RIGHT )
+                        {
+                            (*_v)[i] -= xShift.second;
+                        }
+                        else
+                        {
+                            (*_v)[i] += xShift.second;
+                        }
                         (*_infoArray)[i].x() -= xShift.second.x();
                         (*_infoArray)[i-2].x() -= xShift.second.x();
-                        //(*_infoArray)[i].y() += shift.second.y();
-                        //(*_infoArray)[i-2].y() += shift.second.y();
                     }
                 }
                 _LOD = i-1;
@@ -1083,7 +1094,6 @@ void MPAnnotationDrawable::setAltitude(double alt)
     // case zoom in
     else// if ( alt < _camAlt )
     {
-//        OE_WARN << LC << "  zoom in\n";
         for ( unsigned int i = static_cast<unsigned int>(_LOD+1) ; i < _LODlist.size() ; ++i )
         {
             if ( alt <= _LODlist[i].altitudeMax )
@@ -1104,11 +1114,16 @@ void MPAnnotationDrawable::setAltitude(double alt)
                 {
                     for ( auto i : shift.first )
                     {
-                        (*_v)[i] += shift.second;
+                        if ( _placementLayout == TEXT_ON_RIGHT )
+                        {
+                            (*_v)[i] += shift.second;
+                        }
+                        else
+                        {
+                            (*_v)[i] -= shift.second;
+                        }
                         (*_infoArray)[i].x() += shift.second.x();
                         (*_infoArray)[i-2].x() += shift.second.x();
-                        //(*_infoArray)[i].y() += shift.second.y();
-                        //(*_infoArray)[i-2].y() += shift.second.y();
                     }
                 }
                 _LOD = i;
@@ -1209,6 +1224,37 @@ void MPAnnotationDrawable::activeClutteredDrawMode( bool cluttered )
     _cluttered = cluttered;
 }
 
+void MPAnnotationDrawable::setPlacementLayout( MPScreenSpaceGeometry::PlacementLayout placementLayout )
+{
+    if ( placementLayout == _placementLayout )
+        return;
+
+    _v = static_cast<osg::Vec3Array*>(getVertexArray());
+
+    for ( auto i : _mvLeft_verticesToInvert )
+    {
+        (*_v)[i] = - (*_v)[i];
+    }
+
+    bool moveLeft = (placementLayout == PlacementLayout::TEXT_ON_LEFT);
+    for ( const auto& shiftData : _mvLeft_verticesToShift )
+    {
+        const osg::Vec3& shift = shiftData.second;
+        for ( auto i : shiftData.first )
+            if ( moveLeft )
+                (*_v)[i] -= shift;
+            else
+                (*_v)[i] += shift;
+    }
+
+    _v->dirty();
+
+    if ( ! _cluttered )
+        dirtyBound();
+
+    _placementLayout = placementLayout;
+}
+
 void MPAnnotationDrawable::updateGeometry(const Symbology::Geometry *geom, double geographicCourse )
 {
     const osg::Vec3d center = geom->getCentroid();
@@ -1256,4 +1302,71 @@ void MPAnnotationDrawable::updateGeometry(GeoPoint &pos, double geographicCourse
 
     // dirty bound done at parent level
     //dirtyBound();
+}
+
+
+void MPAnnotationDrawable::mvLeftShiftInfoForText(const std::string& text, unsigned int iVertFirst,
+                                                                            unsigned int /**iVertLast**/, float offset )
+{
+    std::string textNoSpace = text;
+    osgEarth::replaceIn( textNoSpace, " ", ""); // remove spaces
+    osgEarth::replaceIn( textNoSpace, "I:", ""); // remove spaces
+    std::string tmpText = "";
+
+    for (unsigned int iCharIndex = 0; iCharIndex < textNoSpace.size() ; iCharIndex++ )
+    {
+        const char &c = textNoSpace[iCharIndex];
+
+        if ( c == '|' )
+        {
+            // push prev word
+            if ( ! tmpText.empty() && iCharIndex > 0 )
+            {
+                int iLast = iVertFirst + iCharIndex * 4 - 1;
+                ShiftInfo shiftData = buildShiftInfo( iLast+1 - tmpText.size()*4 , iLast , offset );
+                _mvLeft_verticesToShift.push_back( shiftData );
+            }
+
+            // push the "|"
+            ShiftInfo shiftData = buildShiftInfo( iVertFirst + iCharIndex*4, iVertFirst + iCharIndex*4 + 3 , offset );
+            _mvLeft_verticesToShift.push_back( shiftData );
+
+            tmpText = "";
+        }
+
+        else
+        {
+            tmpText += c;
+        }
+    }
+
+    if ( ! tmpText.empty() )
+    {
+        int iLast = iVertFirst + textNoSpace.size() * 4 - 1;
+        ShiftInfo shiftData = buildShiftInfo( iLast+1 - tmpText.size()*4 , iLast , offset );
+        _mvLeft_verticesToShift.push_back( shiftData );
+    }
+}
+
+MPAnnotationDrawable::ShiftInfo MPAnnotationDrawable::buildShiftInfo( unsigned int iVertFirst, unsigned int iVertLast, float offset ) const
+{
+    // pre conditions
+    if ( iVertFirst < 0 || iVertFirst >= _v->size() || iVertLast < 0 || iVertLast >= _v->size() )
+        return ShiftInfo();
+
+    float xMin = FLT_MAX;
+    float xMax = -FLT_MAX;
+    ShiftInfo shiftData;
+    for (unsigned int j = iVertFirst ; j <= iVertLast ; j++)
+    {
+        float x = (*_v)[j].x();
+        if ( x < xMin )
+            xMin = x;
+        if ( x > xMax )
+            xMax = x;
+        shiftData.first.push_back(j);
+    }
+    shiftData.second = osg::Vec3(xMax + xMin + 2.*offset, 0., 0.);
+
+    return shiftData;
 }

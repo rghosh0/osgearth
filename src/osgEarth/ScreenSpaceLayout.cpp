@@ -180,6 +180,7 @@ ScreenSpaceLayoutOptions::fromConfig( const Config& conf )
     conf.get( "font_default",        _defaultFont );
     conf.get( "font_altas",          _fontAltas );
     conf.get( "icon_altas",          _iconAltas );
+    conf.get( "right_left_placement",_rightLeftPlacementActivated );
 }
 
 Config
@@ -201,6 +202,7 @@ ScreenSpaceLayoutOptions::getConfig() const
     conf.set( "font_default",        _defaultFont );
     conf.set( "font_altas",          _fontAltas );
     conf.set( "icon_altas",          _iconAltas );
+    conf.set( "right_left_placement",_rightLeftPlacementActivated );
     return conf;
 }
 

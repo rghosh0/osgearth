@@ -219,6 +219,10 @@ public:
     optional<std::string>& iconAltas() { return _iconAltas; }
     const optional<std::string>& iconAltas() const { return _iconAltas; }
 
+    /** Whether the right / left annotation placement is activated by default */
+    optional<bool>& rightLeftPlacementActivated() { return _rightLeftPlacementActivated; }
+    const optional<bool>& rightLeftPlacementActivated() const { return _rightLeftPlacementActivated; }
+
 public:
 
     Config getConfig() const;
@@ -239,6 +243,7 @@ protected:
     optional<std::string>  _defaultFont;
     optional<std::string>  _fontAltas;
     optional<std::string>  _iconAltas;
+    optional<bool>      _rightLeftPlacementActivated;
 
     void fromConfig( const Config& conf );
 };

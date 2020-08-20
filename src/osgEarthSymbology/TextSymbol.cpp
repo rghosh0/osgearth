@@ -28,66 +28,65 @@ using namespace osgEarth::Symbology;
 OSGEARTH_REGISTER_SIMPLE_SYMBOL(text, TextSymbol)
 
 TextSymbol::TextSymbol(const TextSymbol& rhs,const osg::CopyOp& copyop):
-                                                                           Symbol(rhs, copyop),
-                                                                           _fill(rhs._fill),
-                                                                           _halo(rhs._halo),
-                                                                           _haloOffset(rhs._haloOffset),
-                                                                           _haloBackdropType(rhs._haloBackdropType),
-                                                                           _haloImplementation(rhs._haloImplementation),
-                                                                           _font(rhs._font),
-                                                                           _size(rhs._size),
-                                                                           _content(rhs._content),
-                                                                           _priority(rhs._priority),
-                                                                           _pixelOffset(rhs._pixelOffset),
-                                                                           _onScreenRotation(rhs._onScreenRotation),
-                                                                           _geographicCourse(rhs._geographicCourse),
-                                                                           _provider(rhs._provider),
-                                                                           _encoding(rhs._encoding),
-                                                                           _alignment(rhs._alignment),
-                                                                           _layout(rhs._layout),
-                                                                           _declutter(rhs._declutter),
-                                                                           _occlusionCull(rhs._occlusionCull),
-                                                                           _occlusionCullAltitude(rhs._occlusionCullAltitude),
-                                                                           _autoOffsetAlongLine(rhs._autoOffsetAlongLine),
-                                                                           _placementTechnique(rhs._placementTechnique),
-                                                                           _autoRotateAlongLine(rhs._autoRotateAlongLine),
-                                                                           _autoOffsetGeomWKT(rhs._autoOffsetGeomWKT),
-                                                                           _attachedLabel(rhs._attachedLabel),
-                                                                           _attachedLabelDecimationTolerance(rhs._attachedLabelDecimationTolerance),
-                                                                           _minRange(rhs._minRange),
-                                                                           _minRange2ndlevel(rhs._minRange2ndlevel),
-                                                                           _predefinedOrganisation(rhs._predefinedOrganisation),
-                                                                           _predefinedOrganisationMargin( rhs._predefinedOrganisationMargin),
-                                                                           _backEarthCull(rhs._backEarthCull),
-                                                                           _priorityFine(rhs._priorityFine)
+    Symbol(rhs, copyop),
+    _fill(rhs._fill),
+    _halo(rhs._halo),
+    _haloOffset(rhs._haloOffset),
+    _haloBackdropType(rhs._haloBackdropType),
+    _haloImplementation(rhs._haloImplementation),
+    _font(rhs._font),
+    _size(rhs._size),
+    _content(rhs._content),
+    _priority(rhs._priority),
+    _pixelOffset(rhs._pixelOffset),
+    _onScreenRotation(rhs._onScreenRotation),
+    _geographicCourse(rhs._geographicCourse),
+    _provider(rhs._provider),
+    _encoding(rhs._encoding),
+    _alignment(rhs._alignment),
+    _layout(rhs._layout),
+    _declutter(rhs._declutter),
+    _occlusionCull(rhs._occlusionCull),
+    _occlusionCullAltitude(rhs._occlusionCullAltitude),
+    _autoOffsetAlongLine(rhs._autoOffsetAlongLine),
+    _placementTechnique(rhs._placementTechnique),
+    _autoRotateAlongLine(rhs._autoRotateAlongLine),
+    _autoOffsetGeomWKT(rhs._autoOffsetGeomWKT),
+    _attachedLabel(rhs._attachedLabel),
+    _attachedLabelDecimationTolerance(rhs._attachedLabelDecimationTolerance),
+    _minRange(rhs._minRange),
+    _minRange2ndlevel(rhs._minRange2ndlevel),
+    _predefinedOrganisation(rhs._predefinedOrganisation),
+    _predefinedOrganisationMargin( rhs._predefinedOrganisationMargin),
+    _backEarthCull(rhs._backEarthCull),
+    _priorityFine(rhs._priorityFine)
 {
 }
 
 TextSymbol::TextSymbol( const Config& conf ) :
-                                             Symbol                ( conf ),
-                                             _fill                 ( Fill( 1, 1, 1, 1 ) ),
-                                             _halo                 ( Stroke( 0.3, 0.3, 0.3, 1) ),
-                                             _haloOffset           ( 0.0625f ),
-                                             _haloBackdropType     ( osgText::Text::OUTLINE ),
-                                             _haloImplementation   ( osgText::Text::DELAYED_DEPTH_WRITES ),
-                                             _size                 ( 16.0f ),
-                                             _alignment            ( ALIGN_BASE_LINE ),
-                                             _layout               ( LAYOUT_LEFT_TO_RIGHT ),
-                                             _encoding             ( ENCODING_ASCII ),
-                                             _declutter            ( true ),
-                                             _occlusionCull        ( false ),
-                                             _occlusionCullAltitude( 200000 ),
-                                             _onScreenRotation     ( 0.0 ),
-                                             _geographicCourse     ( 0.0 ),
-                                             _autoOffsetAlongLine  ( false ),
-                                             _placementTechnique   (NONE),
-                                             _autoRotateAlongLine  ( false ),
-                                             _attachedLabel        ( false ),
-                                             _attachedLabelDecimationTolerance( false ),
-                                             _minRange             ( DBL_MAX ),
-                                             _minRange2ndlevel     ( DBL_MAX ),
-                                             _predefinedOrganisationMargin( 4. ),
-                                             _priorityFine         ( 0.0 )
+    Symbol                ( conf ),
+    _fill                 ( Fill( 1, 1, 1, 1 ) ),
+    _halo                 ( Stroke( 0.3, 0.3, 0.3, 1) ),
+    _haloOffset           ( 0.0625f ),
+    _haloBackdropType     ( osgText::Text::OUTLINE ),
+    _haloImplementation   ( osgText::Text::DELAYED_DEPTH_WRITES ),
+    _size                 ( 16.0f ),
+    _onScreenRotation     ( 0.0 ),
+    _geographicCourse     ( 0.0 ),
+    _encoding             ( ENCODING_ASCII ),
+    _alignment            ( ALIGN_BASE_LINE ),
+    _layout               ( LAYOUT_LEFT_TO_RIGHT ),
+    _declutter            ( true ),
+    _occlusionCull        ( false ),
+    _occlusionCullAltitude( 200000 ),
+    _autoOffsetAlongLine  ( false ),
+    _autoRotateAlongLine  ( false ),
+    _attachedLabel        ( false ),
+    _attachedLabelDecimationTolerance( false ),
+    _minRange             ( DBL_MAX ),
+    _minRange2ndlevel     ( DBL_MAX ),
+    _predefinedOrganisationMargin( 4. ),
+    _priorityFine         ( 0.0 )
 {
     mergeConfig(conf);
 }
@@ -160,11 +159,11 @@ TextSymbol::getConfig() const
     conf.set( "text-occlusion-cull", _occlusionCull );
     conf.set( "text-occlusion-cull-altitude", _occlusionCullAltitude );
 
-    conf.set( "auto-offset-alongline", _autoOffsetAlongLine);    
+    conf.set( "auto-offset-alongline", _autoOffsetAlongLine);
     
-    conf.set( "placement-technique", "none",                 _placementTechnique, NONE );
-    conf.set( "placement-technique", "clamp-to-screen-edge", _placementTechnique, CLAMP_TO_SCREEN_EDGE );
-    conf.set( "placement-technique", "screen-edge-only",     _placementTechnique, SCREEN_EDGE_ONLY );   
+    conf.set( "placement-technique", "none",                    _placementTechnique, NONE );
+    conf.set( "placement-technique", "screen-edge-only",        _placementTechnique, SCREEN_EDGE_ONLY );
+    conf.set( "placement-technique", "right-or-left-from-icon", _placementTechnique, RIGHT_OR_LEFT_FROM_ICON );
     
     conf.set( "auto-rotate-alongline", _autoRotateAlongLine);
     conf.set( "auto-offset-support", _autoOffsetGeomWKT );
@@ -253,9 +252,9 @@ TextSymbol::mergeConfig( const Config& conf )
 
     conf.get( "auto-offset-alongline", _autoOffsetAlongLine );
     
-    conf.get( "placement-technique", "none",                 _placementTechnique, NONE );
-    conf.get( "placement-technique", "clamp-to-screen-edge", _placementTechnique, CLAMP_TO_SCREEN_EDGE );
-    conf.get( "placement-technique", "screen-edge-only",     _placementTechnique, SCREEN_EDGE_ONLY );   
+    conf.get( "placement-technique", "none",                    _placementTechnique, NONE );
+    conf.get( "placement-technique", "screen-edge-only",        _placementTechnique, SCREEN_EDGE_ONLY );
+    conf.get( "placement-technique", "right-or-left-from-icon", _placementTechnique, RIGHT_OR_LEFT_FROM_ICON );
     
     conf.get( "auto-rotate-alongline", _autoRotateAlongLine );
     conf.get( "auto-offset-support", _autoOffsetGeomWKT );
@@ -423,15 +422,12 @@ TextSymbol::parseSLD(const Config& c, Style& style)
         style.getOrCreate<TextSymbol>()->autoOffsetAlongLine() = as<bool>(c.value(), defaults.autoOffsetAlongLine().get() );
     }
     else if ( match(c.key(), "text-placement-technique") ) {
-        
-     
         if (match(c.value(), "screen-edge-only"))
             style.getOrCreate<TextSymbol>()->placementTechnique() = TextSymbol::SCREEN_EDGE_ONLY;
-        else if (match(c.value(), "clamp-to-screen-edge"))
-            style.getOrCreate<TextSymbol>()->placementTechnique() = TextSymbol::CLAMP_TO_SCREEN_EDGE;
-       else
+        else if (match(c.value(), "right-or-left-from-icon"))
+            style.getOrCreate<TextSymbol>()->placementTechnique() = TextSymbol::RIGHT_OR_LEFT_FROM_ICON;
+        else
             style.getOrCreate<TextSymbol>()->placementTechnique() = TextSymbol::NONE;
-        
     }
     else if ( match(c.key(), "text-auto-rotate-alongline") ) {
         style.getOrCreate<TextSymbol>()->autoRotateAlongLine() = as<bool>(c.value(), defaults.autoRotateAlongLine().get() );
@@ -457,8 +453,8 @@ TextSymbol::parseSLD(const Config& c, Style& style)
     else if ( match(c.key(), "text-predefined-organisation-margin") ) {
         style.getOrCreate<TextSymbol>()->predefinedOrganisationMargin() = as<double>(c.value(), defaults.predefinedOrganisationMargin().get() );
     }
-    else if ( match(c.key(), "text-priority-fine") ) {     
-        style.getOrCreate<TextSymbol>()->priorityFine() = NumericExpression( c.value() );       
+    else if ( match(c.key(), "text-priority-fine") ) {
+        style.getOrCreate<TextSymbol>()->priorityFine() = NumericExpression( c.value() );
     }
     else if ( match(c.key(), "text-back-earth-cull") ) {
         style.getOrCreate<TextSymbol>()->backEarthCull() = as<bool>(c.value(), defaults.backEarthCull().get() );

@@ -75,7 +75,7 @@ public:
     
     enum PlacementTechnique {
         SCREEN_EDGE_ONLY,
-        CLAMP_TO_SCREEN_EDGE,
+        RIGHT_OR_LEFT_FROM_ICON,
         NONE
     };
     META_Object(osgEarthSymbology, TextSymbol);
@@ -172,6 +172,7 @@ public:
     /** Halo backdrop type */
     optional<PlacementTechnique>& placementTechnique() { return _placementTechnique; }
     const optional<PlacementTechnique>& placementTechnique() const { return _placementTechnique; }
+
     /**
      * Whether to enable the automatic label rotation along a line
      * Note: The feature must be one straigth line and short enough as the algorithm considers it straigth on screen
