@@ -684,6 +684,9 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
             drawType = MPStateSetFontAltas::TYPE_BBOX_ROUNDED_ORIENTED;
             xMaxMargin += height / 3.;
             break;
+        case BBoxSymbol::GEOM_BOX_STROKE_SIDES:
+            drawType = MPStateSetFontAltas::TYPE_BBOX_STROKE_SIDED;
+            break;
         default: ;
     }
 

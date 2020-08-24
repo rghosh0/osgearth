@@ -160,6 +160,7 @@ MPStateSetFontAltas::MPStateSetFontAltas(const std::string &iconAtlasPath, const
     defineList["TYPE_CHARACTER_MSDF"] = osg::StateSet::DefinePair(std::to_string(TYPE_CHARACTER_MSDF) + ".", osg::StateAttribute::ON);
     defineList["TYPE_ICON"] = osg::StateSet::DefinePair(std::to_string(TYPE_ICON) + ".", osg::StateAttribute::ON);
     defineList["TYPE_BBOX"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX) + ".", osg::StateAttribute::ON);
+    defineList["TYPE_BBOX_STROKE_SIDED"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_STROKE_SIDED) + ".", osg::StateAttribute::ON);
     defineList["TYPE_BBOX_ROUNDED"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_ROUNDED) + ".", osg::StateAttribute::ON);
     defineList["TYPE_BBOX_ONEARROW"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_ONEARROW) + ".", osg::StateAttribute::ON);
     defineList["TYPE_BBOX_TWOARROWS"] = osg::StateSet::DefinePair(std::to_string(TYPE_BBOX_TWOARROWS) + ".", osg::StateAttribute::ON);
