@@ -357,10 +357,10 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
         annoDrawable->setAutoRotate( ts->autoRotateAlongLine().get() );
     }
     
-    //label placement technique
+    // label placement technique
     
-    if( ts && ts->placementTechnique().isSet()){
-        const osg::Vec3d center = geom->getCentroid();
+    if( ts && ts->placementTechnique().isSetTo( TextSymbol::PlacementTechnique::SCREEN_EDGE_ONLY ))
+    {
         osg::Vec3d p1, p2;
         geomSupport = geom;
         if( geomSupport->getType() == Geometry::TYPE_LINESTRING)
@@ -390,14 +390,16 @@ long MPAnnotationGroupSG::addAnnotation(const Style& style, Geometry *geom, cons
             geoEnd.toWorld(p1);
             geoStart.toWorld(p2);
         
-        }else{
-            OE_WARN<<"no geomLineString avail"<<std::endl;
+        }
+        else
+        {
+            OE_WARN << "no geomLineString avail" << std::endl;
         }
         
         annoDrawable->setLineStartPoint(p1);
         annoDrawable->setLineEndPoint(p2);
         annoDrawable->setScreenClamping(true);        
-    }      
+    }
 
     this->addChild( annoDrawable );
     _mainGeomDrawableList[localId] = annoDrawable;

@@ -85,6 +85,9 @@ public:
     /** active the decluttered mode of this annotation **/
     void activeClutteredDrawMode( bool cluttered ) override;
 
+    /** change the annotation display layout **/
+    virtual void setPlacementLayout( PlacementLayout placementLayout ) override;
+
     /** change the position of this annotation **/
     void updateGeometry(GeoPoint &pos , double geographicCourse = DBL_MAX);
     void updateGeometry(const Symbology::Geometry *geom, double geographicCourse = DBL_MAX );
@@ -120,6 +123,9 @@ protected:
     int pushDrawElements(double alt, const std::vector<GLubyte> &pDrawElt, bool pushDrawAfter = false);
 
     void dirty();
+
+    void mvLeftShiftInfoForText(const std::string& text, unsigned int iVertFirst, unsigned int iVertLast, float offset = 0.f );
+    ShiftInfo buildShiftInfo(unsigned int iVertFirst, unsigned int iVertLast, float offset = 0.f ) const;
 
     // the list of level of detail
     std::vector<LODAnno> _LODlist;
@@ -164,6 +170,8 @@ protected:
     std::vector<unsigned int> _rot_verticesToInvert;
     std::vector<ShiftInfo> _rot_verticesToShift;
     bool _invertLOD { false };
+    std::vector<unsigned int> _mvLeft_verticesToInvert;
+    std::vector<ShiftInfo> _mvLeft_verticesToShift;
 };
 
 } }

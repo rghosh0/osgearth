@@ -43,15 +43,22 @@ namespace osgEarth
  */
 class OSGEARTH_EXPORT MPScreenSpaceGeometry : public osg::Geometry
 {
+
+public:
+    enum PlacementLayout {
+        TEXT_ON_RIGHT,
+        TEXT_ON_LEFT
+    };
+
 public:
     /** Constructor */
     MPScreenSpaceGeometry() : osg::Geometry(),
-                              _priority(0.0),
+                              _id(-1),
                               _originalPriority(0.0),
+                              _priority(0.0),
                               _pixelOffset(0, 0),
                               _autoRotate(false),
                               _autoFollowLine(false),
-                              _id(-1),
                               _screenClamping(false),
                               _instanceIndex(0) { }
 
@@ -94,14 +101,21 @@ public:
     const osg::BoundingBox& getBBox() const { return _bbox; }
     //void expandBboxBy ( const osg::BoundingBox& bbox) { _bbox.expandBy(bbox); _bsphere.expandRadiusBy(bbox); _bboxSymetric.expandBy(_bsphere); }
     const osg::BoundingBox& getBBoxSymetric() const { return _bboxSymetric; }
-
     
     /** Whether the label shall automatically be clamped to the screen edges */
     void setScreenClamping(bool screenClamping) { _screenClamping = screenClamping; }
     bool screenClamping() const { return _screenClamping; }
-    
+
+    /** Whether the label can be placed to right or left positions from the icon */
+    void setRightLeftPlacementAvail(bool rightLeftPlacementAvail) { _rightLeftPlacementAvail = rightLeftPlacementAvail; }
+    bool rightLeftPlacementAvail() const { return _rightLeftPlacementAvail; }
+
     /** active the decluttered mode of this annotation **/
     virtual void activeClutteredDrawMode( bool cluttered ) {}
+
+    /** change the annotation display layout **/
+    virtual void setPlacementLayout( PlacementLayout placementLayout ) {}
+    PlacementLayout placementLayout( ) const { return _placementLayout; }
 
     /** true if this annotation still draw something even when fully cluttered **/
     bool drawInClutteredMode( ) const { return _drawInClutteredMode; }
@@ -112,8 +126,8 @@ public:
 
 public:
     long       _id{1};
-    double      _originalPriority{0.};
-    double      _priority{0.};
+    double     _originalPriority{0.};
+    double     _priority{0.};
     bool       _originalDeclutterActivated{true};
     bool       _declutterActivated{true};
     osg::Vec2s _pixelOffset{0, 0};
@@ -125,8 +139,10 @@ public:
     unsigned long long  _instanceIndex{0};
     // draw in cluttered state
     bool        _drawInClutteredMode {false};
+    PlacementLayout _placementLayout {TEXT_ON_RIGHT};
     bool        _cluttered {false};
     bool        _screenClamping {false};
+    bool        _rightLeftPlacementAvail {false};
 
 public:
     // computed at cull step
