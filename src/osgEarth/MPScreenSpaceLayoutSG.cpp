@@ -647,8 +647,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             osg::Vec3 leftOffsetVec( -leftOffset ,0. ,0. );
             osg::BoundingBox symBBox( box._min+leftOffsetVec,box._max+leftOffsetVec);
               
-            bool hasFreeLeft=true;
-            bool hasFreeRight=true;
+            bool hasOppositeFree=true;
+            bool hasCurrentFree=true;
             int mapStartX,  mapStartY, mapEndX, mapEndY;
 
             if ( s_mp_sg_declutteringEnabledGlobally )
@@ -724,24 +724,24 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 //                            cumulForces+=osg::absolute(v);
 //                              signedForces+=v;
                               
-                            bool isClearRight = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
+                            bool isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
                                     osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
 
                              
-                            bool isClearLeft = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
+                            bool isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
                                     osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());
                             
 
                           //  OE_WARN << "bboxes "<<leftOffset<<" " <<box.xMin()<<","<<box.xMax()<<" "<<symBBox.xMin()<<","<<symBBox.xMax()<<" "<<j->xMin()<<","<<j->xMax()<<"\n";
-                            if( !isClearLeft ){
-                               hasFreeLeft=false;
+                            if( !isOppositeClear ){
+                               hasOppositeFree=false;
                             }
-                            if( !isClearRight ){
-                               hasFreeRight=false;
+                            if( !isCurrentClear ){
+                               hasCurrentFree=false;
                             }
                             
                             // if there's an overlap then the leaf is culled.
-                            if ( ! hasFreeLeft && ! hasFreeRight )
+                            if ( ! hasOppositeFree && ! hasCurrentFree )
                             {
                                 //OE_WARN << "decluttered!\n";
                                 visible = false;
@@ -755,9 +755,9 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 
                 if ( visible )
                 {    
-                    if((hasFreeLeft && !hasFreeRight))
+                    if((hasOppositeFree && !hasCurrentFree))
                         annoDrawable->setPlacementLayout((annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?MPScreenSpaceGeometry::TEXT_ON_LEFT:MPScreenSpaceGeometry::TEXT_ON_RIGHT);
-                    else if(annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT && hasFreeLeft)
+                    else if(annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT && hasOppositeFree && hasCurrentFree)
                         annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
                     
 //                    if(hasFreeLeft && !hasFreeRight){
@@ -778,6 +778,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 if ( ! visible )
                 {
+                    annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
                     local._failed.push_back( leaf );
                 }
             }
