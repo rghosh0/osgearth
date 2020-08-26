@@ -655,7 +655,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 // A max priority => never occlude.
                 double priority = annoDrawable->_priority;
-          
+
                 if ( useScreenGrid )
                 {
                     mapStartX = osg::clampTo(static_cast<int>(floor((box.xMin() - vpXMin) / mapSizeX)), 0, screenMapNbCol-1);
@@ -675,7 +675,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                     // declutter only on screen cells that intersects the current bbox cells
                     if ( useScreenGrid )
-                    {  
+                    {
                         for ( int mapX = mapStartX ; mapX <= mapEndX && visible ; ++mapX )
                             for ( int mapY = mapStartY ; mapY <= mapEndY && visible ; ++mapY )
                                 for( std::vector<RenderLeafBox>::const_iterator j = _usedMap[mapX][mapY].begin(); j != _usedMap[mapX][mapY].end(); ++j )
@@ -700,27 +700,28 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         // weed out any drawables that are obscured by closer drawables.
                         // TODO: think about a more efficient algorithm - right now we are just using
                         // brute force to compare all bbox's
-                        
-                     
+                                             
+                        bool isCurrentClear=false;
+                        bool isOppositeClear=false;
                         
                         for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
                         {
                             // only need a 2D test since we're in clip space
                               
-                            bool isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
+                             isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
                                     osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
 
                             if( !isCurrentClear ){
                                hasCurrentFree=false;
                             }
-                            
-                            bool isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
+                            if( annoDrawable->rightLeftPlacementAvail() ){
+                                isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
                                     osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());                            
-
+                            } 
                             if( !isOppositeClear ){
                                hasOppositeFree=false;
                             }
-                                                       
+                                                     
                             // if there's an overlap then the leaf is culled.
                             if ( ! hasOppositeFree && ! hasCurrentFree )
                             {                              
@@ -735,11 +736,12 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 
                 if ( visible )
                 {    
-                    if((hasOppositeFree && !hasCurrentFree))
-                        annoDrawable->setPlacementLayout((annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?MPScreenSpaceGeometry::TEXT_ON_LEFT:MPScreenSpaceGeometry::TEXT_ON_RIGHT);
-                    else if(annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT && hasOppositeFree && hasCurrentFree)
-                        annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
-                   
+                    if( annoDrawable->rightLeftPlacementAvail() ){
+                        if((hasOppositeFree && !hasCurrentFree))
+                            annoDrawable->setPlacementLayout((annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?MPScreenSpaceGeometry::TEXT_ON_LEFT:MPScreenSpaceGeometry::TEXT_ON_RIGHT);
+                        else if(annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT && hasOppositeFree && hasCurrentFree)
+                            annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
+                    }
                     // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
                     // to the final draw list.
                     if ( annoDrawable->_declutterActivated )
@@ -754,9 +756,10 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 if ( ! visible )
                 {
-                    annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
+                    if( annoDrawable->rightLeftPlacementAvail() )
+                        annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
                     local._failed.push_back( leaf );
-                }                
+                }
             }
 
             // no declutter
