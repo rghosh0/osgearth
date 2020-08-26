@@ -640,12 +640,11 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //            }
 
             float  leftOffset=box._max.x()+box._min.x();
-            box.set( box._min + pos - buffer, box._max + pos + buffer);
-            
-//            float leftOffset=-(box._max.x()-box._min.x())*0.65;
-            
             osg::Vec3 leftOffsetVec( -leftOffset ,0. ,0. );
-            osg::BoundingBox symBBox( box._min+leftOffsetVec,box._max+leftOffsetVec);
+            
+            box.set( box._min + pos - buffer, box._max + pos + buffer); 
+            
+            osg::BoundingBox symBBox( box._min+leftOffsetVec, box._max+leftOffsetVec );
               
             bool hasOppositeFree=true;
             bool hasCurrentFree=true;
@@ -656,11 +655,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 // A max priority => never occlude.
                 double priority = annoDrawable->_priority;
-                
-                 
-//                float cumulForces=0.0;
-//                float signedForces=0.0;
-
+          
                 if ( useScreenGrid )
                 {
                     mapStartX = osg::clampTo(static_cast<int>(floor((box.xMin() - vpXMin) / mapSizeX)), 0, screenMapNbCol-1);
@@ -711,39 +706,24 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
                         {
                             // only need a 2D test since we're in clip space
-                          
-                            
-//                            float v=0.0;
-//                            if( (-j->xMin() <= box.xMax() ) && ( box.xMax() <=j->xMax() ) )
-//                                v=(box.xMax()-j->xMin())*0.5;
-//                            else if( ( -j->xMin() <= box.xMin() ) && ( box.xMin() <=j->xMax() ) )
-//                                v=(box.xMin()-j->xMax())*0.5;
-                           
-                            
-                            
-//                            cumulForces+=osg::absolute(v);
-//                              signedForces+=v;
                               
                             bool isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
                                     osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
 
-                             
-                            bool isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
-                                    osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());
-                            
-
-                          //  OE_WARN << "bboxes "<<leftOffset<<" " <<box.xMin()<<","<<box.xMax()<<" "<<symBBox.xMin()<<","<<symBBox.xMax()<<" "<<j->xMin()<<","<<j->xMax()<<"\n";
-                            if( !isOppositeClear ){
-                               hasOppositeFree=false;
-                            }
                             if( !isCurrentClear ){
                                hasCurrentFree=false;
                             }
                             
+                            bool isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
+                                    osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());                            
+
+                            if( !isOppositeClear ){
+                               hasOppositeFree=false;
+                            }
+                                                       
                             // if there's an overlap then the leaf is culled.
                             if ( ! hasOppositeFree && ! hasCurrentFree )
-                            {
-                                //OE_WARN << "decluttered!\n";
+                            {                              
                                 visible = false;
                                 break;
                             }
@@ -759,10 +739,6 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         annoDrawable->setPlacementLayout((annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?MPScreenSpaceGeometry::TEXT_ON_LEFT:MPScreenSpaceGeometry::TEXT_ON_RIGHT);
                     else if(annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT && hasOppositeFree && hasCurrentFree)
                         annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
-                    
-//                    if(hasFreeLeft && !hasFreeRight){
-//                         box=symBBox;
-//                     }
                    
                     // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
                     // to the final draw list.
@@ -780,7 +756,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 {
                     annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
                     local._failed.push_back( leaf );
-                }
+                }                
             }
 
             // no declutter
