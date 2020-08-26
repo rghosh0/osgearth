@@ -639,13 +639,14 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //                layoutData->_cull_anchorOnScreen.y() = floor(layoutData->_cull_anchorOnScreen.y()) + 0.5;
             //            }
 
+            float  leftOffset=box._max.x()+box._min.x();
             box.set( box._min + pos - buffer, box._max + pos + buffer);
             
-            float leftOffset=-(box._max.x()-box._min.x())*0.65;
+//            float leftOffset=-(box._max.x()-box._min.x())*0.65;
             
-            osg::Vec3 leftOffsetVec( leftOffset ,0. ,0. );
-            osg::BoundingBox leftBB( box._min+leftOffsetVec,box._max+leftOffsetVec);
-
+            osg::Vec3 leftOffsetVec( -leftOffset ,0. ,0. );
+            osg::BoundingBox symBBox( box._min+leftOffsetVec,box._max+leftOffsetVec);
+              
             bool hasFreeLeft=true;
             bool hasFreeRight=true;
             int mapStartX,  mapStartY, mapEndX, mapEndY;
@@ -727,21 +728,22 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                                     osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
 
                              
-                            bool isClearLeft = osg::maximum(leftBB.xMin(),j->xMin()) > osg::minimum(leftBB.xMax(),j->xMax()) ||
-                                    osg::maximum(leftBB.yMin(),j->yMin()) > osg::minimum(leftBB.yMax(),j->yMax());
+                            bool isClearLeft = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
+                                    osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());
                             
 
-                            
-                            if(!isClearLeft ){
+                          //  OE_WARN << "bboxes "<<leftOffset<<" " <<box.xMin()<<","<<box.xMax()<<" "<<symBBox.xMin()<<","<<symBBox.xMax()<<" "<<j->xMin()<<","<<j->xMax()<<"\n";
+                            if( !isClearLeft ){
                                hasFreeLeft=false;
                             }
-                            if(!isClearRight){
+                            if( !isClearRight ){
                                hasFreeRight=false;
                             }
                             
                             // if there's an overlap then the leaf is culled.
                             if ( ! hasFreeLeft && ! hasFreeRight )
                             {
+                                //OE_WARN << "decluttered!\n";
                                 visible = false;
                                 break;
                             }
@@ -749,13 +751,19 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                     }
                 }
               
-
+              
+                
                 if ( visible )
-                {  
-                    if(hasFreeLeft && !hasFreeRight){
-                        box.xMax()+=leftOffset;
-                        box.xMin()+=leftOffset;
-                     }
+                {    
+                    if((hasFreeLeft && !hasFreeRight))
+                        annoDrawable->setPlacementLayout((annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?MPScreenSpaceGeometry::TEXT_ON_LEFT:MPScreenSpaceGeometry::TEXT_ON_RIGHT);
+                    else if(annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT && hasFreeLeft)
+                        annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
+                    
+//                    if(hasFreeLeft && !hasFreeRight){
+//                         box=symBBox;
+//                     }
+                   
                     // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
                     // to the final draw list.
                     if ( annoDrawable->_declutterActivated )
@@ -784,7 +792,10 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             }
           
             osg::Matrix newModelView;
-            newModelView.makeTranslate(static_cast<double>(pos.x()+(( hasFreeLeft && !hasFreeRight )?leftOffset:0.0f)), static_cast<double>(pos.y()), 0);
+           // if( annoDrawable->rightLeftPlacementAvail() )
+          
+                
+                newModelView.makeTranslate(static_cast<double>(pos.x()), static_cast<double>(pos.y()), 0);
            
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);

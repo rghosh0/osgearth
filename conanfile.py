@@ -28,7 +28,7 @@ class OsgEarthConan(ConanFile):
     
     def requirements(self):
         self.requires.add("boost/[1.69]@conan/stable") #link with boost geometry
-        self.requires.add("OpenSceneGraph/3.6.4b@conan/stable")#geos and gdal included by OpenSceneGraph
+        self.requires.add("OpenSceneGraph/3.6.4c@conan/stable")#geos and gdal included by OpenSceneGraph
         self.requires.add("ConanSharedFunctions/0.0.1@navblue/stable")
 
     def imports(self):
