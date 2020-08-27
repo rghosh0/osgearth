@@ -569,8 +569,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             if(!intersect1)
                             {
                                 gp1=gp3;
-                                 lat1=osg::DegreesToRadians( gp1.y());
-                                 lon1=osg::DegreesToRadians( gp1.x());
+                                lat1=osg::DegreesToRadians( gp1.y());
+                                lon1=osg::DegreesToRadians( gp1.x());
                             }
                             
                         }
