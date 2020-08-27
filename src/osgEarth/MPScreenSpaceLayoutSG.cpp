@@ -77,7 +77,8 @@ struct SortByPriority : public DeclutterSortFunctor
 };
 
 // rotates a bbox for proper decluttering of rotated labels and updates the associated quaternion
-void rotateBBox( osg::BoundingBox& box, double angle, osg::Quat &rot ){    
+void rotateBBox( osg::BoundingBox& box, double angle, osg::Quat &rot )
+{    
     
     rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
     osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
@@ -490,7 +491,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             }
             
             //computes the clamped labels (used for graticules)
-            if(annoDrawable->screenClamping()){
+            if(annoDrawable->screenClamping())
+            {
                 const osgEarth::SpatialReference* srs = osgEarth::SpatialReference::create("epsg:4326");
                 
                 // Calculate the "clip to world" matrix = MVPinv.
@@ -522,7 +524,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
            
                 osg::ref_ptr<osg::LineSegment> seg,subseg;
                 
-                if(visible){ 
+                if(visible)
+                { 
                     
                     if(!seg.valid())
                         seg = new osg::LineSegment (pc1,pc2);
@@ -551,7 +554,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         double d1=d;
                          
                          // computes a more accurate rhumb intersection with a dichotomy 
-                        for(int s=0;s<10;s++){
+                        for(int s=0;s<10;s++)
+                        {
                             
                             d1=d*0.5;
                             GeoMath::rhumbDestination(lat1,lon1,b,d1,la,lo);
@@ -562,7 +566,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             subseg = new osg::LineSegment (pw1*MVP,mid*MVP);
                             bool intersect1=subseg->intersectAndComputeRatios(bb,r1,r2); 
                             
-                            if(!intersect1){
+                            if(!intersect1)
+                            {
                                 gp1=gp3;
                                  lat1=osg::DegreesToRadians( gp1.y());
                                  lon1=osg::DegreesToRadians( gp1.x());
@@ -640,11 +645,15 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //            }
 
             float  leftOffset = box._max.x()+box._min.x();
-            osg::Vec3 leftOffsetVec( -leftOffset ,0. ,0. );
-            
             box.set( box._min + pos - buffer, box._max + pos + buffer); 
-            
-            osg::BoundingBox symBBox( box._min+leftOffsetVec, box._max+leftOffsetVec );
+           
+            osg::BoundingBox symBBox;
+            //when the left/right logic is in place, computes the symmetrical BBox of the label
+            if( annoDrawable->rightLeftPlacementAvail() )
+            {                
+                osg::Vec3 leftOffsetVec( -leftOffset ,0. ,0. );
+                symBBox.set( box._min+leftOffsetVec, box._max+leftOffsetVec );
+            }
               
             bool hasOppositeFree = true;
             bool hasCurrentFree = true;
@@ -709,14 +718,17 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
                                              osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
 
-                            if( !isCurrentClear ){
+                            if( !isCurrentClear )
+                            {
                                 hasCurrentFree = false;
                             }
-                            if( annoDrawable->rightLeftPlacementAvail() ){
+                            if( annoDrawable->rightLeftPlacementAvail() ) 
+                            {  //when the left/right logic is in place, computes the intersection of the symmmetricalbbox with bbox already placed
                                 isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
                                                   osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());                            
                             } 
-                            if( !isOppositeClear ){
+                            if( !isOppositeClear )
+                            {
                                hasOppositeFree = false;
                             }
                                                      
@@ -732,11 +744,14 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
  
                 if ( visible )
                 {    
-                    if( annoDrawable->rightLeftPlacementAvail() ){
+                    if( annoDrawable->rightLeftPlacementAvail() )
+                    {   // if an the opposite (symmetrical) spot is free and the current is not
+                        // then the label is inversed
                         if((hasOppositeFree && !hasCurrentFree))
                             annoDrawable->setPlacementLayout( (annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?
                                                                  MPScreenSpaceGeometry::TEXT_ON_LEFT:
                                                                  MPScreenSpaceGeometry::TEXT_ON_RIGHT );
+                        // else if the two spots are available , prefer the right one
                         else if( hasOppositeFree && hasCurrentFree && annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT )
                             annoDrawable->setPlacementLayout( MPScreenSpaceGeometry::TEXT_ON_RIGHT );
                     }
@@ -754,6 +769,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 if ( ! visible )
                 {
+                    // reset the label location to the right if decluttered
                     if( annoDrawable->rightLeftPlacementAvail() )
                         annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
                     local._failed.push_back( leaf );
