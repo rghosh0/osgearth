@@ -77,7 +77,8 @@ struct SortByPriority : public DeclutterSortFunctor
 };
 
 // rotates a bbox for proper decluttering of rotated labels and updates the associated quaternion
-void rotateBBox( osg::BoundingBox& box, double angle, osg::Quat &rot ){    
+void rotateBBox( osg::BoundingBox& box, double angle, osg::Quat &rot )
+{    
     
     rot.makeRotate ( angle, osg::Vec3d(0, 0, 1) );
     osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
@@ -455,7 +456,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             osgUtil::RenderLeaf* leaf = *i;
             if ( ! leaf->_drawable.valid() )
                 continue;
-
+ 
             MPScreenSpaceGeometry* annoDrawable = static_cast<MPScreenSpaceGeometry*>(leaf->_drawable.get());
 
             // transform the bounding box of the drawable into window-space.
@@ -490,7 +491,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             }
             
             //computes the clamped labels (used for graticules)
-            if(annoDrawable->screenClamping()){
+            if(annoDrawable->screenClamping())
+            {
                 const osgEarth::SpatialReference* srs = osgEarth::SpatialReference::create("epsg:4326");
                 
                 // Calculate the "clip to world" matrix = MVPinv.
@@ -522,7 +524,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
            
                 osg::ref_ptr<osg::LineSegment> seg,subseg;
                 
-                if(visible){ 
+                if(visible)
+                { 
                     
                     if(!seg.valid())
                         seg = new osg::LineSegment (pc1,pc2);
@@ -551,7 +554,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         double d1=d;
                          
                          // computes a more accurate rhumb intersection with a dichotomy 
-                        for(int s=0;s<10;s++){
+                        for(int s=0;s<10;s++)
+                        {
                             
                             d1=d*0.5;
                             GeoMath::rhumbDestination(lat1,lon1,b,d1,la,lo);
@@ -562,10 +566,11 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             subseg = new osg::LineSegment (pw1*MVP,mid*MVP);
                             bool intersect1=subseg->intersectAndComputeRatios(bb,r1,r2); 
                             
-                            if(!intersect1){
+                            if(!intersect1)
+                            {
                                 gp1=gp3;
-                                 lat1=osg::DegreesToRadians( gp1.y());
-                                 lon1=osg::DegreesToRadians( gp1.x());
+                                lat1=osg::DegreesToRadians( gp1.y());
+                                lon1=osg::DegreesToRadians( gp1.x());
                             }
                             
                         }
@@ -639,9 +644,20 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //                layoutData->_cull_anchorOnScreen.y() = floor(layoutData->_cull_anchorOnScreen.y()) + 0.5;
             //            }
 
-            box.set( box._min + pos - buffer, box._max + pos + buffer);
+            float  leftOffset = box._max.x()+box._min.x();
+            box.set( box._min + pos - buffer, box._max + pos + buffer); 
            
-            int mapStartX,  mapStartY, mapEndX, mapEndY;
+            osg::BoundingBox symBBox;
+            //when the left/right logic is in place, computes the symmetrical BBox of the label
+            if( annoDrawable->rightLeftPlacementAvail() )
+            {                
+                osg::Vec3 leftOffsetVec( -leftOffset ,0. ,0. );
+                symBBox.set( box._min+leftOffsetVec, box._max+leftOffsetVec );
+            }
+              
+            bool hasOppositeFree = true;
+            bool hasCurrentFree = true;
+            int mapStartX, mapStartY, mapEndX, mapEndY;
 
             if ( s_mp_sg_declutteringEnabledGlobally )
             {
@@ -664,7 +680,6 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 else
                 {
-
                     // declutter only on screen cells that intersects the current bbox cells
                     if ( useScreenGrid )
                     {
@@ -692,14 +707,33 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         // weed out any drawables that are obscured by closer drawables.
                         // TODO: think about a more efficient algorithm - right now we are just using
                         // brute force to compare all bbox's
+                                             
+                        bool isCurrentClear = false;
+                        bool isOppositeClear = false;
+                        
                         for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
                         {
                             // only need a 2D test since we're in clip space
-                            bool isClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
-                                    osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
+                              
+                            isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
+                                             osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
 
-                            // if there's an overlap then the leaf is culled.
-                            if ( ! isClear )
+                            if( !isCurrentClear )
+                            {
+                                hasCurrentFree = false;
+                            }
+                            if( annoDrawable->rightLeftPlacementAvail() ) 
+                            {  //when the left/right logic is in place, computes the intersection of the symmmetricalbbox with bbox already placed
+                                isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
+                                                  osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());                            
+                            } 
+                            if( !isOppositeClear )
+                            {
+                               hasOppositeFree = false;
+                            }
+                                                     
+                            // if there's an overlap of the two possible location (current and opposite), then the leaf is culled.
+                            if ( ! hasOppositeFree && ! hasCurrentFree )
                             {
                                 visible = false;
                                 break;
@@ -707,9 +741,20 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         }
                     }
                 }
-
+ 
                 if ( visible )
-                {
+                {    
+                    if( annoDrawable->rightLeftPlacementAvail() )
+                    {   // if an the opposite (symmetrical) spot is free and the current is not
+                        // then the label is inversed
+                        if((hasOppositeFree && !hasCurrentFree))
+                            annoDrawable->setPlacementLayout( (annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?
+                                                                 MPScreenSpaceGeometry::TEXT_ON_LEFT:
+                                                                 MPScreenSpaceGeometry::TEXT_ON_RIGHT );
+                        // else if the two spots are available , prefer the right one
+                        else if( hasOppositeFree && hasCurrentFree && annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT )
+                            annoDrawable->setPlacementLayout( MPScreenSpaceGeometry::TEXT_ON_RIGHT );
+                    }
                     // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
                     // to the final draw list.
                     if ( annoDrawable->_declutterActivated )
@@ -724,6 +769,9 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 if ( ! visible )
                 {
+                    // reset the label location to the right if decluttered
+                    if( annoDrawable->rightLeftPlacementAvail() )
+                        annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
                     local._failed.push_back( leaf );
                 }
             }
@@ -739,10 +787,10 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
             osg::Matrix newModelView;
             newModelView.makeTranslate(static_cast<double>(pos.x()), static_cast<double>(pos.y()), 0);
+           
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);
-            //newModelView.preMultTranslate(offset);
-
+           
             // Leaf modelview matrixes are shared (by objects in the traversal stack) so we
             // cannot just replace it unfortunately. Have to make a new one. Perhaps a nice
             // allocation pool is in order here
