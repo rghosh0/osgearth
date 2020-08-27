@@ -825,6 +825,12 @@ int MPAnnotationDrawable::appendText(const std::string& text, const std::string&
     {
         unsigned int charcode = *itrChar;
 
+        // utf-8 non used character
+        if ( charcode == 195 )
+        {
+            continue;
+        }
+
         // case 'space' character then shift the cursor (use 'A' character as size reference)
         if ( charcode == 32 )
         {
