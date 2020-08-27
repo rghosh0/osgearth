@@ -1313,7 +1313,8 @@ void MPAnnotationDrawable::mvLeftShiftInfoForText(const std::string& text, unsig
 {
     std::string textNoSpace = text;
     osgEarth::replaceIn( textNoSpace, " ", ""); // remove spaces
-    osgEarth::replaceIn( textNoSpace, "I:", ""); // remove spaces
+    osgEarth::replaceIn( textNoSpace, "I:", ""); // remove I:
+    osgEarth::replaceIn( textNoSpace, "_", ""); // remove _
     std::string tmpText = "";
 
     for (unsigned int iCharIndex = 0; iCharIndex < textNoSpace.size() ; iCharIndex++ )
