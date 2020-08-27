@@ -732,7 +732,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                                hasOppositeFree = false;
                             }
                                                      
-                            // if there's an overlap then the leaf is culled.
+                            // if there's an overlap of the two possible location (current and opposite), then the leaf is culled.
                             if ( ! hasOppositeFree && ! hasCurrentFree )
                             {
                                 visible = false;
