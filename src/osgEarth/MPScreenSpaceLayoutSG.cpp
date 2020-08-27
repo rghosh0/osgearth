@@ -639,16 +639,16 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //                layoutData->_cull_anchorOnScreen.y() = floor(layoutData->_cull_anchorOnScreen.y()) + 0.5;
             //            }
 
-            float  leftOffset=box._max.x()+box._min.x();
+            float  leftOffset = box._max.x()+box._min.x();
             osg::Vec3 leftOffsetVec( -leftOffset ,0. ,0. );
             
             box.set( box._min + pos - buffer, box._max + pos + buffer); 
             
             osg::BoundingBox symBBox( box._min+leftOffsetVec, box._max+leftOffsetVec );
               
-            bool hasOppositeFree=true;
-            bool hasCurrentFree=true;
-            int mapStartX,  mapStartY, mapEndX, mapEndY;
+            bool hasOppositeFree = true;
+            bool hasCurrentFree = true;
+            int mapStartX, mapStartY, mapEndX, mapEndY;
 
             if ( s_mp_sg_declutteringEnabledGlobally )
             {
@@ -671,8 +671,6 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                 else
                 {
-               
-
                     // declutter only on screen cells that intersects the current bbox cells
                     if ( useScreenGrid )
                     {
@@ -701,46 +699,46 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         // TODO: think about a more efficient algorithm - right now we are just using
                         // brute force to compare all bbox's
                                              
-                        bool isCurrentClear=false;
-                        bool isOppositeClear=false;
+                        bool isCurrentClear = false;
+                        bool isOppositeClear = false;
                         
                         for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
                         {
                             // only need a 2D test since we're in clip space
                               
-                             isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
-                                    osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
+                            isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
+                                             osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
 
                             if( !isCurrentClear ){
-                               hasCurrentFree=false;
+                                hasCurrentFree = false;
                             }
                             if( annoDrawable->rightLeftPlacementAvail() ){
                                 isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
-                                    osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());                            
+                                                  osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());                            
                             } 
                             if( !isOppositeClear ){
-                               hasOppositeFree=false;
+                               hasOppositeFree = false;
                             }
                                                      
                             // if there's an overlap then the leaf is culled.
                             if ( ! hasOppositeFree && ! hasCurrentFree )
-                            {                              
+                            {
                                 visible = false;
                                 break;
                             }
                         }
                     }
                 }
-              
-              
-                
+ 
                 if ( visible )
                 {    
                     if( annoDrawable->rightLeftPlacementAvail() ){
                         if((hasOppositeFree && !hasCurrentFree))
-                            annoDrawable->setPlacementLayout((annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?MPScreenSpaceGeometry::TEXT_ON_LEFT:MPScreenSpaceGeometry::TEXT_ON_RIGHT);
-                        else if(annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT && hasOppositeFree && hasCurrentFree)
-                            annoDrawable->setPlacementLayout(MPScreenSpaceGeometry::TEXT_ON_RIGHT);
+                            annoDrawable->setPlacementLayout( (annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?
+                                                                 MPScreenSpaceGeometry::TEXT_ON_LEFT:
+                                                                 MPScreenSpaceGeometry::TEXT_ON_RIGHT );
+                        else if( hasOppositeFree && hasCurrentFree && annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT )
+                            annoDrawable->setPlacementLayout( MPScreenSpaceGeometry::TEXT_ON_RIGHT );
                     }
                     // passed the test, so add the leaf's bbox to the "used" list, and add the leaf
                     // to the final draw list.
@@ -770,17 +768,13 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 local._used.push_back( box );
                 local._passed.push_back( leaf );
             }
-          
+
             osg::Matrix newModelView;
-           // if( annoDrawable->rightLeftPlacementAvail() )
-          
-                
-                newModelView.makeTranslate(static_cast<double>(pos.x()), static_cast<double>(pos.y()), 0);
+            newModelView.makeTranslate(static_cast<double>(pos.x()), static_cast<double>(pos.y()), 0);
            
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);
-            //newModelView.preMultTranslate(offset);
-
+           
             // Leaf modelview matrixes are shared (by objects in the traversal stack) so we
             // cannot just replace it unfortunately. Have to make a new one. Perhaps a nice
             // allocation pool is in order here
