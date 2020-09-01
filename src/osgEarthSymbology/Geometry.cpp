@@ -518,9 +518,8 @@ Geometry::boost_buffer(double distance,
     boostGeometryContext bgc;
     auto thisGeo = bgc.importGeometry( this );
     // Check if imported geometry is invalid
-    if(thisGeo.first == false) {
+    if(thisGeo.first == false)
         return false;
-    }
 
     // Convert line per corner (90deg) into point per circle (360deg)
     const size_t points_per_circle = static_cast<const size_t>(4 * params._cornerSegs);
@@ -532,19 +531,18 @@ Geometry::boost_buffer(double distance,
     // Get geometry type and subtype for multy geometry
     Type subGeoType = TYPE_UNKNOWN;
     if(this->getType() == TYPE_MULTI)
-    {
         // In osgearth, all geometry in the multigeometry have the same type (retreived from first element).
         subGeoType = static_cast<const Symbology::MultiGeometry*>( this )->getComponentType();
-    }
+
     // Perform buffer operation
     std::list<polygon2d_t> listPolyOutput = boostBuffer.compute(this->getType(), subGeoType, thisGeo.second);
+
     // export geometry
     output = bgc.exportGeometry<polygon2d_t>(&listPolyOutput);
 
     if ( output.valid() && !output->isValid() )
-    {
-        output = 0L;
-    }
+        output = nullptr;
+
     return output.valid();
 }
 
@@ -556,27 +554,24 @@ Geometry::boost_crop( const Polygon* cropPoly, osg::ref_ptr<Geometry>& output ) 
     auto cropPolyGeo = bgc.importGeometry( cropPoly );
 
     // if imported geometry are invalid
-    if((thisGeo.first == false) || (cropPolyGeo.first == false)) {
+    if((thisGeo.first == false) || (cropPolyGeo.first == false))
         return false;
-    }
 
     try {
         auto boost_poly1 = boost::any_cast<polygon2d_t>(thisGeo.second);
         auto boost_poly2 = boost::any_cast<polygon2d_t>(cropPolyGeo.second);
 
-        std::list<polygon2d_t> boost_output;
+        mpolygon2d_t boost_output;
         boost::geometry::intersection(boost_poly1, boost_poly2, boost_output);
-        if (boost_output.size() != 1) {
-            output = nullptr;
-        }
-        else {
-            output = bgc.exportGeometry<polygon2d_t>(&boost_output);
-        }
 
-        if ( output.valid() && !output->isValid() )
-        {
+        if (boost_output.size() == 0)
             output = nullptr;
-        }
+
+        else
+            output = bgc.exportGeometry<mpolygon2d_t>(&boost_output);
+
+        if ( ! output.valid() || ! output->isValid() )
+            output = nullptr;
     }
     catch (const boost::bad_any_cast &e) {
         OE_DEBUG << e.what();

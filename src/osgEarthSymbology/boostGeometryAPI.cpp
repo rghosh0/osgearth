@@ -49,10 +49,11 @@ Geometry* boostGeometryContext::exportPolygon( const polygon2d_t & input )
         }
         // TODO usefull??
         output->rewind( Ring::ORIENTATION_CCW );
+
+        // push the holes
         auto innersRing = input.inners();
         for(auto &&innerHole: innersRing)
         {
-            // TODO never used...???
             Ring* hole = new Ring( static_cast<int>(innerHole.size()) );
             for(auto &&coord: innerHole)
             {

@@ -66,6 +66,16 @@ public:
                 parts.push_back(part);
             }
         }
+        // multi polygon case
+        else if (std::is_same_v<TGeoIn, mpolygon2d_t>) {
+            auto inputTmp = static_cast<mpolygon2d_t*>(input);
+            for (auto&& poly: *inputTmp) {
+                Symbology::Geometry* polyPart = exportPolygon( poly );
+                if ( polyPart ) {
+                    parts.push_back( polyPart );
+                }
+            }
+        }
         // polygon case
         else if (std::is_same_v<TGeoIn, polygon2d_t>) {
             auto inputTmp = static_cast<std::list<polygon2d_t>*>(input);
@@ -191,6 +201,18 @@ public:
                 // assig_point automaticaly close geometry if needed.
                 bg::assign_points(boostGeo, vCoordinates);
 
+                const Polygon* osgPoly = static_cast<const Polygon*> (input);
+                if ( osgPoly->getHoles().size() > 0 )
+                {
+                    boostGeo.inners().resize(osgPoly->getHoles().size());
+                    int i = 0;
+                    for (auto h : osgPoly->getHoles())
+                    {
+                        auto&& v = vec3dArray2CoordSeq(h);
+                        bg::assign_points(boostGeo.inners()[i], v);
+                        i++;
+                    }
+                }
                 // Correct geometry orientation
                 bg::correct(boostGeo);
                 return std::make_pair(true, std::move(boostGeo));
