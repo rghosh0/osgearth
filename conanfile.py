@@ -3,7 +3,7 @@ import os
 
 def get_version():
     defaultFullVersion='2.10.2-0-00000'
-    defaultVersion='2.10.2_4'
+    defaultVersion='2.10.2_5'
     return (defaultFullVersion, defaultVersion)
 
 class OsgEarthConan(ConanFile):
@@ -28,7 +28,7 @@ class OsgEarthConan(ConanFile):
     
     def requirements(self):
         self.requires.add("boost/[1.69]@conan/stable") #link with boost geometry
-        self.requires.add("OpenSceneGraph/3.6.4c@conan/stable")#geos and gdal included by OpenSceneGraph
+        self.requires.add("OpenSceneGraph/3.6.4d@conan/stable") #gdal included by OpenSceneGraph
         self.requires.add("ConanSharedFunctions/0.0.1@navblue/stable")
 
     def imports(self):
