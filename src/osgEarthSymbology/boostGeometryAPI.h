@@ -47,7 +47,7 @@ public:
     {
         Symbology::GeometryCollection parts;
         // point case
-        if (std::is_same_v<TGeoIn, point_t>) {
+        if (std::is_same<TGeoIn, point_t>::value) {
             auto inputTmp = static_cast<std::list<point_t>*>(input);
             Symbology::PointSet* part = new Symbology::PointSet( static_cast<int>(inputTmp->size()) );
             for (auto&& point: *inputTmp) {
@@ -56,7 +56,7 @@ public:
             parts.push_back(part);
         }
         // linestring case
-        else if (std::is_same_v<TGeoIn, linestring_t>) {
+        else if (std::is_same<TGeoIn, linestring_t>::value) {
             auto inputTmp = static_cast<std::list<linestring_t>*>(input);
             for (auto&& lineString: *inputTmp) {
                 Symbology::LineString* part = new Symbology::LineString( static_cast<int>(lineString.size()) );
@@ -67,7 +67,7 @@ public:
             }
         }
         // multi polygon case
-        else if (std::is_same_v<TGeoIn, mpolygon2d_t>) {
+        else if (std::is_same<TGeoIn, mpolygon2d_t>::value) {
             auto inputTmp = static_cast<mpolygon2d_t*>(input);
             for (auto&& poly: *inputTmp) {
                 Symbology::Geometry* polyPart = exportPolygon( poly );
@@ -77,7 +77,7 @@ public:
             }
         }
         // polygon case
-        else if (std::is_same_v<TGeoIn, polygon2d_t>) {
+        else if (std::is_same<TGeoIn, polygon2d_t>::value) {
             auto inputTmp = static_cast<std::list<polygon2d_t>*>(input);
             for (auto&& poly: *inputTmp) {
                 Symbology::Geometry* polyPart = exportPolygon( poly );
