@@ -118,13 +118,12 @@ namespace osgEarth { namespace Features
         optional<Angle>            _maximumCreaseAngle;
         optional<ShaderPolicy>     _shaderPolicy;
         
-        void tileAndBuildPolygon(
-            Geometry*               input,
+        void tileAndBuildPolygon(Geometry*               input,
             const SpatialReference* featureSRS,
             const SpatialReference* mapSRS,
             bool                    makeECEF,
             bool                    tessellate,
-            osg::Geometry*          osgGeom,
+            osg::NodeList           &geomList,
             const osg::Matrixd      &world2local);
         
         void buildPolygon(
