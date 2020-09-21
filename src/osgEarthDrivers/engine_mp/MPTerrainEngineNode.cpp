@@ -998,7 +998,7 @@ MPTerrainEngineNode::updateState()
             }
 
             // terrain background color; negative means use the vertex color.
-            Color terrainColor = _terrainOptions.color().getOrUse( Color(1,1,1,-1) );
+            osg::Vec4f terrainColor = _terrainOptions.color().getOrUse( osg::Vec4f(1,1,1,-1) );
             terrainStateSet->addUniform(new osg::Uniform("oe_terrain_color", terrainColor));
 
             // shadowing?

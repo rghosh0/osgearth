@@ -65,6 +65,10 @@ namespace osgEarth
         optional<int>& tileSize() { return _tileSize; }
         const optional<int>& tileSize() const { return _tileSize; }
 
+        /** The color of the globe surface where no images are applied */
+        optional<osg::Vec4f>& color() { return _color; }
+        const optional<osg::Vec4f>& color() const { return _color; }
+
         /**
          * The minimum tile LOD range as a factor of the tile's radius.
          * Default = 7.0.
@@ -204,6 +208,7 @@ namespace osgEarth
         optional<float> _verticalScale;
         optional<float> _verticalOffset;
         optional<int>   _tileSize;
+        optional<osg::Vec4f> _color;
         optional<float> _minTileRangeFactor;        
         optional<unsigned> _minLOD;
         optional<unsigned> _maxLOD;

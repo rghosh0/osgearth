@@ -21,13 +21,11 @@
 
 #include <osgEarth/Common>
 #include <osgEarth/TerrainOptions>
-#include <osgEarthSymbology/Color>
 #include <osg/LOD>
 
 namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
 {
     using namespace osgEarth;
-    using namespace osgEarth::Symbology;
 
     /**
      * Options for configuring the Rex Engine driver.
@@ -37,7 +35,6 @@ namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
     public:
         RexTerrainEngineOptions( const ConfigOptions& options =ConfigOptions() ) : TerrainOptions( options ),
             _skirtRatio             ( 0.0f ),
-            _color                  ( Color::White ),
             _expirationThreshold    ( 300 ),
             _progressive            ( false ),
             _normalMaps             ( true ),
@@ -69,10 +66,6 @@ namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
         /** Ratio of terrain tile skirt height to tile radius */
         optional<float>& heightFieldSkirtRatio() { return _skirtRatio; }
         const optional<float>& heightFieldSkirtRatio() const { return _skirtRatio; }
-
-        /** The color of the globe surface where no images are applied */
-        optional<Color>& color() { return _color; }
-        const optional<Color>& color() const { return _color; }
 
         /** Minimum distance at which tiles will page out of memory once loaded */
         optional<float>& expirationRange() { return _expirationRange; }
@@ -125,7 +118,6 @@ namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
         virtual Config getConfig() const {
             Config conf = TerrainOptions::getConfig();
             conf.set( "skirt_ratio", _skirtRatio );
-            conf.set( "color", _color );
             conf.set( "expiration_range", _expirationRange );
             conf.set( "expiration_threshold", _expirationThreshold );
             conf.set( "progressive", _progressive );
@@ -160,7 +152,6 @@ namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
     private:
         void fromConfig( const Config& conf ) {
             conf.get( "skirt_ratio", _skirtRatio );
-            conf.get( "color", _color );
             conf.get( "expiration_range", _expirationRange );
             conf.get( "expiration_threshold", _expirationThreshold );
             conf.get( "progressive", _progressive );
@@ -187,7 +178,6 @@ namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
         }
 
         optional<float>    _skirtRatio;
-        optional<Color>    _color;
         optional<float>    _expirationRange;
         optional<unsigned> _expirationThreshold;
         optional<bool>     _progressive;

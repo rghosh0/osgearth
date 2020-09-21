@@ -441,11 +441,11 @@ DrapingTechnique::setUpCamera(OverlayDecorator::TechRTTParams& params)
     projTexture->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_BORDER );
     projTexture->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_BORDER );
     //projTexture->setWrap( osg::Texture::WRAP_R, osg::Texture::CLAMP_TO_EDGE );
-    projTexture->setBorderColor( osg::Vec4(0,0,0,0) );
+    projTexture->setBorderColor( params._terrainColor );
 
     // set up the RTT camera:
     params._rttCamera = new DrapingCamera(_drapingManager);
-    params._rttCamera->setClearColor( osg::Vec4f(0,0,0,0) );
+    params._rttCamera->setClearColor( params._terrainColor );
     // this ref frame causes the RTT to inherit its viewpoint from above (in order to properly
     // process PagedLOD's etc. -- it doesn't affect the perspective of the RTT camera though)
     params._rttCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF_INHERIT_VIEWPOINT );
@@ -500,7 +500,7 @@ DrapingTechnique::setUpCamera(OverlayDecorator::TechRTTParams& params)
     {
         //Setup a separate blend function for the alpha components and the RGB components.  
         //Because the destination alpha is initialized to 0 instead of 1
-        osg::BlendFunc* blendFunc = 0;        
+        osg::BlendFunc* blendFunc = 0;
         if (Registry::capabilities().supportsGLSL(140u))
         {
             //Blend Func Separate is only available on OpenGL 1.4 and above

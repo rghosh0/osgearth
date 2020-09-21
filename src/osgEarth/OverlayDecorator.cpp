@@ -348,7 +348,10 @@ OverlayDecorator::initializePerViewData( PerViewData& pvd, osg::Camera* cam )
         params._terrainStateSet = pvd._sharedTerrainStateSet.get(); // share it.
         params._horizonDistance = &pvd._sharedHorizonDistance;      // share it.
         if (_engine.valid())
+        {
             params._terrainResources = _engine->getResources();
+            params._terrainColor = _engine->getTerrainOptions().color().getOrUse(osg::Vec4f(0., 0., 0., 0.));
+        }
         params._mainCamera = cam;
     }
 }
