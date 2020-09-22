@@ -68,6 +68,13 @@ namespace osgEarth
         const optional<bool>& overlayBlending() const { return _overlayBlending; }
 
         /**
+         * Use the terrain color as the clear color of the draping camera to improve
+         * the blending of the draping texture with the terrain
+         */
+        optional<bool>& overlayTerrainBlending() { return _overlayTerrainBlending; }
+        const optional<bool>& overlayTerrainBlending() const { return _overlayTerrainBlending; }
+
+        /**
          * Texture size to use for the overlay RTT camera.
          */
         optional<unsigned>& overlayTextureSize() { return _overlayTextureSize; }
@@ -122,6 +129,7 @@ namespace osgEarth
 
         optional<bool>     _overlayVertexWarping;
         optional<bool>     _overlayBlending;
+        optional<bool>     _overlayTerrainBlending;
         optional<unsigned> _overlayTextureSize;
         optional<bool>     _overlayMipMapping;
         optional<bool>     _overlayAttachStencil;

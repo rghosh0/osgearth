@@ -372,12 +372,13 @@ namespace
 #define LC "[DrapingTechnique] "
 
 DrapingTechnique::DrapingTechnique() :
-_textureUnit     ( 1 ),
-_textureSize     ( 1024 ),
-_mipmapping      ( false ),
-_rttBlending     ( true ),
-_attachStencil   ( false ),
-_maxFarNearRatio ( 5.0 )
+_textureUnit         ( 1 ),
+_textureSize         ( 1024 ),
+_mipmapping          ( false ),
+_rttBlending         ( true ),
+_rttTerrainBlending  ( true ),
+_attachStencil       ( false ),
+_maxFarNearRatio     ( 5.0 )
 {
     _supported = Registry::capabilities().supportsGLSL();
 
@@ -430,7 +431,9 @@ DrapingTechnique::setUpCamera(OverlayDecorator::TechRTTParams& params)
     OE_INFO << LC << "Using texture size = " << _textureSize.get() << std::endl;
 
     // create the projected texture:
-    osg::Texture2D* projTexture = new DrapingTexture(); 
+    osg::Texture2D* projTexture = new DrapingTexture();
+
+    osg::Vec4f backColor = _rttTerrainBlending ? params._terrainColor : osg::Vec4f(0.f, 0.f, 0.f, 0.f);
 
     projTexture->setTextureSize( *_textureSize, *_textureSize );
     projTexture->setInternalFormat( GL_RGBA8 );  //use GL_RGBA8 for compatibility with osg's glTexStorage extension
@@ -441,11 +444,11 @@ DrapingTechnique::setUpCamera(OverlayDecorator::TechRTTParams& params)
     projTexture->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_BORDER );
     projTexture->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_BORDER );
     //projTexture->setWrap( osg::Texture::WRAP_R, osg::Texture::CLAMP_TO_EDGE );
-    projTexture->setBorderColor( params._terrainColor );
+    projTexture->setBorderColor( backColor );
 
     // set up the RTT camera:
     params._rttCamera = new DrapingCamera(_drapingManager);
-    params._rttCamera->setClearColor( params._terrainColor );
+    params._rttCamera->setClearColor( backColor );
     // this ref frame causes the RTT to inherit its viewpoint from above (in order to properly
     // process PagedLOD's etc. -- it doesn't affect the perspective of the RTT camera though)
     params._rttCamera->setReferenceFrame( osg::Camera::ABSOLUTE_RF_INHERIT_VIEWPOINT );
@@ -711,6 +714,16 @@ DrapingTechnique::setOverlayBlending( bool value )
         
         if ( _rttBlending )
             OE_INFO << LC << "Overlay blending " << (value?"enabled":"disabled")<< std::endl;
+    }
+}
+
+void
+DrapingTechnique::setOverlayTerrainBlending( bool value )
+{
+    if ( value != _rttTerrainBlending )
+    {
+        _rttTerrainBlending = value;
+        OE_INFO << LC << "Overlay terrain blending " << (value?"enabled":"disabled")<< std::endl;
     }
 }
 

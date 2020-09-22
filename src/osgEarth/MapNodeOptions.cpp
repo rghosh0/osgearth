@@ -33,6 +33,7 @@ ConfigOptions          ( conf ),
 _proxySettings         ( ProxySettings() ),
 _enableLighting        ( true ),
 _overlayBlending       ( true ),
+_overlayTerrainBlending( true ),
 _overlayMipMapping     ( false ),
 _overlayTextureSize    ( 4096 ),
 _terrainOptions        ( 0L ),
@@ -47,6 +48,7 @@ MapNodeOptions::MapNodeOptions( const TerrainOptions& to ) :
 _proxySettings         ( ProxySettings() ),
 _enableLighting        ( true ),
 _overlayBlending       ( true ),
+_overlayTerrainBlending( true ),
 _overlayTextureSize    ( 4096 ),
 _overlayMipMapping     ( false ),
 _overlayAttachStencil  ( false ),
@@ -61,6 +63,7 @@ MapNodeOptions::MapNodeOptions( const MapNodeOptions& rhs ) :
 _proxySettings         ( ProxySettings() ),
 _enableLighting        ( true ),
 _overlayBlending       ( true ),
+_overlayTerrainBlending( true ),
 _overlayTextureSize    ( 4096 ),
 _overlayMipMapping     ( false ),
 _overlayAttachStencil  ( false ),
@@ -92,6 +95,7 @@ MapNodeOptions::getConfig() const
     conf.set( "terrain",                  _terrainOptionsConf );
     conf.set( "overlay_warping",          _overlayVertexWarping );
     conf.set( "overlay_blending",         _overlayBlending );
+    conf.set( "overlay_terrain_blending", _overlayTerrainBlending );
     conf.set( "overlay_texture_size",     _overlayTextureSize );
     conf.set( "overlay_mipmapping",       _overlayMipMapping );
     conf.set( "overlay_attach_stencil",   _overlayAttachStencil );
@@ -110,6 +114,7 @@ MapNodeOptions::mergeConfig( const Config& conf )
     conf.get( "lighting",                 _enableLighting );
     conf.get( "overlay_warping",          _overlayVertexWarping );
     conf.get( "overlay_blending",         _overlayBlending );
+    conf.get( "overlay_terrain_blending", _overlayTerrainBlending );
     conf.get( "overlay_texture_size",     _overlayTextureSize );
     conf.get( "overlay_mipmapping",       _overlayMipMapping );
     conf.get( "overlay_attach_stencil",   _overlayAttachStencil );
