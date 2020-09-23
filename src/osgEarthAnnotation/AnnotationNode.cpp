@@ -248,7 +248,7 @@ AnnotationNode::applyRenderSymbology(const Style& style)
             std::string binName =
                 render->renderBin().isSet() ? render->renderBin().get() :
                 ss->useRenderBinDetails() ? ss->getBinName() : "DepthSortedBin";
-            ss->setRenderBinDetails(binNumber, binName);
+            ss->setRenderBinDetails(binNumber, binName, osg::StateSet::PROTECTED_RENDERBIN_DETAILS);
         }
 
         if ( render->minAlpha().isSet() )

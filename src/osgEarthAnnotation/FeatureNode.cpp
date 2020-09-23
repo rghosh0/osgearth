@@ -59,7 +59,8 @@ _options           ( options ),
 _needsRebuild      ( true ),
 _styleSheet        ( styleSheet ),
 _clampDirty        (false),
-_index             ( 0 )
+_index             ( 0 ),
+_attachPoint       ( 0L )
 {
     _features.push_back( feature );
 
@@ -81,7 +82,8 @@ _options        ( options ),
 _needsRebuild   ( true ),
 _styleSheet     ( styleSheet ),
 _clampDirty     ( false ),
-_index          ( 0 )
+_index          ( 0 ),
+_attachPoint    ( 0L )
 {
     _features.insert( _features.end(), features.begin(), features.end() );
     setStyle( style );
@@ -92,11 +94,6 @@ FeatureNode::build()
 {
     if ( !_clampCallback.valid() )
         _clampCallback = new ClampCallback(this);
-
-    _attachPoint = 0L;
-
-    // if there is existing geometry, kill it
-    this->removeChildren( 0, this->getNumChildren() );
 
     if ( !getMapNode() )
         return;
@@ -177,51 +174,62 @@ FeatureNode::build()
             node = AnnotationUtils::installTwoPassAlpha( node );
         }
 
-        _attachPoint = new osg::Group();
-        _attachPoint->addChild( node );
-
-        // Draped (projected) geometry
-        if ( ap.draping )
+        if (! _attachPoint)
         {
-            DrapeableNode* d = new DrapeableNode();
-            d->addChild( _attachPoint );
-            this->addChild( d );
-        }
+            _attachPoint = new osg::Group();
 
-        // GPU-clamped geometry
-        else if ( ap.gpuClamping )
-        {
-            ClampableNode* clampable = new ClampableNode();
-            clampable->addChild( _attachPoint );
-            this->addChild( clampable );
-        }
-
-        else
-        {
-            this->addChild( _attachPoint );
-
-            // set default lighting based on whether we are extruding:
-            setDefaultLighting( style.has<ExtrusionSymbol>() );
-        }
-
-        applyRenderSymbology(style);
-
-        if ( getMapNode()->getTerrain() )
-        {
-            if ( ap.sceneClamping )
+            // Draped (projected) geometry
+            if ( ap.draping )
             {
-                // Need dynamic data variance since scene clamping will change the verts
-                SetDataVarianceVisitor sdv(osg::Object::DYNAMIC);
-                this->accept(sdv);
-
-                getMapNode()->getTerrain()->addTerrainCallback(_clampCallback.get());
-                clamp(getMapNode()->getTerrain()->getGraph(), getMapNode()->getTerrain());
+                DrapeableNode* d = new DrapeableNode();
+                d->addChild( _attachPoint );
+                this->addChild( d );
             }
+
+            // GPU-clamped geometry
+            else if ( ap.gpuClamping )
+            {
+                ClampableNode* clampable = new ClampableNode();
+                clampable->addChild( _attachPoint );
+                this->addChild( clampable );
+            }
+
             else
             {
-                getMapNode()->getTerrain()->removeTerrainCallback( _clampCallback.get() );
+                this->addChild( _attachPoint );
+
+                // set default lighting based on whether we are extruding:
+                setDefaultLighting( style.has<ExtrusionSymbol>() );
+            }
+
+            applyRenderSymbology(style);
+
+            if ( getMapNode()->getTerrain() )
+            {
+                if ( ap.sceneClamping )
+                {
+                    // Need dynamic data variance since scene clamping will change the verts
+                    SetDataVarianceVisitor sdv(osg::Object::DYNAMIC);
+                    this->accept(sdv);
+
+                    getMapNode()->getTerrain()->addTerrainCallback(_clampCallback.get());
+                    clamp(getMapNode()->getTerrain()->getGraph(), getMapNode()->getTerrain());
+                }
+                else
+                {
+                    getMapNode()->getTerrain()->removeTerrainCallback( _clampCallback.get() );
+                }
             }
         }
+
+        _attachPoint->removeChildren( 0u, _attachPoint->getNumChildren() );
+        _attachPoint->addChild( node );
+    }
+
+    // Node not build then reset the sub scene graph
+    else
+    {
+        _attachPoint->removeChildren( 0u, _attachPoint->getNumChildren() );
     }
 }
 
@@ -389,7 +397,8 @@ FeatureNode::FeatureNode(const Config&         conf,
                          const osgDB::Options* readOptions ) :
 AnnotationNode(conf, readOptions),
 _clampDirty(false),
-_index(0)
+_index(0),
+_attachPoint    ( 0L )
 {
     osg::ref_ptr<Geometry> geom;
     if ( conf.hasChild("geometry") )
