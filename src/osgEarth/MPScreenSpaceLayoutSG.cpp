@@ -187,7 +187,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
      *          default sorter (sort by distance-to-camera).
      */
     MPDeclutterSortSG( MPScreenSpaceSGLayoutContext* context, DeclutterSortFunctor* f = nullptr )
-        : _context(context), _customSortFunctor(f)
+        : _customSortFunctor(f), _context(context)
     {
         //nop
     }
@@ -456,13 +456,13 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             osgUtil::RenderLeaf* leaf = *i;
             if ( ! leaf->_drawable.valid() )
                 continue;
- 
+
             MPScreenSpaceGeometry* annoDrawable = static_cast<MPScreenSpaceGeometry*>(leaf->_drawable.get());
 
             // transform the bounding box of the drawable into window-space.
             //osg::BoundingBox box = annoDrawable->isAutoFollowLine() ? annoDrawable->getBBox() : annoDrawable->getBoundingBox();
             osg::BoundingBox box = annoDrawable->getBoundingBox();
-        
+
             double angle = 0;
             osg::Quat rot;
             osg::Vec3d to;
@@ -499,33 +499,33 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 osg::Matrix MVP = (cam->getViewMatrix()) * cam->getProjectionMatrix();
                 osg::Matrix MVPinv;
                 MVPinv.invert(MVP);
-                    
+
                 osg::Vec3d pw1=annoDrawable->getLineStartPoint();
                 osg::Vec3d pw2=annoDrawable->getLineEndPoint();
                 
                 osg::Vec3d pc1=pw1*MVP;
                 osg::Vec3d pc2=pw2*MVP;
-                                               
+
                 // checks that the screen space coordinates of the lines are within the screen
                 bool p1_in_width=pc1.x()<1.0 && pc1.x()>-1.0;
-                bool p1_in_height=pc1.y()<1.0 && pc1.y()>-1.0;             
+                bool p1_in_height=pc1.y()<1.0 && pc1.y()>-1.0;
                 bool p1_inside_screen = p1_in_width && p1_in_height;
                 
                 bool p2_in_width=pc2.x()<1.0 && pc2.x()>-1.0;
-                bool p2_in_height=pc2.y()<1.0 && pc2.y()>-1.0;         
-                bool p2_inside_screen = p2_in_width && p2_in_height; 
+                bool p2_in_height=pc2.y()<1.0 && pc2.y()>-1.0;
+                bool p2_inside_screen = p2_in_width && p2_in_height;
                 
-                bool line_inside_screen=p1_inside_screen && p2_inside_screen;  
+                bool line_inside_screen=p1_inside_screen && p2_inside_screen;
                 
                 float margin=0.00;
                 
-                osg::BoundingBox bb (-1.0+margin,-1.0+margin,-1.0+margin,1.0-margin,1.0-margin,1.0-margin); 
+                osg::BoundingBox bb (-1.0+margin,-1.0+margin,-1.0+margin,1.0-margin,1.0-margin,1.0-margin);
                 visible = ( !line_inside_screen) && !bb.contains(pc1);
-           
+
                 osg::ref_ptr<osg::LineSegment> seg,subseg;
                 
                 if(visible)
-                { 
+                {
                     
                     if(!seg.valid())
                         seg = new osg::LineSegment (pc1,pc2);
@@ -534,13 +534,13 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                     float r1=0,r2=0;
                     visible = seg->intersectAndComputeRatios(bb,r1,r2) ;
                     
-                    //if the line intersects the screen edges                  
+                    //if the line intersects the screen edges
                     if(visible)
-                    {          
+                    {
                         // \todo performance could be improved if the radians coordinates of the line were stored in the drawable
                         GeoPoint gp1,gp2,gp3;
                         gp1.fromWorld(srs,pw1);
-                        gp2.fromWorld(srs,pw2);  
+                        gp2.fromWorld(srs,pw2);
                         double lat1=osg::DegreesToRadians( gp1.y());
                         double lon1=osg::DegreesToRadians( gp1.x());
                         double lat2=osg::DegreesToRadians( gp2.y());
@@ -548,23 +548,23 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         
                         double b=GeoMath::rhumbBearing(lat1,lon1,lat2,lon2);
                         double d=GeoMath::rhumbDistance(lat1,lon1,lat2,lon2);
-                        double la=0.,lo=0.;                         
-                      
+                        double la=0.,lo=0.;
+
                         osg::Vec3d mid;
                         double d1=d;
-                         
-                         // computes a more accurate rhumb intersection with a dichotomy 
+
+                        // computes a more accurate rhumb intersection with a dichotomy
                         for(int s=0;s<10;s++)
                         {
                             
                             d1=d*0.5;
                             GeoMath::rhumbDestination(lat1,lon1,b,d1,la,lo);
-                             gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
-                             gp3.toWorld(mid);
-                             gp1.toWorld(pw1);
-                             
+                            gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
+                            gp3.toWorld(mid);
+                            gp1.toWorld(pw1);
+
                             subseg = new osg::LineSegment (pw1*MVP,mid*MVP);
-                            bool intersect1=subseg->intersectAndComputeRatios(bb,r1,r2); 
+                            bool intersect1=subseg->intersectAndComputeRatios(bb,r1,r2);
                             
                             if(!intersect1)
                             {
@@ -574,25 +574,25 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                             }
                             
                         }
-                                             
-                        GeoMath::rhumbDestination(lat1,lon1,b,d1*r1,la,lo);                        
-                       
+
+                        GeoMath::rhumbDestination(lat1,lon1,b,d1*r1,la,lo);
+
                         gp3.set(srs,osg::RadiansToDegrees(lo),osg::RadiansToDegrees(la),0,AltitudeMode::ALTMODE_ABSOLUTE);
                         gp3.toWorld(to);
                         
                         // hide labels that are on the other side of the globe
-                         if((eye-to).length2()>eye.length2()) //on the other side of earth
-                        {    
-                             visible=false;                            
+                        if((eye-to).length2()>eye.length2()) //on the other side of earth
+                        {
+                            visible=false;
                         }
-                                            
+
                         pos=to*MVP;
                         if(pos.isNaN())
                         { //sometimes, the computed intersection lands outside of screen space which can produce a NaN coordinates
                             visible=false;
-                        } 
+                        }
                         // computes the label orientation along the line
-                        osg::Vec3f pos2=pw1*MVP;   
+                        osg::Vec3f pos2=pw1*MVP;
                         pos2=(pos2*windowMatrix)-(pos*windowMatrix);
                         
                         float rlabel=atan2(pos2.y(),pos2.x());
@@ -612,15 +612,10 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         pos.y()-=abs(offsetFromLine*cos(rlabel));
                     }
                 }
-          }
+            }
 
-
-            //            // Expand the box if this object is currently not visible, so that it takes a little
-            //            // more room for it to before visible once again.
-            //            DrawableInfo& info = local._memory[drawable];
-            //            float buffer = info._visible ? 1.0f : 3.0f;
-            //DrawableInfo& info = local._memory[annoDrawable];
-
+            // Expand the box if this object is currently not visible, so that it takes a little
+            // more room for it to before visible once again.
             const osg::Vec3 &buffer = annoDrawable->_declutter_visible ? offset1px : offset3px;
 
             //            // The "declutter" box is the box we use to reserve screen space.
@@ -645,24 +640,22 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //            }
 
             float  leftOffset = box._max.x()+box._min.x();
-            box.set( box._min + pos - buffer, box._max + pos + buffer); 
-           
+            box.set( box._min + pos - buffer, box._max + pos + buffer);
+
             osg::BoundingBox symBBox;
             //when the left/right logic is in place, computes the symmetrical BBox of the label
             if( annoDrawable->rightLeftPlacementAvail() )
-            {                
+            {
                 osg::Vec3 leftOffsetVec( -leftOffset ,0. ,0. );
                 symBBox.set( box._min+leftOffsetVec, box._max+leftOffsetVec );
             }
-              
+
             bool hasOppositeFree = true;
             bool hasCurrentFree = true;
             int mapStartX, mapStartY, mapEndX, mapEndY;
 
             if ( s_mp_sg_declutteringEnabledGlobally )
             {
-
-                // A max priority => never occlude.
                 double priority = annoDrawable->_priority;
 
                 if ( useScreenGrid )
@@ -673,6 +666,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                     mapEndY = osg::clampTo(static_cast<int>(floor((box.yMax() - vpYMin) / mapSizeY)), 0, screenMapNbRow-1);
                 }
 
+                // A max priority => always display
                 if ( priority == DBL_MAX || ! annoDrawable->_declutterActivated)
                 {
                     visible = true;
@@ -703,35 +697,34 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
                     // declutter in full screen
                     else
-                    { 
+                    {
                         // weed out any drawables that are obscured by closer drawables.
                         // TODO: think about a more efficient algorithm - right now we are just using
                         // brute force to compare all bbox's
-                                             
+
                         bool isCurrentClear = false;
                         bool isOppositeClear = false;
                         
                         for( std::vector<RenderLeafBox>::const_iterator j = local._used.begin(); j != local._used.end(); ++j )
                         {
                             // only need a 2D test since we're in clip space
-                              
                             isCurrentClear = osg::maximum(box.xMin(),j->xMin()) > osg::minimum(box.xMax(),j->xMax()) ||
-                                             osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
+                                    osg::maximum(box.yMin(),j->yMin()) > osg::minimum(box.yMax(),j->yMax());
 
                             if( !isCurrentClear )
                             {
                                 hasCurrentFree = false;
                             }
-                            if( annoDrawable->rightLeftPlacementAvail() ) 
+                            if( annoDrawable->rightLeftPlacementAvail() )
                             {  //when the left/right logic is in place, computes the intersection of the symmmetricalbbox with bbox already placed
                                 isOppositeClear = osg::maximum(symBBox.xMin(),j->xMin()) > osg::minimum(symBBox.xMax(),j->xMax()) ||
-                                                  osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());                            
-                            } 
+                                        osg::maximum(symBBox.yMin(),j->yMin()) > osg::minimum(symBBox.yMax(),j->yMax());
+                            }
                             if( !isOppositeClear )
                             {
-                               hasOppositeFree = false;
+                                hasOppositeFree = false;
                             }
-                                                     
+
                             // if there's an overlap of the two possible location (current and opposite), then the leaf is culled.
                             if ( ! hasOppositeFree && ! hasCurrentFree )
                             {
@@ -741,16 +734,16 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         }
                     }
                 }
- 
+
                 if ( visible )
-                {    
+                {
                     if( annoDrawable->rightLeftPlacementAvail() )
                     {   // if an the opposite (symmetrical) spot is free and the current is not
                         // then the label is inversed
                         if((hasOppositeFree && !hasCurrentFree))
                             annoDrawable->setPlacementLayout( (annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_RIGHT)?
-                                                                 MPScreenSpaceGeometry::TEXT_ON_LEFT:
-                                                                 MPScreenSpaceGeometry::TEXT_ON_RIGHT );
+                                                                  MPScreenSpaceGeometry::TEXT_ON_LEFT:
+                                                                  MPScreenSpaceGeometry::TEXT_ON_RIGHT );
                         // else if the two spots are available , prefer the right one
                         else if( hasOppositeFree && hasCurrentFree && annoDrawable->_placementLayout==MPScreenSpaceGeometry::TEXT_ON_LEFT )
                             annoDrawable->setPlacementLayout( MPScreenSpaceGeometry::TEXT_ON_RIGHT );
@@ -787,10 +780,10 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
 
             osg::Matrix newModelView;
             newModelView.makeTranslate(static_cast<double>(pos.x()), static_cast<double>(pos.y()), 0);
-           
+
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);
-           
+
             // Leaf modelview matrixes are shared (by objects in the traversal stack) so we
             // cannot just replace it unfortunately. Have to make a new one. Perhaps a nice
             // allocation pool is in order here
@@ -803,11 +796,11 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
         if ( s_mp_sg_declutteringEnabledGlobally )
         {
             leaves.clear();
+            bool needRedraw = false;
             for( osgUtil::RenderBin::RenderLeafList::const_iterator i=local._passed.begin(); i != local._passed.end(); ++i )
             {
                 osgUtil::RenderLeaf* leaf     = *i;
                 MPScreenSpaceGeometry* annoDrawable = static_cast<MPScreenSpaceGeometry*>(leaf->_drawable.get());
-                //DrawableInfo& info = local._memory[annoDrawable];
                 bool fullyIn = true;
                 bool displaySomethingInCluttered = annoDrawable->drawInClutteredMode();
                 if ( displaySomethingInCluttered )
@@ -817,6 +810,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 if ( annoDrawable->_declutter_lastScale != 1. )
                 {
                     fullyIn = false;
+                    needRedraw = true;
                     if ( annoDrawable->_declutter_lastScale == 0. )
                         annoDrawable->_declutter_lastScale = minAnimationScale;
                     annoDrawable->_declutter_lastScale += elapsedSeconds / osg::maximum(inAnimationTime, 0.001f);
@@ -833,6 +827,12 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 annoDrawable->_declutter_visible = true;
             }
 
+            if ( needRedraw )
+            {
+                osgGA::GUIActionAdapter* aa = dynamic_cast<osgGA::GUIActionAdapter*>(cam->getView());
+                if (aa) aa->requestRedraw();
+            }
+
             // next, go through the FAILED list and sort them into failure bins so we can draw
             // them using a different technique if necessary.
             for( osgUtil::RenderBin::RenderLeafList::const_iterator i=local._failed.begin(); i != local._failed.end(); ++i )
@@ -842,8 +842,6 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                 bool displaySomethingInCluttered = annoDrawable->drawInClutteredMode();
                 if ( displaySomethingInCluttered )
                     annoDrawable->activeClutteredDrawMode( true );
-
-                //DrawableInfo& info = local._memory[drawable];
 
                 if (annoDrawable->_declutter_isInitialised)
                 {
