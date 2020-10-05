@@ -39,7 +39,7 @@ namespace
     const osg::Node::NodeMask nodeNoMask = 0xffffffff;
     const std::string undef = "-32765";
     const Color magenta(1., 135./255., 195./255.);
-    const Color almostRed("fe332d");
+    const Color moraHighColor("fe332d");
 }
 
 
@@ -299,7 +299,7 @@ long MPAnnotationGroupMG::addAnnotation(const Style& style, Geometry *geom, cons
         else
         {
             osg::ref_ptr<TextSymbol> mainTextSym = new TextSymbol(*textSymbol);
-            mainTextSym->fill() = almostRed;
+            mainTextSym->fill() = moraHighColor;
             textDrawable = AnnotationUtils::createTextDrawable( textList[0], mainTextSym.get(), refBBox );
         }
 
@@ -307,7 +307,7 @@ long MPAnnotationGroupMG::addAnnotation(const Style& style, Geometry *geom, cons
         osg::ref_ptr<TextSymbol> subTextSym = new TextSymbol(*textSymbol);
         subTextSym->alignment() = TextSymbol::ALIGN_LEFT_BOTTOM;
         if ( moraVal >= 10 )
-            subTextSym->fill() = almostRed;
+            subTextSym->fill() = moraHighColor;
         float fontSizeOrg = textSymbol->size().isSet() ? textSymbol->size()->eval() : 16.f;
         subTextSym->size() = fontSizeOrg * 0.7;
 
