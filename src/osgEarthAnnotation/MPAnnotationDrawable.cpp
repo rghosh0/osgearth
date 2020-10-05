@@ -22,7 +22,7 @@ using namespace osgEarth;
 namespace  {
     const std::string undef = "-32765";
     const Color magenta(1., 135./255., 195./255.);
-    const Color almostRed("fe332d");
+    const Color moraHighColor("ffd700");
     const osg::BoundingBox bboxZero(0., 0., 0., 0., 0., 0.);
     const float rightMarginInnerRndBox(4.);
 }
@@ -508,7 +508,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         osg::BoundingBox refBBox( -_multi_text_margin, -_multi_text_margin, 0., _multi_text_margin, _multi_text_margin, 0.);
         Color color = textSymbol->fill().isSet() ? textSymbol->fill().get().color() : magenta;
         if ( moraVal >= 10 )
-            color = almostRed;
+            color = moraHighColor;
 
         // main label
         int nbVert = appendText(textList[0], _mainFont, color, _mainFontSize);
