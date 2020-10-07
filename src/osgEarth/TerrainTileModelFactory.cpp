@@ -266,9 +266,9 @@ TerrainTileModelFactory::addElevation(TerrainTileModel*            model,
         // needed for normal map generation
         model->heightFields().setNeighbor(0, 0, mainHF.get());
 
-        // convert the heightfield to a 1-channel 32-bit fp image:
+        // convert the heightfield to a 1-channel fp image:
         ImageToHeightFieldConverter conv;
-        osg::Image* hfImage = conv.convertToR32F(mainHF.get());
+        osg::Image* hfImage = conv.convertToR16F(mainHF.get());
 
         if ( hfImage )
         {
@@ -445,7 +445,7 @@ osg::Texture*
 TerrainTileModelFactory::createElevationTexture(osg::Image* image) const
 {
     osg::Texture2D* tex = new osg::Texture2D( image );
-    tex->setInternalFormat(GL_R32F);
+    tex->setInternalFormat(GL_R16F);
     tex->setFilter( osg::Texture::MAG_FILTER, osg::Texture::LINEAR );
     tex->setFilter( osg::Texture::MIN_FILTER, osg::Texture::NEAREST );
     tex->setWrap  ( osg::Texture::WRAP_S,     osg::Texture::CLAMP_TO_EDGE );
