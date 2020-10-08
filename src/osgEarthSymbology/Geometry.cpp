@@ -558,11 +558,19 @@ Geometry::boost_crop( const Polygon* cropPoly, osg::ref_ptr<Geometry>& output ) 
         return false;
 
     try {
-        auto boost_poly1 = boost::any_cast<polygon2d_t>(thisGeo.second);
+        mpolygon2d_t boost_output;
         auto boost_poly2 = boost::any_cast<polygon2d_t>(cropPolyGeo.second);
 
-        mpolygon2d_t boost_output;
-        boost::geometry::intersection(boost_poly1, boost_poly2, boost_output);
+        if (getType() == TYPE_MULTI)
+        {
+            auto boost_poly1 = boost::any_cast<mpolygon2d_t>(thisGeo.second);
+            boost::geometry::intersection(boost_poly1, boost_poly2, boost_output);
+        }
+        else
+        {
+            auto boost_poly1 = boost::any_cast<polygon2d_t>(thisGeo.second);
+            boost::geometry::intersection(boost_poly1, boost_poly2, boost_output);
+        }
 
         if (boost_output.size() == 0)
             output = nullptr;
