@@ -171,6 +171,7 @@ SET(HEADERS_COLORFILTER
     RGBColorFilter
     ChromaKeyColorFilter
     NightColorFilter
+	MultiBandRampColorFilter
 )
 SOURCE_GROUP( Headers\\ColorFilters FILES ${HEADERS_COLORFILTER} )
 
@@ -184,6 +185,7 @@ SET(SOURCES_COLORFILTER
     RGBColorFilter.cpp
     ChromaKeyColorFilter.cpp
     NightColorFilter.cpp
+	MultiBandRampColorFilter.cpp
 )
 SOURCE_GROUP( Sources\\ColorFilters FILES ${SOURCES_COLORFILTER} )
 

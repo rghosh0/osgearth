@@ -1,0 +1,100 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
+* http://osgearth.org
+*
+* osgEarth is free software; you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>
+*
+*/
+#ifndef OSGEARTHUTIL_MULTIBAND_COLOR_FILTER
+#define OSGEARTHUTIL_MULTIBAND_COLOR_FILTER
+
+#include <osgEarthUtil/Common>
+#include <osgEarthSymbology/Color>
+#include <osgEarth/ColorFilter>
+
+namespace osgEarth { namespace Util
+{
+    /**
+    * Color filter that creates a color ramp based on only one channel
+    */
+    class OSGEARTHUTIL_EXPORT MultiBandRampColorFilter : public osgEarth::ColorFilter
+    {
+    public:
+
+        // Inner class for defining ramps
+        class RampOptions : public ConfigOptions  // NO EXPORT; header only
+        {
+        public:
+            RampOptions( const ConfigOptions& options = ConfigOptions() )
+                : ConfigOptions          ( options )
+            {
+                fromConfig(_conf);
+            }
+
+            Config getConfig() const
+            {
+                Config conf( "ramp" );
+                conf.set( "from",  _from );
+                conf.set( "to",    _to );
+                conf.set( "color", _color );
+                return conf;
+            }
+
+            void mergeConfig( const Config& conf )
+            {
+                ConfigOptions::mergeConfig( conf );
+                fromConfig( conf );
+            }
+
+            void fromConfig( const Config& conf )
+            {
+                conf.get( "from",  _from );
+                conf.get( "to",    _to );
+                conf.get( "color", _color );
+            }
+
+            optional<float>   _from;
+            optional<float>   _to;
+            optional<Color>   _color;
+        }; // end class RampOptions
+
+    public:
+        MultiBandRampColorFilter();
+        MultiBandRampColorFilter(const Config& conf);
+        virtual ~MultiBandRampColorFilter() { }
+
+        // the color component to use to execute the color ramp
+        void setColorComponent(int i);
+        int getColorComponent(void) const;
+
+    public: // ColorFilter
+        virtual std::string getEntryPointFunctionName(void) const;
+        virtual void install(osg::StateSet* stateSet) const;
+        virtual Config getConfig() const;
+
+    protected:
+        unsigned m_instanceId;
+        osg::ref_ptr<osg::Uniform> m_colorComponent;
+        std::vector<RampOptions>   m_ramps;
+    
+        void init();
+    };
+
+} } // namespace osgEarth::Util
+
+#endif // OSGEARTHUTIL_MULTIBAND_COLOR_FILTER

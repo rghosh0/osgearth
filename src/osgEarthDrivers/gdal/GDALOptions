@@ -23,6 +23,7 @@
 #include <osgEarth/TileSource>
 #include <osgEarth/GeoCommon>
 #include <osgEarth/URI>
+#include "ImageCompositionOptions"
 
 // forward-declare GDAL type
 class GDALDataset;
@@ -118,6 +119,12 @@ namespace osgEarth { namespace Drivers
         osg::ref_ptr<ExternalDataset>& externalDataset() { return _externalDataset; }
         const osg::ref_ptr<ExternalDataset>& externalDataset() const { return _externalDataset; }
 
+        /**
+         The "imageComposition" allows to define the bands to use for composing the color channels
+        */
+        optional<ImageCompositionOptions>& imageComposition() { return _imageComp; }
+        const optional<ImageCompositionOptions>& imageComposition() const { return _imageComp; }
+
     public: // ctors
 
         GDALOptions( const TileSourceOptions& options =TileSourceOptions() ) :
@@ -153,6 +160,8 @@ namespace osgEarth { namespace Drivers
 
             conf.set( "warp_profile", _warpProfile );
 
+            conf.set( "image_composition", _imageComp );
+
             conf.setNonSerializable( "GDALOptions::ExternalDataset", _externalDataset.get() );
 
             return conf;
@@ -179,18 +188,21 @@ namespace osgEarth { namespace Drivers
 
             conf.get( "warp_profile", _warpProfile );
 
+            conf.get( "image_composition", _imageComp );
+
             _externalDataset = conf.getNonSerializable<ExternalDataset>( "GDALOptions::ExternalDataset" );
         }
 
-        optional<URI>                    _url;
-        optional<std::string>            _connection;
-        optional<std::string>            _extensions;
-        optional<std::string>            _blackExtensions;
-        optional<ElevationInterpolation> _interpolation;
-        optional<unsigned int>           _maxDataLevelOverride;
-        optional<unsigned int>           _subDataSet;
-        optional<ProfileOptions>         _warpProfile;
-        osg::ref_ptr<ExternalDataset>    _externalDataset;
+        optional<URI>                     _url;
+        optional<std::string>             _connection;
+        optional<std::string>             _extensions;
+        optional<std::string>             _blackExtensions;
+        optional<ElevationInterpolation>  _interpolation;
+        optional<unsigned int>            _maxDataLevelOverride;
+        optional<unsigned int>            _subDataSet;
+        optional<ProfileOptions>          _warpProfile;
+        osg::ref_ptr<ExternalDataset>     _externalDataset;
+        optional<ImageCompositionOptions> _imageComp;
     };
 
 } } // namespace osgEarth::Drivers
