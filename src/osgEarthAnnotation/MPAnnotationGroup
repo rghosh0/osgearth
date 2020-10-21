@@ -48,6 +48,9 @@ public:
     // change icon color
     virtual void setIconColor( long id, const Color& color );
 
+    // update icon
+    virtual void updateIcon( long id, const std::string &icon );
+
     // change the visibility status
     virtual void setVisible( long id, bool visible );
 

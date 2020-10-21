@@ -1217,6 +1217,39 @@ void MPAnnotationDrawable::setIconColor(const Color &color )
     _c->dirty();
 }
 
+void MPAnnotationDrawable::updateIcon(const std::string &icon)
+{
+    if(_mainIconVertices.size() != 4)
+    {
+        OE_WARN << LC << "Something is wrong with the mainIconVertices size";
+        return;
+    }
+
+    // get the new icon info
+
+    std::string iconKey = osgDB::getNameLessAllExtensions(osgDB::getSimpleFileName(icon));
+
+    MPStateSetFontAltas::IconMap::const_iterator itIcon = _stateSetFontAltas->mapIcons.find(iconKey);
+    if ( itIcon == _stateSetFontAltas->mapIcons.end() )
+    {
+        OE_WARN << LC << "The icon atlas does not contain the image " << iconKey << "\n";
+        return;
+    }
+
+    const IconInfo& iconInfo = itIcon->second;
+
+    // update the texture coordinates with the new icon
+
+    _t = static_cast<osg::Vec2Array* >(getTexCoordArray(0u));
+
+    (*_t)[_mainIconVertices[0]] = iconInfo.lb_t;
+    (*_t)[_mainIconVertices[1]] = iconInfo.lt_t;
+    (*_t)[_mainIconVertices[2]] = iconInfo.rt_t;
+    (*_t)[_mainIconVertices[3]] = iconInfo.rb_t;
+
+    _t->dirty();
+}
+
 void MPAnnotationDrawable::setVisible(bool visible)
 {
     _isVisible = visible;

@@ -433,6 +433,14 @@ MPAnnotationGroupSG::setIconColor(long id, const Color& color)
 }
 
 void
+MPAnnotationGroupSG::updateIcon( long id, const std::string &icon )
+{
+    MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
+    if ( itr != _mainGeomDrawableList.end() )
+        static_cast<MPAnnotationDrawable*>( itr->second.get() )->updateIcon(icon);
+}
+
+void
 MPAnnotationGroupSG::setVisible( long id, bool visible )
 {
     MainGeomList::const_iterator itr = _mainGeomDrawableList.find( id );
