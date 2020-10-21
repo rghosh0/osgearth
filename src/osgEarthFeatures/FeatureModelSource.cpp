@@ -39,6 +39,67 @@ using namespace osgEarth::Symbology;
 
 #define LC "[FeatureModelSource] "
 
+
+namespace
+{
+    /** Produces tiles for given tilekey **/
+    class TiledExtendSource : public FeatureSource
+    {
+    public:
+        TiledExtendSource() : FeatureSource()
+        {
+            //nop
+        }
+
+        FeatureCursor* createFeatureCursor(const Symbology::Query& query, ProgressCallback* /**progress**/)
+        {
+            const GeoExtent& extend = query.tileKey()->getExtent();
+
+            Symbology::Polygon* poly = new Symbology::Polygon();
+            poly->push_back( extend.xMin(), extend.yMin() );
+            poly->push_back( extend.xMax(), extend.yMin() );
+            poly->push_back( extend.xMax(), extend.yMax() );
+            poly->push_back( extend.xMin(), extend.yMax() );
+
+            FeatureList features;
+            Feature* feature = new Feature(poly, SpatialReference::create("wgs84"));
+            features.push_back(feature);
+
+            return new FeatureListCursor(features);
+        }
+
+        virtual osgEarth::Symbology::Geometry::Type getGeometryType() const
+        {
+            return Geometry::TYPE_POLYGON;
+        }
+
+    protected:
+
+        //override
+        Status initialize(const osgDB::Options* /**readOptions**/)
+        {
+//            _readOptions = Registry::cloneOrCreateOptions(readOptions);
+
+            // Establish the feature profile.
+            const Profile* wgs84 = Registry::instance()->getGlobalGeodeticProfile();
+            GeoExtent extent(wgs84->getSRS(), -180, -90, 180, 90);
+
+            FeatureProfile* profile = new FeatureProfile(extent);
+            profile->setProfile(Profile::create("wgs84", extent.xMin(), extent.yMin(), extent.xMax(), extent.yMax(), "", 1, 1));
+            profile->setFirstLevel(2);//_options.level().get());
+            profile->setMaxLevel(2);//_options.level().get());
+            profile->setTiled(true);
+
+            setFeatureProfile(profile);
+            return Status::OK();
+        }
+
+    private:
+//        osg::ref_ptr<osgDB::Options> _readOptions;
+    };
+}
+
+
 //........................................................................
 
 FeatureModelOptions::FeatureModelOptions(const ConfigOptions& co) :
@@ -208,7 +269,8 @@ FeatureModelSource::initialize(const osgDB::Options* readOptions)
     }
 
     if (!_features.valid())
-        return Status::Error(Status::ServiceUnavailable, "Failed to create a feature driver");
+        setFeatureSource(new TiledExtendSource(/**options()**/));
+        //return Status::Error(Status::ServiceUnavailable, "Failed to create a feature driver");
 
     // open the feature source if it exists:
     _features->setReadOptions(_readOptions.get());

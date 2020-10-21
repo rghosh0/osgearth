@@ -633,7 +633,7 @@ osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
                 // only build sub-pagedlods if we are expecting subtiles at some point:
                 if (geometry != 0L || (int)lod < featureProfile->getFirstLevel()) {
                     buildSubTilePagedLODs(lod, tileX, tileY, group.get(), readOptions);
-                    group->addChild(geometry);
+                    if (geometry) group->addChild(geometry);
                 }
 
                 result = group.release();
@@ -784,7 +784,7 @@ void FeatureModelGraph::buildSubTilePagedLODs(
 
                     PagedLODwithVisibilityAltitude *pagedChildNode =
                             dynamic_cast<PagedLODwithVisibilityAltitude *>(childNode);
-                    if (pagedChildNode)
+                    if (pagedChildNode && flevel->maxVisibilityAltitude().isSet())
                         pagedChildNode->setVisibilityMaxAltitude(
                                     flevel->maxVisibilityAltitude().get());
                 } else {
