@@ -1219,6 +1219,12 @@ void MPAnnotationDrawable::setIconColor(const Color &color )
 
 void MPAnnotationDrawable::updateIcon(const std::string &icon)
 {
+    if ( ! _stateSetFontAltas.valid() )
+    {
+        OE_WARN << LC << "_stateSetFontAltas is not valid";
+        return;
+    }
+
     if(_mainIconVertices.size() != 4)
     {
         OE_WARN << LC << "Something is wrong with the mainIconVertices size";
