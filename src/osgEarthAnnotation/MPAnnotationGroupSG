@@ -43,6 +43,9 @@ public:
     // change icon color
     virtual void setIconColor(long id, const Color &color ) override;
 
+    // update icon
+    virtual void updateIcon( long id, const std::string &icon ) override;
+
     // change the visibility status
     virtual void setVisible( long id, bool visible ) override;
 

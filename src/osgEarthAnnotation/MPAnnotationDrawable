@@ -78,6 +78,9 @@ public:
     /** change main icon color **/
     void setIconColor( const Color& color );
 
+    /** update main icon **/
+    void updateIcon(const std::string &icon);
+
     /** management of the visibility of this annotation **/
     void setVisible(bool visible);
     bool isVisible() const { return _isVisible; }

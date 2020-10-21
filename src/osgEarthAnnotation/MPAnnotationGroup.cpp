@@ -30,6 +30,9 @@ void MPAnnotationGroup::clearHighlight() {}
 // change icon color
 void MPAnnotationGroup::setIconColor(long id, const Color &color ) {}
 
+// update icon
+void MPAnnotationGroup::updateIcon( long id, const std::string &icon ) {}
+
 // change the visibility status
 void MPAnnotationGroup::setVisible( long id, bool visible ) {}
 
