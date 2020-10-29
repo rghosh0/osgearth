@@ -339,9 +339,6 @@ namespace {
         GeoImage image = imageLayer->createImage(key, progress);
         if (image.valid())
         {
-
-            traceNode(*geometry);
-
             osg::Texture2D* tex = new osg::Texture2D( image.getImage() );
             tex->setWrap( osg::Texture::WRAP_S, osg::Texture::REPEAT );
             tex->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE );
