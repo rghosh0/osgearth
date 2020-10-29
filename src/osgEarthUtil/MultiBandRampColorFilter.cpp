@@ -67,7 +67,7 @@ void MultiBandRampColorFilter::init()
     // so that each layer can have a unique uniform and entry point.
     m_instanceId = (++s_uniformNameGen) - 1;
     m_colorComponent = new osg::Uniform(osg::Uniform::INT, (osgEarth::Stringify() << UNIFORM_PREFIX << m_instanceId));
-    m_colorComponent->set(1);//red
+    m_colorComponent->set(0);//red
 }
 
 void MultiBandRampColorFilter::setColorComponent(int i)
@@ -89,7 +89,26 @@ std::string MultiBandRampColorFilter::getEntryPointFunctionName(void) const
     return (osgEarth::Stringify() << FUNCTION_PREFIX_FS << m_instanceId);
 }
 
+
 void MultiBandRampColorFilter::install(osg::StateSet* stateSet) const
+{
+    std::string entryPoint, code;
+    installCodeAndUniforms( stateSet, entryPoint, code );
+    osgEarth::VirtualProgram* vp = dynamic_cast<osgEarth::VirtualProgram*>(stateSet->getAttribute(VirtualProgram::SA_TYPE));
+    installVP( vp, entryPoint, code, false );
+}
+
+
+void MultiBandRampColorFilter::installAsFunction( osg::StateSet* stateSet ) const
+{
+    std::string entryPoint, code;
+    installCodeAndUniforms( stateSet, entryPoint, code );
+    osgEarth::VirtualProgram* vp = dynamic_cast<osgEarth::VirtualProgram*>(stateSet->getAttribute(VirtualProgram::SA_TYPE));
+    installVP( vp, entryPoint, code, true );
+}
+
+
+void MultiBandRampColorFilter::installCodeAndUniforms(osg::StateSet* stateSet, std::string& entryPoint, std::string& code ) const
 {
     // safe: will not add twice.
     stateSet->addUniform(m_colorComponent.get());
@@ -99,8 +118,8 @@ void MultiBandRampColorFilter::install(osg::StateSet* stateSet) const
     {
         // build the local shader (unique per instance). We will
         // use a template with search and replace for this one.
-        std::string entryPoint = osgEarth::Stringify() << FUNCTION_PREFIX_FS << m_instanceId;
-        std::string code = s_localShaderSourceFS;
+        entryPoint = osgEarth::Stringify() << FUNCTION_PREFIX_FS << m_instanceId;
+        code = s_localShaderSourceFS;
         osgEarth::replaceIn(code, "__UNIFORM_NAME__", m_colorComponent->getName());
         osgEarth::replaceIn(code, "__ENTRY_POINT_FS__", entryPoint);
 
@@ -136,10 +155,6 @@ void MultiBandRampColorFilter::install(osg::StateSet* stateSet) const
         }
         osgEarth::replaceIn(code, "__CONST_DEF__", constDefCode);
         osgEarth::replaceIn(code, "__RAMP_CODE__", rampCode);
-
-        osg::Shader* main = new osg::Shader(osg::Shader::FRAGMENT, code);
-        //main->setName(entryPoint);
-        vp->setShader(entryPoint, main);
     }
 }
 

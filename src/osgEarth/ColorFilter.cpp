@@ -111,3 +111,34 @@ ColorFilterRegistry::createOne(const Config& conf) const
     }
     return 0L;
 }
+
+
+void ColorFilter::installAsFunction( osg::StateSet* /**stateSet**/ ) const
+{
+    OE_WARN << "[ColorFilter] installAsFunction() is not implemented but has been called!" << std::endl;
+}
+
+
+void ColorFilter::installVP( VirtualProgram* vp, const std::string& entryPoint, const std::string& code, bool installAsFunction ) const
+{
+    if ( ! vp )
+        return;
+
+    if ( entryPoint.empty() || code.empty() )
+    {
+        OE_WARN << "[ColorFilter] Trying to install but code is not defined." << std::endl;
+        return;
+    }
+
+    if ( installAsFunction )
+    {
+        vp->setFunction( entryPoint, code, ShaderComp::LOCATION_FRAGMENT_COLORING );
+    }
+
+    else
+    {
+        osg::Shader* main = new osg::Shader(osg::Shader::FRAGMENT, code);
+        //main->setName(entryPoint);
+        vp->setShader( entryPoint, main );
+    }
+}

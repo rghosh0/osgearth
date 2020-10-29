@@ -21,6 +21,7 @@
 
 #include <osgEarth/Common>
 #include <osgEarth/Config>
+#include <osgEarth/VirtualProgram>
 #include <osg/StateSet>
 #include <vector>
 
@@ -35,10 +36,12 @@ namespace osgEarth
      * NOTE: ColorFilter will probably be deprecated at some point down the line.
      * Consider using a Layer shader instead.
      */
-    class /*header-only*/ ColorFilter : public osg::Referenced
+    class OSGEARTH_EXPORT ColorFilter : public osg::Referenced
     {
     protected:
         ColorFilter() { }
+
+        void installVP(VirtualProgram* vp, const std::string &entryPoint, const std::string &code, bool installAsFunction = false ) const;
 
     public:
         /**
@@ -58,6 +61,12 @@ namespace osgEarth
          * provided state set.
          */
         virtual void install( osg::StateSet* stateSet ) const =0;
+
+        /**
+         * Installs any uniforms or other bindings required by this filter on the
+         * provided state set directly as a function.
+         */
+        virtual void installAsFunction( osg::StateSet* ) const;
 
         /**
          * Serializes this object to a Config (optional).

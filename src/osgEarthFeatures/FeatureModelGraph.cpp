@@ -210,6 +210,165 @@ struct SetupFading : public SceneGraphCallback {
 };
 } // namespace
 
+
+//---------------------------------------------------------------------------
+
+namespace {
+
+    const char* imageVS =
+        "#version " GLSL_VERSION_STR "\n"
+        GLSL_DEFAULT_PRECISION_FLOAT "\n"
+        "out vec2 imageBinding_texcoord; \n"
+        "void oe_ImageBinding_VS(inout vec4 vertex) { \n"
+        "    imageBinding_texcoord = gl_MultiTexCoord0.st; \n"
+        "} \n";
+
+    const char* imageFS =
+        "#version " GLSL_VERSION_STR "\n"
+        GLSL_DEFAULT_PRECISION_FLOAT "\n"
+        "in vec2 imageBinding_texcoord; \n"
+        "uniform sampler2D image_tex; \n"
+        "void oe_ImageBinding_FS(inout vec4 color) { \n"
+        "    color = texture(image_tex, imageBinding_texcoord);\n"
+        "    // color = vec4(imageBinding_texcoord.st, 0.f, 1.f);\n"
+        "} \n";
+
+
+    // constucts an ellipsoidal mesh to support the imagelayer
+    osg::Geometry* s_makeEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid,
+                                           bool                       genTexCoords,
+                                           const Profile*             imageProfile = nullptr)
+    {
+        double outerRadius = ellipsoid->getRadiusEquator();
+        double hae = outerRadius - ellipsoid->getRadiusPolar();
+        double startX = imageProfile ? imageProfile->getExtent().xMin() : -180.;
+
+        double ratioTcoord  = 1.;
+        double originTcoord = 0.;
+        if (imageProfile)
+        {
+            // we consider here that the extent is symetric on Y (issue with GeoExtent which clamp the yMin value)
+            // unfortunatly this will also be wrong if the Y extent is less than 180 (greater than 180 is assumed)
+            double diffYmax = abs(imageProfile->getExtent().yMax() - 90.);
+            if (diffYmax > 0. )
+            {
+                ratioTcoord =  180. / (180. + diffYmax*2.);
+                originTcoord = diffYmax / (180. + diffYmax*2.);
+                OE_DEBUG << "[FeatureModelGraph] Embeded image will be scaled on Y in [" << originTcoord << ";" << originTcoord+ratioTcoord << "]" << std::endl;
+            }
+        }
+
+        osg::Geometry* geom = new osg::Geometry();
+        geom->setUseVertexBufferObjects(true);
+
+        int latSegments = 40;
+        int lonSegments = 2 * latSegments;
+
+        double segmentSize = 180.0/(double)latSegments; // degrees
+        int arraySize = ( (latSegments+1) * (lonSegments+1) );
+
+        osg::Vec3Array* verts = new osg::Vec3Array();
+        verts->reserve( arraySize );
+
+        osg::Vec2Array* texCoords = 0;
+        osg::Vec3Array* normals = 0;
+
+        if (genTexCoords)
+        {
+            texCoords = new osg::Vec2Array();
+            texCoords->reserve( arraySize );
+            geom->setTexCoordArray( 0, texCoords );
+
+            normals = new osg::Vec3Array(osg::Array::BIND_PER_VERTEX);
+            normals->reserve( arraySize );
+            geom->setNormalArray( normals );
+        }
+
+        osg::DrawElementsUShort* el = new osg::DrawElementsUShort( GL_TRIANGLES );
+        el->reserve( arraySize * 6 );
+
+        for( int y = 0; y <= latSegments; ++y )
+        {
+            double lat = -90.0 + segmentSize * (double)y;
+            for( int x = 0; x <= lonSegments; ++x )
+            {
+                double lon = startX + segmentSize * (double)x;
+                double gx, gy, gz;
+                ellipsoid->convertLatLongHeightToXYZ( osg::DegreesToRadians(lat), osg::DegreesToRadians(lon), hae, gx, gy, gz );
+                verts->push_back( osg::Vec3(gx, gy, gz) );
+
+                if (genTexCoords)
+                {
+                    double s =  ((double) x) / lonSegments;  //(lon + 180) / 360.0;
+                    double t = originTcoord + (((double) y) / latSegments) * ratioTcoord;  //(lat + 90.0) / 180.0;
+                    texCoords->push_back( osg::Vec2(s, t ) );
+                }
+
+                if (normals)
+                {
+                    osg::Vec3d normal(gx, gy, gz);
+                    normal.normalize();
+                    normals->push_back( osg::Vec3f(normal) );
+                }
+
+
+                if ( y < latSegments && x < lonSegments )
+                {
+                    int x_plus_1 = x+1;
+                    int y_plus_1 = y+1;
+                    el->push_back( y*(lonSegments+1) + x );
+                    el->push_back( y*(lonSegments+1) + x_plus_1 );
+                    el->push_back( y_plus_1*(lonSegments+1) + x );
+
+                    el->push_back( y*(lonSegments+1) + x_plus_1 );
+                    el->push_back( y_plus_1*(lonSegments+1) + x_plus_1 );
+                    el->push_back( y_plus_1*(lonSegments+1) + x );
+                }
+            }
+        }
+
+        geom->setVertexArray( verts );
+        geom->addPrimitiveSet( el );
+
+        return geom;
+    }
+
+
+    bool bindGeomWithImage( osg::Group* geometry, ImageLayer* imageLayer, const TileKey& key, ProgressCallback* progress )
+    {
+        GeoImage image = imageLayer->createImage(key, progress);
+        if (image.valid())
+        {
+
+            traceNode(*geometry);
+
+            osg::Texture2D* tex = new osg::Texture2D( image.getImage() );
+            tex->setWrap( osg::Texture::WRAP_S, osg::Texture::REPEAT );
+            tex->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE );
+            tex->setResizeNonPowerOfTwoHint(false);
+            tex->setFilter( osg::Texture::MAG_FILTER, imageLayer->options().magFilter().getOrUse(osg::Texture::NEAREST));
+            tex->setFilter( osg::Texture::MIN_FILTER, imageLayer->options().minFilter().getOrUse(osg::Texture::NEAREST));
+            tex->setMaxAnisotropy( 1.f );
+
+            VirtualProgram* program = new VirtualProgram();
+            program->setInheritShaders(true);
+            program->setFunction("oe_ImageBinding_VS", imageVS, ShaderComp::LOCATION_VERTEX_MODEL);
+            program->setFunction("oe_ImageBinding_FS", imageFS, ShaderComp::LOCATION_FRAGMENT_COLORING);
+
+            geometry->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
+            geometry->getOrCreateStateSet()->setTextureAttributeAndModes(0, tex, osg::StateAttribute::ON);
+            geometry->getOrCreateStateSet()->addUniform(new osg::Uniform("image_tex", 0));
+
+            for ( auto colorFilter : imageLayer->getColorFilters() )
+                colorFilter->installAsFunction( geometry->getOrCreateStateSet() );
+
+            return true;
+        }
+
+        return false;
+    }
+}
+
 //---------------------------------------------------------------------------
 
 FeatureModelGraph::FeatureModelGraph(Session *session,
@@ -619,7 +778,34 @@ osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
 
             TileKey key(lod, tileX, invertedTileY, featureProfile->getProfile());
 
-            geometry = buildTile(level, tileExtent, &key, readOptions);
+            // Specific case where an image layer serves as input
+            if ( _session->getImageLayer() )
+            {
+                if ( lod != 0u )
+                {
+                    OE_WARN << LC << "Request for a LOD different from 0 is not allowed when embeding an image layer." << std::endl;
+                }
+
+                else if ( _session->getImageLayer()->getProfile() && _session->getImageLayer()->getProfile()->getSRS() )
+                {
+                    const Profile* imageProfile = _session->getImageLayer()->getProfile();
+                    osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageProfile->getSRS()->getEllipsoid();
+                    if ( ellipsoidModel.valid() )
+                    {
+                        geometry = new osg::Group();
+                        geometry->addChild( s_makeEllipsoidGeometry(ellipsoidModel.get(), true, _session->getImageProfile() ));
+                        if (! bindGeomWithImage( geometry, _session->getImageLayer(), key, nullptr ) )
+                            OE_WARN << LC << "Error while binding image layer with geometry for key " << key.str() << std::endl;
+                    }
+                }
+            }
+
+            // build the geometry for this tile
+            else
+            {
+                geometry = buildTile(level, tileExtent, &key, readOptions);
+            }
+
             result = geometry;
         }
 
@@ -639,7 +825,7 @@ osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
                 result = group.release();
             }
         }
-    }
+    } // end _useTiledSource
 
     else if (!_options.layout().isSet() ||
              _options.layout()->getNumLevels() == 0) {

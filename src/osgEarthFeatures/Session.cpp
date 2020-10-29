@@ -197,3 +197,28 @@ Session::getFeatureSource() const
 { 
     return _featureSource.get(); 
 }
+
+void
+Session::setImageLayer(ImageLayer* il)
+{
+    _imageLayer = il;
+}
+
+ImageLayer*
+Session::getImageLayer() const
+{
+    return _imageLayer.get();
+}
+
+
+void
+Session::setImageProfile(const Profile* ip)
+{
+    _imageProfile = ip;
+}
+
+const Profile*
+Session::getImageProfile() const
+{
+    return _imageProfile.get();
+}

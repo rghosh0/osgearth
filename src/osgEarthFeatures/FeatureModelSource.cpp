@@ -78,24 +78,21 @@ namespace
         //override
         Status initialize(const osgDB::Options* /**readOptions**/)
         {
-//            _readOptions = Registry::cloneOrCreateOptions(readOptions);
-
             // Establish the feature profile.
             const Profile* wgs84 = Registry::instance()->getGlobalGeodeticProfile();
             GeoExtent extent(wgs84->getSRS(), -180, -90, 180, 90);
 
+            // For now the profile is defined so that only one tile with full extent will be requested
+            // (used by FMG to support an Image Layer)
             FeatureProfile* profile = new FeatureProfile(extent);
             profile->setProfile(Profile::create("wgs84", extent.xMin(), extent.yMin(), extent.xMax(), extent.yMax(), "", 1, 1));
-            profile->setFirstLevel(2);//_options.level().get());
-            profile->setMaxLevel(2);//_options.level().get());
+            profile->setFirstLevel(0);
+            profile->setMaxLevel(0);
             profile->setTiled(true);
 
             setFeatureProfile(profile);
             return Status::OK();
         }
-
-    private:
-//        osg::ref_ptr<osgDB::Options> _readOptions;
     };
 }
 
@@ -182,7 +179,10 @@ FeatureModelSourceOptions::fromConfig( const Config& conf )
 {
     conf.get( "features", _featureOptions );
     _featureSource = conf.getNonSerializable<FeatureSource>("feature_source");
-    
+
+    conf.get( "image",            _imageOptions );
+    conf.get( "image_extent",     _imageProfileOptions );
+
     conf.get( "styles",           _styles );
     conf.get( "layout",           _layout );
     conf.get( "fading",           _fading );
@@ -210,6 +210,9 @@ FeatureModelSourceOptions::getConfig() const
         conf.setNonSerializable("feature_source", _featureSource.get());
     }
     conf.set("feature_source", _featureSourceLayer);
+
+    conf.set( "image",            _imageOptions );
+    conf.set( "image_extent",     _imageProfileOptions );
 
     conf.set( "styles",           _styles );
     conf.set( "layout",           _layout );
@@ -268,9 +271,22 @@ FeatureModelSource::initialize(const osgDB::Options* readOptions)
         _features = FeatureSourceFactory::create( _options.featureOptions().value() );
     }
 
-    if (!_features.valid())
+    else if ( _options.imageOptions().isSet() )
+    {
         setFeatureSource(new TiledExtendSource(/**options()**/));
-        //return Status::Error(Status::ServiceUnavailable, "Failed to create a feature driver");
+        if (_options.imageProfileOptions().isSet())
+            _imageProfile = Profile::create(_options.imageProfileOptions().value());
+        _imageLayer = new ImageLayer(_options.imageOptions().value());
+        _imageLayer->setReadOptions(_readOptions);
+        Status status = _imageLayer->open();
+        if (status.isOK())
+            OE_DEBUG << LC << "Successfull open of an embeded Image Layer" << std::endl;
+        else
+            return Status::Error(Status::ServiceUnavailable, "Failed to open an embeded Image Layer");
+    }
+
+    if (!_features.valid())
+        return Status::Error(Status::ServiceUnavailable, "Failed to create a feature driver");
 
     // open the feature source if it exists:
     _features->setReadOptions(_readOptions.get());
@@ -348,6 +364,13 @@ FeatureModelSource::createNodeImplementation(const Map*        map,
         _options.styles().get(), 
         _features.get(), 
         _readOptions.get() );
+
+    if ( _imageLayer.valid() )
+    {
+        session->setImageLayer( _imageLayer.get() );
+        if ( _imageProfile.valid() )
+            session->setImageProfile( _imageProfile.get() );
+    }
 
     // Name the session (for debugging purposes)
     session->setName( this->getName() );
