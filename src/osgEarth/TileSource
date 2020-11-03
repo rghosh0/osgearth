@@ -236,6 +236,12 @@ namespace osgEarth
         //! The attribution string to be displayed for this TileSource
         virtual std::string getAttribution() const { return ""; }
 
+        //! Get the number of bands
+        virtual bool getBandsNumber ( int& /**bandsNumber**/ ) const { return false; }
+
+        //! Get the number of bands
+        virtual std::string getBandMetaData ( int /**band**/, const std::string& /**attribute**/ ) const  { return ""; }
+
         /**
          * Creates an image for the given TileKey. The TileKey's profile must match
          * the profile of the TileSource.

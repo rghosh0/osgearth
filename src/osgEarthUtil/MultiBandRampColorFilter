@@ -85,7 +85,7 @@ namespace osgEarth { namespace Util
     public: // ColorFilter
         virtual std::string getEntryPointFunctionName(void) const;
         virtual void install(osg::StateSet* stateSet) const;
-        virtual void installAsFunction( osg::StateSet* ) const;
+        virtual void installAsFunction(osg::StateSet* stateSet) const;
         virtual Config getConfig() const;
 
     protected:

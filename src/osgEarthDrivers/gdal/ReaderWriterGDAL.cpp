@@ -684,6 +684,7 @@ GeoExtent getGeoExtent(std::string& filename)
 class GDALTileSource : public TileSource
 {
 
+    // Inner class for managing the coverage feature
     struct GDALDataCoverage
     {
         GDALDataCoverage(GDALRasterBand* band, GDALTileSource* tileSource)
@@ -1312,6 +1313,30 @@ public:
         return STATUS_OK;
     }
 
+    //! Get the number of bands
+    bool getBandsNumber ( int& bandsNumber ) const
+    {
+        GDAL_SCOPED_LOCK;
+
+        if ( _warpedDS )
+        {
+            bandsNumber = _warpedDS->GetRasterCount();
+            return true;
+        }
+
+        return false;
+    }
+
+    //! Get the number of bands
+    std::string getBandMetaData ( int band, const std::string& attribute ) const
+    {
+        GDAL_SCOPED_LOCK;
+
+        GDALRasterBand* gdalBand = _warpedDS->GetRasterBand(band);
+        if ( gdalBand )
+            return gdalBand->GetMetadataItem( attribute.c_str() );
+        return "";
+    }
 
     /**
     * Finds a raster band based on color interpretation
@@ -1713,7 +1738,7 @@ public:
                 image = new osg::Image();
 
                 image->allocateImage( target_width, target_height, 1, GL_RGBA, GL_FLOAT );
-                image->setInternalTextureFormat( GL_RGB16F_ARB );
+                image->setInternalTextureFormat( GL_RGBA16F_ARB );
                 ImageUtils::markAsUnNormalized( image.get(), true );
                 memset(image->data(), 0, image->getImageSizeInBytes());
 

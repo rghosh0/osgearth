@@ -134,13 +134,14 @@ namespace
     };
 
     // sets a user-specified uniform.
+    template <typename T>
     struct ApplyValueUniform : public ControlEventHandler
     {
         osg::ref_ptr<osg::Uniform> _u;
         ApplyValueUniform(osg::Uniform* u) :_u(u) { }
         void onValueChanged(Control* c, double value)
         {
-            _u->set( float(value) );
+            _u->set( T(value) );
             osgEarth::Registry::instance()->dataStore().store(
                 osgEarth::Registry::instance(), _u->getName(), _u.get());
         }
@@ -557,11 +558,15 @@ MapNodeHelper::parse(MapNode*             mapNode,
 
     // Generic named value uniform with min/max.
     VBox* uniformBox = 0L;
-    while( args.find( "--uniform" ) >= 0 )
+    while( args.find( "--uniform" ) >= 0 || args.find( "--uniformI" ) >= 0 )
     {
         std::string name;
         float minval, maxval;
-        if ( args.read( "--uniform", name, minval, maxval ) )
+        bool isInt = false;
+        bool isFloat = args.read( "--uniform", name, minval, maxval );
+        if ( ! isFloat )
+            isInt = args.read( "--uniformI", name, minval, maxval );
+        if ( isInt || isFloat )
         {
             if ( uniformBox == 0L )
             {
@@ -570,12 +575,14 @@ MapNodeHelper::parse(MapNode*             mapNode,
                 uniformBox->setAbsorbEvents( true );
                 mainContainer->addControl( uniformBox );
             }
-            osg::Uniform* uniform = new osg::Uniform(osg::Uniform::FLOAT, name);
-            uniform->set( minval );
+            osg::Uniform* uniform = new osg::Uniform(isFloat ? osg::Uniform::FLOAT : osg::Uniform::INT, name);
+            uniform->set( isFloat ? minval : (int)minval );
             root->getOrCreateStateSet()->addUniform( uniform, osg::StateAttribute::OVERRIDE );
             HBox* box = new HBox();
             box->addControl( new LabelControl(name) );
-            HSliderControl* hs = box->addControl( new HSliderControl(minval, maxval, minval, new ApplyValueUniform(uniform)));
+
+            HSliderControl* hs = isFloat ? box->addControl( new HSliderControl(minval, maxval, minval, new ApplyValueUniform<float>(uniform)) )
+                                         : box->addControl( new HSliderControl(minval, maxval, minval, new ApplyValueUniform<int>(uniform)) ) ;
             hs->setHorizFill(true, 200);
             box->addControl( new LabelControl(hs) );
             uniformBox->addControl( box );
