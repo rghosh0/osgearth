@@ -84,10 +84,10 @@ namespace osgEarth { namespace Features
         /**
          * Loads and returns a subnode. Used internally for paging.
          */
-        osg::Node* load(
-            unsigned lod, unsigned tileX, unsigned tileY,
+        osg::Node* load(unsigned lod, unsigned tileX, unsigned tileY,
             const std::string& uri,
-            const osgDB::Options* readOptions);
+            const osgDB::Options* readOptions,
+            unsigned r=0, unsigned g=0, unsigned b=0, unsigned a=0);
 
         /**
          * Set a scene graph callback host for this FMG
@@ -146,6 +146,8 @@ namespace osgEarth { namespace Features
             const osgDB::Options* readOptions,
             ProgressCallback*     progress);
 
+        void setupRootSGForImage(osg::Group* root, ImageLayer* imageLayer, const TileKey& key);
+        osg::Group* bindGeomWithImage( ImageLayer* imageLayer, const TileKey& key, ProgressCallback* progress );
 
     private:
 
@@ -218,6 +220,8 @@ namespace osgEarth { namespace Features
         bool                             _pendingUpdate;
         std::vector<const FeatureLevel*> _lodmap;
         OpenThreads::ReentrantMutex      _redrawMutex;
+        osg::BoundingSphered             _rootBs;
+        float                            _rootMaxRange;
 
         OpenThreads::Atomic _cacheReads;
         OpenThreads::Atomic _cacheHits;

@@ -89,7 +89,7 @@ namespace osgEarth { namespace Util
         virtual Config getConfig() const;
 
     protected:
-        void installCodeAndUniforms ( osg::StateSet* stateSet, std::string& entryPoint, std::string& code ) const;
+        void installCodeAndUniforms (osg::StateSet* stateSet, std::string& entryPoint, std::string& code , bool installAsFunction = false) const;
 
         unsigned m_instanceId;
         osg::ref_ptr<osg::Uniform> m_colorComponent;

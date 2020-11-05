@@ -102,25 +102,37 @@ void MultiBandRampColorFilter::install(osg::StateSet* stateSet) const
 void MultiBandRampColorFilter::installAsFunction( osg::StateSet* stateSet ) const
 {
     std::string entryPoint, code;
-    installCodeAndUniforms( stateSet, entryPoint, code );
+    installCodeAndUniforms( stateSet, entryPoint, code, true );
     osgEarth::VirtualProgram* vp = dynamic_cast<osgEarth::VirtualProgram*>(stateSet->getAttribute(VirtualProgram::SA_TYPE));
     installVP( vp, entryPoint, code, true );
 }
 
 
-void MultiBandRampColorFilter::installCodeAndUniforms(osg::StateSet* stateSet, std::string& entryPoint, std::string& code ) const
+void MultiBandRampColorFilter::installCodeAndUniforms(osg::StateSet* stateSet, std::string& entryPoint, std::string& code, bool installAsFunction) const
 {
-    // safe: will not add twice.
-    stateSet->addUniform(m_colorComponent.get());
+    unsigned instanceId = m_instanceId;
+    osg::ref_ptr<osg::Uniform> colorComponent;
+    if (installAsFunction)
+    {
+        instanceId = (++s_uniformNameGen) - 1;
+        colorComponent = new osg::Uniform(osg::Uniform::INT, (osgEarth::Stringify() << UNIFORM_PREFIX << instanceId)) ;
+        colorComponent->set(0);//red
+    }
+    else
+    {
+        colorComponent = m_colorComponent.get();
+    }
+
+    stateSet->addUniform(colorComponent.get());
 
     osgEarth::VirtualProgram* vp = dynamic_cast<osgEarth::VirtualProgram*>(stateSet->getAttribute(VirtualProgram::SA_TYPE));
     if (vp)
     {
         // build the local shader (unique per instance). We will
         // use a template with search and replace for this one.
-        entryPoint = osgEarth::Stringify() << FUNCTION_PREFIX_FS << m_instanceId;
+        entryPoint = osgEarth::Stringify() << FUNCTION_PREFIX_FS << instanceId;
         code = s_localShaderSourceFS;
-        osgEarth::replaceIn(code, "__UNIFORM_NAME__", m_colorComponent->getName());
+        osgEarth::replaceIn(code, "__UNIFORM_NAME__", colorComponent->getName());
         osgEarth::replaceIn(code, "__ENTRY_POINT_FS__", entryPoint);
 
         std::string rampCode;

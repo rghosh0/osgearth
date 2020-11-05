@@ -35,6 +35,7 @@
 #include <osgEarth/MemCache>
 #include <osgEarth/Status>
 #include <osgEarth/Containers>
+#include <osgEarth/ImageCompositionOptions>
 
 #include <osg/Referenced>
 #include <osg/Object>
@@ -82,6 +83,10 @@ namespace osgEarth
         optional<std::string>& osgOptionString() { return _osgOptionString; }
         const optional<std::string>& osgOptionString() const { return _osgOptionString; }
 
+        /** The "imageComposition" allows to define the bands to use for composing the color channels. */
+        optional<ImageCompositionOptions>& imageComposition() { return _imageComp; }
+        const optional<ImageCompositionOptions>& imageComposition() const { return _imageComp; }
+
     public:
         TileSourceOptions( const ConfigOptions& options =ConfigOptions() );
 
@@ -103,6 +108,7 @@ namespace osgEarth
         optional<bool>           _bilinearReprojection;
         optional<bool>           _coverage;
         optional<std::string>    _osgOptionString;
+        optional<ImageCompositionOptions> _imageComp;
     };
 }
 OSGEARTH_SPECIALIZE_CONFIG(osgEarth::TileSourceOptions);
@@ -412,13 +418,13 @@ namespace osgEarth
 
         osg::ref_ptr<MemCache> _memCache;
 
-        DataExtentList  _dataExtents;
-        Status          _status;
-        Mode            _mode;
-        unsigned        _tileSize;
-        float           _noDataValue;
-        float           _minValidValue;
-        float           _maxValidValue;
+        DataExtentList    _dataExtents;
+        Status            _status;
+        Mode              _mode;
+        unsigned          _tileSize;
+        float             _noDataValue;
+        float             _minValidValue;
+        float             _maxValidValue;
 
         bool _openCalled;
 

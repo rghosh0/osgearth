@@ -582,12 +582,11 @@ ImageLayer::createImageInKeyProfile(const TileKey&    key,
 
     GeoImage result;
 
-    OE_DEBUG << LC << "create image for \"" << key.str() << "\", ext= "
-        << key.getExtent().toString() << std::endl;
+    OE_DEBUG << LC << "create image for \"" << key.full_str() << " ext= " << key.getExtent().toString() << std::endl;
 
-    // the cache key combines the Key and the horizontal profile.
+    // the cache key combines the Key and the horizontal profile and the bands to use
     std::string cacheKey = Cache::makeCacheKey(
-        Stringify() << key.str() << "-" << key.getProfile()->getHorizSignature(),
+        Stringify() << key.full_str() << "-" << key.getProfile()->getHorizSignature(),
         "image");
 
     const CachePolicy& policy = getCacheSettings()->cachePolicy().get();
@@ -638,16 +637,16 @@ ImageLayer::createImageInKeyProfile(const TileKey&    key,
         if ( r.succeeded() )
         {
             cachedImage = r.releaseImage();
-            ImageUtils::fixInternalFormat( cachedImage.get() );            
+            ImageUtils::fixInternalFormat( cachedImage.get() );
             bool expired = policy.isExpired(r.lastModifiedTime());
             if (!expired)
             {
-                OE_DEBUG << "Got cached image for " << key.str() << std::endl;                
-                return GeoImage( cachedImage.get(), key.getExtent() );                        
+                OE_DEBUG << "Got cached image for " << key.full_str() << std::endl;
+                return GeoImage( cachedImage.get(), key.getExtent() );
             }
             else
             {
-                OE_DEBUG << "Expired image for " << key.str() << std::endl;                
+                OE_DEBUG << "Expired image for " << key.full_str() << std::endl;
             }
         }
     }
@@ -711,15 +710,15 @@ ImageLayer::createImageInKeyProfile(const TileKey&    key,
 
     if ( result.valid() )
     {
-        OE_DEBUG << LC << key.str() << " result OK" << std::endl;
+        OE_DEBUG << LC << key.full_str() << " result OK" << std::endl;
     }
     else
     {
-        OE_DEBUG << LC << key.str() << "result INVALID" << std::endl;        
+        OE_DEBUG << LC << key.full_str() << "result INVALID" << std::endl;
         // We couldn't get an image from the source.  So see if we have an expired cached image
         if (cachedImage.valid())
         {
-            OE_DEBUG << LC << "Using cached but expired image for " << key.str() << std::endl;
+            OE_DEBUG << LC << "Using cached but expired image for " << key.full_str() << std::endl;
             result = GeoImage( cachedImage.get(), key.getExtent());
         }
     }
@@ -749,13 +748,13 @@ ImageLayer::createImageFromTileSource(const TileKey&    key,
     // Fail is the image is blacklisted.
     if ( source->getBlacklist()->contains(key) )
     {
-        OE_DEBUG << LC << "createImageFromTileSource: blacklisted(" << key.str() << ")" << std::endl;
+        OE_DEBUG << LC << "createImageFromTileSource: blacklisted(" << key.full_str() << ")" << std::endl;
         return GeoImage::INVALID;
     }
 
     if (!mayHaveData(key))
     {
-        OE_DEBUG << LC << "createImageFromTileSource: mayHaveData(" << key.str() << ") == false" << std::endl;
+        OE_DEBUG << LC << "createImageFromTileSource: mayHaveData(" << key.full_str() << ") == false" << std::endl;
         return GeoImage::INVALID;
     }
 
@@ -947,7 +946,7 @@ ImageLayer::assembleImage(const TileKey& key, ProgressCallback* progress)
     }
     else
     {
-        OE_DEBUG << LC << "assembleImage: no intersections (" << key.str() << ")" << std::endl;
+        OE_DEBUG << LC << "assembleImage: no intersections (" << key.full_str() << ")" << std::endl;
     }
 
     // Final step: transform the mosaic into the requesting key's extent.

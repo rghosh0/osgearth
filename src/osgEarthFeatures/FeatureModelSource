@@ -131,6 +131,9 @@ namespace osgEarth { namespace Features
         optional<ProfileOptions>& imageProfileOptions() { return _imageProfileOptions; }
         const optional<ProfileOptions>& imageProfileOptions() const { return _imageProfileOptions; }
 
+        optional<int>& imageBand() { return _imageBand; }
+        const optional<int>& imageBand() const { return _imageBand; }
+
     public:
         /** A live feature source instance to use. Note, this does not serialize. */
         osg::ref_ptr<FeatureSource>& featureSource() { return _featureSource; }
@@ -156,6 +159,7 @@ namespace osgEarth { namespace Features
         optional<ImageLayerOptions>    _imageOptions;
         optional<ProfileOptions>       _imageProfileOptions;
         osg::ref_ptr<FeatureSource>    _featureSource;
+        optional<int>                  _imageBand;
     };
 
 

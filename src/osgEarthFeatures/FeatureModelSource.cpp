@@ -114,7 +114,7 @@ _nodeCaching(false)
 void
 FeatureModelOptions::fromConfig(const Config& conf)
 {
-    conf.get("features", _featureSource);
+    conf.get( "features",         _featureSource);
 
     conf.get( "styles",           _styles );
     conf.get( "layout",           _layout );
@@ -182,6 +182,7 @@ FeatureModelSourceOptions::fromConfig( const Config& conf )
 
     conf.get( "image",            _imageOptions );
     conf.get( "image_extent",     _imageProfileOptions );
+    conf.get( "image_band",       _imageBand );
 
     conf.get( "styles",           _styles );
     conf.get( "layout",           _layout );
@@ -213,6 +214,7 @@ FeatureModelSourceOptions::getConfig() const
 
     conf.set( "image",            _imageOptions );
     conf.set( "image_extent",     _imageProfileOptions );
+    conf.set( "image_band",       _imageBand );
 
     conf.set( "styles",           _styles );
     conf.set( "layout",           _layout );

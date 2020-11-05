@@ -28,7 +28,7 @@
 #include <map>
 
 
-namespace osgEarth { namespace Drivers
+namespace osgEarth
 {
 
     using namespace osgEarth;
@@ -53,6 +53,11 @@ namespace osgEarth { namespace Drivers
         class ChannelCompositionOptions : public ConfigOptions  // NO EXPORT; header only
         {
         public:
+            ChannelCompositionOptions( ColorChannel color, int band )
+                : _color(color), _band(band)
+            {
+            }
+
             ChannelCompositionOptions( const ConfigOptions& options = ConfigOptions() )
                 : ConfigOptions          ( options )
             {
@@ -119,8 +124,47 @@ namespace osgEarth { namespace Drivers
                 _channels.insert(std::make_pair(*channel._color, channel));
         }
 
+        void clearChannels(const ChannelCompositionOptions &channel)
+        {
+            _channels.clear();
+        }
+
         /** Gets the nth channel */
-        const Channels &getChannels() const { return _channels; }
+        const Channels &getChannelList() const { return _channels; }
+
+        /** Gets the bands list to use for RGBA components */
+        std::vector<int> getBandsForRGBA() const
+        {
+            std::vector<int> rgba;
+
+            Channels::const_iterator it = _channels.find(RED);
+            if (it == _channels.end())
+                return rgba;
+            rgba.push_back(it->second._band.get());
+
+            it = _channels.find(GREEN);
+            if (it == _channels.end())
+                return rgba;
+            rgba.push_back(it->second._band.get());
+
+            it = _channels.find(BLUE);
+            if (it == _channels.end())
+            {
+                rgba.clear();
+                return rgba;
+            }
+            rgba.push_back(it->second._band.get());
+
+            it = _channels.find(ALPHA);
+            if (it == _channels.end())
+            {
+                rgba.clear();
+                return rgba;
+            }
+            rgba.push_back(it->second._band.get());
+
+            return rgba;
+        }
 
         Config getConfig() const
         {
@@ -139,8 +183,8 @@ namespace osgEarth { namespace Drivers
 
     };
 
-} } // namespace osgEarth::Drivers
+} // namespace osgEarth
 
-OSGEARTH_SPECIALIZE_CONFIG(osgEarth::Drivers::ImageCompositionOptions);
+OSGEARTH_SPECIALIZE_CONFIG(osgEarth::ImageCompositionOptions);
 
 #endif // OSGEARTH_IMAGE_COMPOSITION_OPTIONS_H

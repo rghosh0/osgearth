@@ -1536,7 +1536,8 @@ public:
 
         int tileSize = getPixelsPerTile(); //_options.tileSize().value();
 
-        bool isChannelBandComposition = _options._imageComp.isSet() && ! _options._imageComp->_channels.empty();
+        bool isChannelBandComposition = key.hasBandsDefined()
+                || (_options.imageComposition().isSet() && ! _options.imageComposition()->_channels.empty());
         bool isCoverage = _options.coverage().isSetTo(true);
         bool isImageEmbededInFeature = isChannelBandComposition && isCoverage && key.getLOD() == 0u;
 
@@ -1642,38 +1643,58 @@ public:
         // if defined use the color/band composition
         if (isChannelBandComposition)
         {
-            for (ImageCompositionOptions::Channels::const_iterator i = _options._imageComp->_channels.begin();
-                 i != _options._imageComp->_channels.end(); ++i)
+            // case bands composition are defined in the tile key
+            if (key.hasBandsDefined())
             {
-                const ImageCompositionOptions::ChannelCompositionOptions& channel = (*i).second;
-                if (! channel._band.isSet())
-                {
-                    OE_WARN << LC << "[ImageCompositionOptions] Band must be defined !\n";
-                    continue;
-                }
-                if (! channel._color.isSet())
-                {
-                    OE_WARN << LC << "[ImageCompositionOptions] Color must be defined !\n";
-                    continue;
-                }
-                int band = *channel._band;
-                if (band > _warpedDS->GetRasterCount() || band <= 0)
-                {
-                    OE_WARN << LC << "[ImageCompositionOptions] Band not existing : " << band << "\n";
-                    continue;
-                }
+                unsigned int rBand, gBand, bBand, aBand;
+                key.getTileRGBA( rBand, gBand, bBand, aBand);
 
-                ImageCompositionOptions::ColorChannel color = *channel._color;
-                if (color == ImageCompositionOptions::RED)
-                    bandRed = _warpedDS->GetRasterBand( band );
-                else if (color == ImageCompositionOptions::GREEN)
-                    bandGreen = _warpedDS->GetRasterBand( band );
-                else if (color == ImageCompositionOptions::BLUE)
-                    bandBlue = _warpedDS->GetRasterBand( band );
-                else if (color == ImageCompositionOptions::ALPHA)
-                    bandAlpha = _warpedDS->GetRasterBand( band );
-                else if (color == ImageCompositionOptions::GRAY)
-                    bandGray = _warpedDS->GetRasterBand( band );
+                if (rBand != 0)
+                    bandRed = _warpedDS->GetRasterBand( rBand );
+                if (gBand != 0)
+                    bandGreen = _warpedDS->GetRasterBand( gBand );
+                if (bBand != 0)
+                    bandBlue = _warpedDS->GetRasterBand( bBand );
+                if (aBand != 0)
+                    bandAlpha = _warpedDS->GetRasterBand( aBand );
+            }
+
+            // case ImageComposition is defined in the options
+            else
+            {
+                for (ImageCompositionOptions::Channels::const_iterator i = _options.imageComposition()->_channels.begin();
+                     i != _options.imageComposition()->_channels.end(); ++i)
+                {
+                    const ImageCompositionOptions::ChannelCompositionOptions& channel = (*i).second;
+                    if (! channel._band.isSet())
+                    {
+                        OE_WARN << LC << "[ImageCompositionOptions] Band must be defined !\n";
+                        continue;
+                    }
+                    if (! channel._color.isSet())
+                    {
+                        OE_WARN << LC << "[ImageCompositionOptions] Color must be defined !\n";
+                        continue;
+                    }
+                    int band = *channel._band;
+                    if (band > _warpedDS->GetRasterCount() || band <= 0)
+                    {
+                        OE_WARN << LC << "[ImageCompositionOptions] Band not existing : " << band << "\n";
+                        continue;
+                    }
+
+                    ImageCompositionOptions::ColorChannel color = *channel._color;
+                    if (color == ImageCompositionOptions::RED)
+                        bandRed = _warpedDS->GetRasterBand( band );
+                    else if (color == ImageCompositionOptions::GREEN)
+                        bandGreen = _warpedDS->GetRasterBand( band );
+                    else if (color == ImageCompositionOptions::BLUE)
+                        bandBlue = _warpedDS->GetRasterBand( band );
+                    else if (color == ImageCompositionOptions::ALPHA)
+                        bandAlpha = _warpedDS->GetRasterBand( band );
+                    else if (color == ImageCompositionOptions::GRAY)
+                        bandGray = _warpedDS->GetRasterBand( band );
+                }
             }
         }
 
