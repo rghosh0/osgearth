@@ -33,6 +33,7 @@
 #include <osgEarth/Registry>
 #include <osgEarth/ThreadingUtils>
 #include <osgEarth/Utils>
+#include <osgEarth/MultiBandsInterface>
 
 #include <osg/CullFace>
 #include <osg/Depth>
@@ -221,7 +222,42 @@ struct SetupFading : public SceneGraphCallback {
 
 namespace {
 
+    void traceNode(const osg::Node& node, const std::string tab = "")
+    {
+        OE_WARN << tab << "[" << node.className() << "/" << node.getName() << "]" << "\n";
+        OE_WARN << tab << " |visible " << node.getNodeMask() << "\n";
+        OE_WARN << tab << " |refCount " << node.referenceCount() << "\n";
+        if (node.asGeometry())
+            OE_WARN << tab << " |numVertices " << node.asGeometry()->getVertexArray()->getNumElements() << "\n";
+        if (node.getStateSet())
+        {
+            for (auto uni : node.getStateSet()->getUniformList())
+                OE_WARN << tab << " |uniform " << uni.first << "\n";
+            const osg::Texture2D* tex = dynamic_cast<const osg::Texture2D*>( node.getStateSet()->getTextureAttribute(0, osg::StateAttribute::TEXTURE) );
+            if ( tex )
+            {
+                const osg::Image* image = tex->getImage();
+                if ( image )
+                {
+                    OE_WARN << tab << " |texture image with " << image->referenceCount() << " refCount\n";
+                }
+            }
+        }
+        if (node.asGroup() != nullptr)
+        {
+            OE_WARN << tab << " |numChildren " << node.asGroup()->getNumChildren() << "\n";
+            for (unsigned int i = 0; i < node.asGroup()->getNumChildren(); ++i)
+                traceNode(*node.asGroup()->getChild(i), tab + "    ");
+        }
+    }
+
+
     static osg::ref_ptr<osg::Geometry> _ellipsoidGeom;
+
+    // the unfiform to change the selected band
+    // must be "MultiBandRampColorFilter::uniform_name.c_str()"
+    // but we cant include osgearthutil as it creates a cyclic dependance
+    static const std::string _multiBand_uniform_name = "osgearthutil_u_channelRamp_";
 
     const char* imageVS =
         "#version " GLSL_VERSION_STR "\n"
@@ -258,26 +294,61 @@ namespace {
             return band >= _minBand && band <= _maxBand;
         }
 
+        int getChannelForBand(unsigned band) const
+        {
+            // hyp : bands are considered to in increasing order
+            int channel = band - _minBand;
+
+            return channel < 0 || channel > 3 ? 0 : channel;
+        }
+
         unsigned _minBand;
         unsigned _maxBand;
     };
 
+    struct GroupMultiBands : public osg::Group, public MultiBandsInterface
+    {
+        explicit GroupMultiBands(unsigned band = 0) : Group(), MultiBandsInterface (band) {}
+
+        virtual void setBand(unsigned band) override
+        {
+            if (band == _band)
+                return;
+
+            for (unsigned i = 0 ; i < getNumChildren() ; i++)
+            {
+                osg::Group* group = getChild(i)->asGroup();
+                osg::ref_ptr<BandsInformation> bandsInfo = static_cast<BandsInformation*>(group->getUserData());
+                bool isValid = bandsInfo.valid() && bandsInfo->isBandInRange(band);
+                group->setNodeMask( isValid ? ~0 : 0 );
+
+                if ( isValid && group->getStateSet() )
+                {
+                    osg::Uniform* uniform = group->getStateSet()->getUniform(_multiBand_uniform_name.c_str());
+                    if ( uniform )
+                        uniform->set(bandsInfo->getChannelForBand(band));
+                }
+            }
+            _band = band;
+        }
+    };
+
     struct BandsAnimation : public osg::NodeCallback
     {
+        osg::observer_ptr<osg::Group> _fmg;
+
+        BandsAnimation(osg::Group* fmg) : _fmg(fmg) {}
+
         void operator()(osg::Node* node, osg::NodeVisitor* nv)
         {
-            if (nv->getFrameStamp()->getFrameNumber() % 60 == 0)
+            if (nv->getFrameStamp()->getFrameNumber() % 30 == 0)
             {
                 static unsigned band = 1;
-                osg::Group* root = static_cast<osg::Group*>( node );
-                for (unsigned i = 0 ; i < root->getNumChildren() ; i++)
-                {
-                    osg::Group* group = static_cast<osg::Group*>( root->getChild(i) );
-                    osg::ref_ptr<BandsInformation> bandsInfo = static_cast<BandsInformation*>(group->getUserData());
-                    bool isValid = bandsInfo->isBandInRange(band);
-                    group->setNodeMask( isValid ? ~0 : 0 );
-                }
+                GroupMultiBands* root = static_cast<GroupMultiBands*>( node );
+                root->setBand(band);
                 band++;
+
+                traceNode( *(_fmg->getParent(0)->getParent(0)) );
             }
         }
     };
@@ -308,6 +379,7 @@ namespace {
 
         osg::Geometry* geom = new osg::Geometry();
         geom->setUseVertexBufferObjects(true);
+        OE_DEBUG << "[FeatureModelGraph] Build the sphere singleton for image overlay" << std::endl;
 
         int latSegments = 40;
         int lonSegments = 2 * latSegments;
@@ -409,6 +481,8 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
     if (! imageLayer->getTileSource() || ! imageLayer->getTileSource()->getBandsNumber(bandNumber) || key.hasBandsDefined() )
         return;
 
+    GroupMultiBands* groupMultiBands = new GroupMultiBands();
+
     unsigned defaultBand = _options.imageBand().getOrUse(0);
     TileKey keyTmp(key);
     keyTmp.setupNextAvailableBands(bandNumber);
@@ -420,18 +494,24 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
         osg::Node* pagedNode = createPagedNode( _rootBs, uri, 0.0f, _rootMaxRange, _options.layout().get(), _sgCallbacks.get(),
                     _defaultFileLocationCallback.get(), getSession()->getDBOptions(), this );
 
-        root->addChild( pagedNode );
+        groupMultiBands->addChild( pagedNode );
 
         osg::ref_ptr<BandsInformation> bandsInfo = new BandsInformation(keyTmp);
+        int channel = bandsInfo->getChannelForBand(defaultBand);
         pagedNode->setUserData( bandsInfo );
-        pagedNode->setNodeMask( bandsInfo->isBandInRange(defaultBand) ? ~0 : 0 );
+        pagedNode->setNodeMask( channel == 0 ? 0 : ~0 );
+
+        osg::Uniform* uniform = new osg::Uniform(osg::Uniform::INT, _multiBand_uniform_name.c_str());
+        pagedNode->getOrCreateStateSet()->addUniform(uniform, osg::StateAttribute::OVERRIDE);
+        uniform->set( channel );
 
         keyTmp.setupNextAvailableBands(bandNumber);
     }
 
     // test the animation of bands
-    // root->addUpdateCallback( new BandsAnimation() );
+    // groupMultiBands->addUpdateCallback( new BandsAnimation(this) );
 
+    root->addChild( groupMultiBands );
     OE_DEBUG << LC << "Setup " << root->getNumChildren() << " pagedLODs for managing " << bandNumber << " raster bands" << std::endl;
 }
 
@@ -824,7 +904,9 @@ osg::Node *FeatureModelGraph::setupPaging() {
     // bulid the top level node:
     osg::Node *topNode;
 
-    if (options().layout()->paged() == true) {
+    // build a PagedLOD if requested and if we are not embeding an image layer
+    // in the case of image layer, the pagedlod will be only created under the root node
+    if (options().layout()->paged() == true && ! getSession()->getImageLayer()) {
         topNode = createPagedNode(
                     _rootBs, uri, 0.0f, _rootMaxRange, _options.layout().get(), _sgCallbacks.get(),
                     _defaultFileLocationCallback.get(), getSession()->getDBOptions(), this);
@@ -903,6 +985,7 @@ osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
                 {
                     if (! key.hasBandsDefined() )
                     {
+                        OE_WARN << LC << "Build root PagedLOD for multiband layer" << std::endl;
                         geometry = _factory->getOrCreateStyleGroup(*_session->styles()->getDefaultStyle(), _session.get());
                         applyRenderSymbology(*_session->styles()->getDefaultStyle(), geometry);
                         setupRootSGForImage( geometry, _session->getImageLayer(), key );

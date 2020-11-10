@@ -113,9 +113,10 @@ ColorFilterRegistry::createOne(const Config& conf) const
 }
 
 
-void ColorFilter::installAsFunction( osg::StateSet* /**stateSet**/ ) const
+osg::Uniform* ColorFilter::installAsFunction(osg::StateSet* /**stateSet**/, bool /**uniqueUniform**/ ) const
 {
     OE_WARN << "[ColorFilter] installAsFunction() is not implemented but has been called!" << std::endl;
+    return nullptr;
 }
 
 

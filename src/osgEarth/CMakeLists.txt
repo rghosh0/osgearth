@@ -157,6 +157,7 @@ SET(LIB_PUBLIC_HEADERS
     Metrics
     ModelLayer
     ModelSource
+    MultiBandsInterface
     NativeProgramAdapter
     NodeUtils
     Notify

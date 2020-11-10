@@ -35,6 +35,9 @@ namespace osgEarth { namespace Util
     class OSGEARTHUTIL_EXPORT MultiBandRampColorFilter : public osgEarth::ColorFilter
     {
     public:
+        static const std::string uniform_name;
+
+    public:
 
         // Inner class for defining ramps
         class RampOptions : public ConfigOptions  // NO EXPORT; header only
@@ -85,11 +88,12 @@ namespace osgEarth { namespace Util
     public: // ColorFilter
         virtual std::string getEntryPointFunctionName(void) const;
         virtual void install(osg::StateSet* stateSet) const;
-        virtual void installAsFunction(osg::StateSet* stateSet) const;
+        virtual osg::Uniform* installAsFunction(osg::StateSet* stateSet, bool uniqueUniform = false) const;
         virtual Config getConfig() const;
 
     protected:
-        void installCodeAndUniforms (osg::StateSet* stateSet, std::string& entryPoint, std::string& code , bool installAsFunction = false) const;
+        osg::Uniform* installCodeAndUniforms (osg::StateSet* stateSet, std::string& entryPoint,std::string& code,
+                                              bool installAsFunction = false, bool uniqueUniform = false) const;
 
         unsigned m_instanceId;
         osg::ref_ptr<osg::Uniform> m_colorComponent;

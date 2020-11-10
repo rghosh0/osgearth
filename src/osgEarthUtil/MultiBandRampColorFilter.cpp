@@ -32,8 +32,6 @@ using namespace osgEarth::Util;
 
 namespace
 {
-    static OpenThreads::Atomic s_uniformNameGen;
-
     static const char* s_localShaderSourceFS =
         "#version " GLSL_VERSION_STR "\n"
         GLSL_DEFAULT_PRECISION_FLOAT "\n"
@@ -53,6 +51,10 @@ namespace
 
 #define FUNCTION_PREFIX_FS "osgearthutil_rampColorFilter_fs_"
 #define UNIFORM_PREFIX  "osgearthutil_u_channelRamp_"
+
+static OpenThreads::Atomic s_uniformNameGen;
+const std::string MultiBandRampColorFilter::uniform_name = UNIFORM_PREFIX;
+
 
 //---------------------------------------------------------------------------
 
@@ -99,24 +101,34 @@ void MultiBandRampColorFilter::install(osg::StateSet* stateSet) const
 }
 
 
-void MultiBandRampColorFilter::installAsFunction( osg::StateSet* stateSet ) const
+osg::Uniform* MultiBandRampColorFilter::installAsFunction(osg::StateSet* stateSet, bool uniqueUniform) const
 {
     std::string entryPoint, code;
-    installCodeAndUniforms( stateSet, entryPoint, code, true );
+    osg::Uniform* uniform = installCodeAndUniforms( stateSet, entryPoint, code, true, uniqueUniform );
     osgEarth::VirtualProgram* vp = dynamic_cast<osgEarth::VirtualProgram*>(stateSet->getAttribute(VirtualProgram::SA_TYPE));
     installVP( vp, entryPoint, code, true );
+    return uniform;
 }
 
 
-void MultiBandRampColorFilter::installCodeAndUniforms(osg::StateSet* stateSet, std::string& entryPoint, std::string& code, bool installAsFunction) const
+osg::Uniform* MultiBandRampColorFilter::installCodeAndUniforms(osg::StateSet* stateSet, std::string& entryPoint, std::string& code,
+                                                               bool installAsFunction, bool uniqueUniform) const
 {
     unsigned instanceId = m_instanceId;
     osg::ref_ptr<osg::Uniform> colorComponent;
     if (installAsFunction)
     {
-        instanceId = (++s_uniformNameGen) - 1;
-        colorComponent = new osg::Uniform(osg::Uniform::INT, (osgEarth::Stringify() << UNIFORM_PREFIX << instanceId)) ;
-        colorComponent->set(0);//red
+        if (! uniqueUniform)
+        {
+            colorComponent = new osg::Uniform(osg::Uniform::INT, (osgEarth::Stringify() << UNIFORM_PREFIX));
+            colorComponent->set(0);//red
+        }
+        else
+        {
+            instanceId = (++s_uniformNameGen) - 1;
+            colorComponent = new osg::Uniform(osg::Uniform::INT, (osgEarth::Stringify() << UNIFORM_PREFIX << instanceId));
+            colorComponent->set(0);//red
+        }
     }
     else
     {
@@ -168,6 +180,8 @@ void MultiBandRampColorFilter::installCodeAndUniforms(osg::StateSet* stateSet, s
         osgEarth::replaceIn(code, "__CONST_DEF__", constDefCode);
         osgEarth::replaceIn(code, "__RAMP_CODE__", rampCode);
     }
+
+    return colorComponent.get();
 }
 
 

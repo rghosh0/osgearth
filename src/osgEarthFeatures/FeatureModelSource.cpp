@@ -282,9 +282,13 @@ FeatureModelSource::initialize(const osgDB::Options* readOptions)
         _imageLayer->setReadOptions(_readOptions);
         Status status = _imageLayer->open();
         if (status.isOK())
+        {
             OE_DEBUG << LC << "Successfull open of an embeded Image Layer" << std::endl;
+        }
         else
+        {
             return Status::Error(Status::ServiceUnavailable, "Failed to open an embeded Image Layer");
+        }
     }
 
     if (!_features.valid())

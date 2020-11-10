@@ -1748,127 +1748,161 @@ public:
         GLenum pixelFormat = GL_RGBA;
 
 
-        if (bandRed && bandGreen && bandBlue)
+        // Case RGBA must be extracted from different bands
+        if ( isImageEmbededInFeature )
         {
-            if ( (isChannelBandComposition || isCoverage) && bandAlpha )
+            // at least the red band must be defined
+            if (! bandRed)
+                return nullptr;
+
+            // get the data types and assume it is the same for all bands
+            GDALDataCoverage dataCoverage(bandRed, this);
+
+            // Create an un-normalized luminance image to hold coverage values.
+            image = new osg::Image();
+
+            image->allocateImage( target_width, target_height, 1, GL_RGBA, GL_FLOAT );
+            image->setInternalTextureFormat( GL_RGBA16F_ARB );
+            ImageUtils::markAsUnNormalized( image.get(), true );
+            memset(image->data(), 0, image->getImageSizeInBytes());
+
+            ImageUtils::PixelWriter write(image.get());
+            osg::Vec4 temp;
+
+            // init the coverage data structure
+            unsigned char *red = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
+            memset(red, 0, target_width * target_height * dataCoverage.gdalSampleSize);
+            unsigned char *green = nullptr;
+            if ( bandGreen )
             {
-                // get the data types and assume it is the same for all bands
-                GDALDataCoverage dataCoverage(bandRed, this);
-
-                // Create an un-normalized luminance image to hold coverage values.
-                image = new osg::Image();
-
-                image->allocateImage( target_width, target_height, 1, GL_RGBA, GL_FLOAT );
-                image->setInternalTextureFormat( GL_RGBA16F_ARB );
-                ImageUtils::markAsUnNormalized( image.get(), true );
-                memset(image->data(), 0, image->getImageSizeInBytes());
-
-                ImageUtils::PixelWriter write(image.get());
-                osg::Vec4 temp;
-
-                // init the coverage data structure
-                unsigned char *red = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
-                unsigned char *green = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
-                unsigned char *blue = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
-                unsigned char *alpha = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
-                memset(red, 0, target_width * target_height * dataCoverage.gdalSampleSize);
+                green = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
                 memset(green, 0, target_width * target_height * dataCoverage.gdalSampleSize);
-                memset(blue, 0, target_width * target_height * dataCoverage.gdalSampleSize);
-                memset(alpha, 0, target_width * target_height * dataCoverage.gdalSampleSize);
-
-                bool readSuccess = rasterIO(bandRed, GF_Read, off_x, off_y, width, height, red, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
-                readSuccess &= rasterIO(bandGreen, GF_Read, off_x, off_y, width, height, green, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
-                readSuccess &= rasterIO(bandBlue, GF_Read, off_x, off_y, width, height, blue, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
-                readSuccess &= rasterIO(bandAlpha, GF_Read, off_x, off_y, width, height, alpha, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
-
-                if (readSuccess)
-                {
-                    // copy from data to image.
-                    for (int src_row = 0, dst_row = tile_offset_top; src_row < target_height; src_row++, dst_row++)
-                    {
-                        for (int src_col = 0, dst_col = tile_offset_left; src_col < target_width; ++src_col, ++dst_col)
-                        {
-                            unsigned char* r = &red[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-                            unsigned char* g = &green[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-                            unsigned char* b = &blue[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-                            unsigned char* a = &alpha[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-
-                            temp.r() = dataCoverage.extractFloat(r);
-                            temp.g() = dataCoverage.extractFloat(g);
-                            temp.b() = dataCoverage.extractFloat(b);
-                            temp.a() = dataCoverage.extractFloat(a);
-
-                            write(temp, dst_col, dst_row);
-                        }
-                    }
-
-                    // TODO: can we replace this by writing rows in reverse order? -gw
-                    image->flipVertical();
-                }
-
-                delete []red;
-                delete []green;
-                delete []blue;
-                delete []alpha;
-            } // end red green blue is defined and coverage
-
-            // mulichannel image (not a coverage)
-            else
-            {
-                unsigned char *red = new unsigned char[target_width * target_height];
-                unsigned char *green = new unsigned char[target_width * target_height];
-                unsigned char *blue = new unsigned char[target_width * target_height];
-                unsigned char *alpha = new unsigned char[target_width * target_height];
-
-                //Initialize the alpha values to 255.
-                memset(alpha, 255, target_width * target_height);
-
-                image = new osg::Image;
-                image->allocateImage(tileSize, tileSize, 1, pixelFormat, GL_UNSIGNED_BYTE);
-                memset(image->data(), 0, image->getImageSizeInBytes());
-
-                rasterIO(bandRed, GF_Read, off_x, off_y, width, height, red, target_width, target_height, GDT_Byte, 0, 0, *_options.interpolation());
-                rasterIO(bandGreen, GF_Read, off_x, off_y, width, height, green, target_width, target_height, GDT_Byte, 0, 0, *_options.interpolation());
-                rasterIO(bandBlue, GF_Read, off_x, off_y, width, height, blue, target_width, target_height, GDT_Byte, 0, 0, *_options.interpolation());
-
-                if (bandAlpha)
-                {
-                    rasterIO(bandAlpha, GF_Read, off_x, off_y, width, height, alpha, target_width, target_height, GDT_Byte, 0, 0, *_options.interpolation());
-                }
-
-                for (int src_row = 0, dst_row = tile_offset_top;
-                     src_row < target_height;
-                     src_row++, dst_row++)
-                {
-                    for (int src_col = 0, dst_col = tile_offset_left;
-                         src_col < target_width;
-                         ++src_col, ++dst_col)
-                    {
-                        unsigned char r = red[src_col + src_row * target_width];
-                        unsigned char g = green[src_col + src_row * target_width];
-                        unsigned char b = blue[src_col + src_row * target_width];
-                        unsigned char a = alpha[src_col + src_row * target_width];
-                        *(image->data(dst_col, dst_row) + 0) = r;
-                        *(image->data(dst_col, dst_row) + 1) = g;
-                        *(image->data(dst_col, dst_row) + 2) = b;
-                        if (!isValidValue(r, bandRed) ||
-                                !isValidValue(g, bandGreen) ||
-                                !isValidValue(b, bandBlue) ||
-                                (bandAlpha && !isValidValue(a, bandAlpha)))
-                        {
-                            a = 0.0f;
-                        }
-                        *(image->data(dst_col, dst_row) + 3) = a;
-                    }
-                }
-
-                image->flipVertical();
-
-                delete []red;
-                delete []green;
-                delete []blue;
-                delete []alpha;
             }
+            unsigned char *blue = nullptr;
+            if ( bandBlue )
+            {
+                blue = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
+                memset(blue, 0, target_width * target_height * dataCoverage.gdalSampleSize);
+            }
+            unsigned char *alpha = nullptr;
+            if ( bandAlpha )
+            {
+                alpha = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
+                memset(alpha, 0, target_width * target_height * dataCoverage.gdalSampleSize);
+            }
+
+            bool readSuccess = rasterIO(bandRed, GF_Read, off_x, off_y, width, height, red, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
+            readSuccess &= !bandGreen || rasterIO(bandGreen, GF_Read, off_x, off_y, width, height, green, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
+            readSuccess &= !bandBlue || rasterIO(bandBlue, GF_Read, off_x, off_y, width, height, blue, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
+            readSuccess &= !bandAlpha || rasterIO(bandAlpha, GF_Read, off_x, off_y, width, height, alpha, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
+
+            if (readSuccess)
+            {
+                // copy from data to image.
+                for (int src_row = 0, dst_row = tile_offset_top+target_height-1; src_row < target_height; src_row++, dst_row--)
+                {
+                    for (int src_col = 0, dst_col = tile_offset_left; src_col < target_width; ++src_col, ++dst_col)
+                    {
+                        //red
+                        unsigned char* r = &red[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
+                        temp.r() = dataCoverage.extractFloat(r);
+                        //green
+                        if ( bandGreen )
+                        {
+                            unsigned char* g = &green[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
+                            temp.g() = dataCoverage.extractFloat(g);
+                        }
+                        else
+                        {
+                            temp.g() = 0.f;
+                        }
+                        //blue
+                        if ( bandBlue )
+                        {
+                            unsigned char* b = &blue[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
+                            temp.b() = dataCoverage.extractFloat(b);
+                        }
+                        else
+                        {
+                            temp.b() = 0.f;
+                        }
+                        //alpha
+                        if ( bandAlpha )
+                        {
+                            unsigned char* a = &alpha[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
+                            temp.a() = dataCoverage.extractFloat(a);
+                        }
+                        else
+                        {
+                            temp.a() = 0.f;
+                        }
+
+                        write(temp, dst_col, dst_row);
+                    }
+                }
+            }
+
+            delete []red;
+            delete []green;
+            delete []blue;
+            delete []alpha;
+        } // end red green blue is defined and coverage
+
+        else if (bandRed && bandGreen && bandBlue)
+        {
+            unsigned char *red = new unsigned char[target_width * target_height];
+            unsigned char *green = new unsigned char[target_width * target_height];
+            unsigned char *blue = new unsigned char[target_width * target_height];
+            unsigned char *alpha = new unsigned char[target_width * target_height];
+
+            //Initialize the alpha values to 255.
+            memset(alpha, 255, target_width * target_height);
+
+            image = new osg::Image;
+            image->allocateImage(tileSize, tileSize, 1, pixelFormat, GL_UNSIGNED_BYTE);
+            memset(image->data(), 0, image->getImageSizeInBytes());
+
+            rasterIO(bandRed, GF_Read, off_x, off_y, width, height, red, target_width, target_height, GDT_Byte, 0, 0, *_options.interpolation());
+            rasterIO(bandGreen, GF_Read, off_x, off_y, width, height, green, target_width, target_height, GDT_Byte, 0, 0, *_options.interpolation());
+            rasterIO(bandBlue, GF_Read, off_x, off_y, width, height, blue, target_width, target_height, GDT_Byte, 0, 0, *_options.interpolation());
+
+            if (bandAlpha)
+            {
+                rasterIO(bandAlpha, GF_Read, off_x, off_y, width, height, alpha, target_width, target_height, GDT_Byte, 0, 0, *_options.interpolation());
+            }
+
+            for (int src_row = 0, dst_row = tile_offset_top;
+                 src_row < target_height;
+                 src_row++, dst_row++)
+            {
+                for (int src_col = 0, dst_col = tile_offset_left;
+                     src_col < target_width;
+                     ++src_col, ++dst_col)
+                {
+                    unsigned char r = red[src_col + src_row * target_width];
+                    unsigned char g = green[src_col + src_row * target_width];
+                    unsigned char b = blue[src_col + src_row * target_width];
+                    unsigned char a = alpha[src_col + src_row * target_width];
+                    *(image->data(dst_col, dst_row) + 0) = r;
+                    *(image->data(dst_col, dst_row) + 1) = g;
+                    *(image->data(dst_col, dst_row) + 2) = b;
+                    if (!isValidValue(r, bandRed) ||
+                            !isValidValue(g, bandGreen) ||
+                            !isValidValue(b, bandBlue) ||
+                            (bandAlpha && !isValidValue(a, bandAlpha)))
+                    {
+                        a = 0.0f;
+                    }
+                    *(image->data(dst_col, dst_row) + 3) = a;
+                }
+            }
+
+            image->flipVertical();
+
+            delete []red;
+            delete []green;
+            delete []blue;
+            delete []alpha;
         }
 
         else if (bandGray)
@@ -2068,14 +2102,16 @@ public:
         return image.release();
     }
 
+    float bandNoData = -32767.0f;
+    bool bandNoData_isDef = false;
     bool isValidValue_noLock(float v, GDALRasterBand* band)
     {
-        float bandNoData = -32767.0f;
-        int success;
-        float value = band->GetNoDataValue(&success);
-        if (success)
+        if(! bandNoData_isDef)
         {
-            bandNoData = value;
+            int success;
+            float value = band->GetNoDataValue(&success);
+            if (success) bandNoData = value;
+            bandNoData_isDef = true;
         }
 
         //Check to see if the value is equal to the bands specified no data
