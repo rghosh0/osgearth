@@ -1,0 +1,190 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
+* http://osgearth.org
+*
+* osgEarth is free software; you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>
+*/
+#ifndef OSGEARTH_IMAGE_COMPOSITION_OPTIONS_H
+#define OSGEARTH_IMAGE_COMPOSITION_OPTIONS_H 1
+
+#include <osgEarth/Common>
+#include <osgEarth/Config>
+#include <vector>
+#include <map>
+
+
+namespace osgEarth
+{
+
+    using namespace osgEarth;
+
+    /**
+     * Configuration for defining the composition of an image from multiple bands
+     */
+    class ImageCompositionOptions : public ConfigOptions  // NO EXPORT; header only
+    {
+    public:
+        enum ColorChannel
+        {
+            RED,
+            GREEN,
+            BLUE,
+            ALPHA,
+            GRAY
+        };
+
+    public:
+        // Inner class for defining the link between one color and one band
+        class ChannelCompositionOptions : public ConfigOptions  // NO EXPORT; header only
+        {
+        public:
+            ChannelCompositionOptions( ColorChannel color, int band )
+                : _color(color), _band(band)
+            {
+            }
+
+            ChannelCompositionOptions( const ConfigOptions& options = ConfigOptions() )
+                : ConfigOptions          ( options )
+            {
+                fromConfig(_conf);
+            }
+
+            Config getConfig() const
+            {
+                Config conf( "channel" );
+                conf.set( "band", _band );
+
+                if ( _color.isSet() )
+                {
+                    if ( _color.value() == RED )        conf.set( "color", "red" );
+                    else if ( _color.value() == GREEN ) conf.set( "color", "green" );
+                    else if ( _color.value() == BLUE )  conf.set( "color", "blue" );
+                    else if ( _color.value() == ALPHA ) conf.set( "color", "alpha" );
+                    else if ( _color.value() == GRAY )  conf.set( "color", "gray" );
+                }
+                return conf;
+            }
+
+            void mergeConfig( const Config& conf )
+            {
+                ConfigOptions::mergeConfig( conf );
+                fromConfig( conf );
+            }
+
+            void fromConfig( const Config& conf )
+            {
+                conf.get( "band", _band );
+                std::string color = conf.value( "color" );
+                if ( color == "red" )        _color = RED;
+                else if ( color == "green" ) _color = GREEN;
+                else if ( color == "blue" )  _color = BLUE;
+                else if ( color == "alpha")  _color = ALPHA;
+                else if ( color == "gray")   _color = GRAY;
+            }
+
+            optional<ColorChannel>   _color;
+            optional<int>            _band;
+        }; // end class ChannelCompositionOptions
+
+//------------------------------------------------------------------------
+
+        typedef std::multimap<ColorChannel, ChannelCompositionOptions> Channels;
+        Channels _channels;
+
+//------------------------------------------------------------------------
+
+        //! Construct from serialized config options
+        ImageCompositionOptions( const ConfigOptions& options = ConfigOptions() )
+            : ConfigOptions          ( options )
+        {
+            fromConfig(_conf);
+        }
+
+        /** dtor */
+        virtual ~ImageCompositionOptions() { }
+
+        void addChannel(const ChannelCompositionOptions &channel)
+        {
+            if (channel._band.isSet() && channel._color.isSet())
+                _channels.insert(std::make_pair(*channel._color, channel));
+        }
+
+        void clearChannels(const ChannelCompositionOptions &channel)
+        {
+            _channels.clear();
+        }
+
+        /** Gets the nth channel */
+        const Channels &getChannelList() const { return _channels; }
+
+        /** Gets the bands list to use for RGBA components */
+        std::vector<int> getBandsForRGBA() const
+        {
+            std::vector<int> rgba;
+
+            Channels::const_iterator it = _channels.find(RED);
+            if (it == _channels.end())
+                return rgba;
+            rgba.push_back(it->second._band.get());
+
+            it = _channels.find(GREEN);
+            if (it == _channels.end())
+                return rgba;
+            rgba.push_back(it->second._band.get());
+
+            it = _channels.find(BLUE);
+            if (it == _channels.end())
+            {
+                rgba.clear();
+                return rgba;
+            }
+            rgba.push_back(it->second._band.get());
+
+            it = _channels.find(ALPHA);
+            if (it == _channels.end())
+            {
+                rgba.clear();
+                return rgba;
+            }
+            rgba.push_back(it->second._band.get());
+
+            return rgba;
+        }
+
+        Config getConfig() const
+        {
+            Config conf( "image_composition" );
+            for (Channels::const_iterator i = _channels.begin(); i != _channels.end(); ++i)
+                conf.add(i->second.getConfig());
+            return conf;
+        }
+
+        void fromConfig(const Config &conf)
+        {
+            ConfigSet children = conf.children("channel");
+            for (ConfigSet::const_iterator i = children.begin(); i != children.end(); ++i)
+                addChannel(ChannelCompositionOptions(*i));
+        }
+
+    };
+
+} // namespace osgEarth
+
+OSGEARTH_SPECIALIZE_CONFIG(osgEarth::ImageCompositionOptions);
+
+#endif // OSGEARTH_IMAGE_COMPOSITION_OPTIONS_H

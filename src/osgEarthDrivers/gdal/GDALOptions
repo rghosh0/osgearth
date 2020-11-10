@@ -23,6 +23,7 @@
 #include <osgEarth/TileSource>
 #include <osgEarth/GeoCommon>
 #include <osgEarth/URI>
+#include <osgEarth/ImageCompositionOptions>
 
 // forward-declare GDAL type
 class GDALDataset;
@@ -182,15 +183,15 @@ namespace osgEarth { namespace Drivers
             _externalDataset = conf.getNonSerializable<ExternalDataset>( "GDALOptions::ExternalDataset" );
         }
 
-        optional<URI>                    _url;
-        optional<std::string>            _connection;
-        optional<std::string>            _extensions;
-        optional<std::string>            _blackExtensions;
-        optional<ElevationInterpolation> _interpolation;
-        optional<unsigned int>           _maxDataLevelOverride;
-        optional<unsigned int>           _subDataSet;
-        optional<ProfileOptions>         _warpProfile;
-        osg::ref_ptr<ExternalDataset>    _externalDataset;
+        optional<URI>                     _url;
+        optional<std::string>             _connection;
+        optional<std::string>             _extensions;
+        optional<std::string>             _blackExtensions;
+        optional<ElevationInterpolation>  _interpolation;
+        optional<unsigned int>            _maxDataLevelOverride;
+        optional<unsigned int>            _subDataSet;
+        optional<ProfileOptions>          _warpProfile;
+        osg::ref_ptr<ExternalDataset>     _externalDataset;
     };
 
 } } // namespace osgEarth::Drivers

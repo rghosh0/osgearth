@@ -122,6 +122,7 @@ SET(LIB_PUBLIC_HEADERS
     Horizon
     HorizonClipPlane
     HTTPClient
+    ImageCompositionOptions
     ImageLayer
     ImageMosaic
     ImageToHeightFieldConverter
@@ -156,6 +157,7 @@ SET(LIB_PUBLIC_HEADERS
     Metrics
     ModelLayer
     ModelSource
+    MultiBandsInterface
     NativeProgramAdapter
     NodeUtils
     Notify

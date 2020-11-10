@@ -1,0 +1,45 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
+* http://osgearth.org
+*
+* osgEarth is free software; you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>
+*/
+
+#ifndef OSGEARTH_MULTIBANDS_INTERFACE_H
+#define OSGEARTH_MULTIBANDS_INTERFACE_H 1
+
+namespace osgEarth
+{  
+    /**
+     * @brief The MultiBandsInterface is an interface for managing object which can handle many bands
+     */
+    struct MultiBandsInterface
+    {
+    public:
+        explicit MultiBandsInterface(unsigned band = 0) : _band (band) {}
+
+        virtual void setBand(unsigned band) = 0;
+        unsigned getBand() { return _band; }
+
+    protected:
+        unsigned _band{0};
+    };
+
+}
+
+#endif // OSGEARTH_MULTIBANDS_INTERFACE_H

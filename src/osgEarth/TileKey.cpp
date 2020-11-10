@@ -47,23 +47,43 @@ TileKey::TileKey(unsigned int lod, unsigned int tile_x, unsigned int tile_y, con
         _extent = GeoExtent( _profile->getSRS(), xmin, ymin, xmax, ymax );
 
         _key = Stringify() << _lod << "/" << _x << "/" << _y;
+        setBands( 0, 0, 0, 0);
     }
     else
     {
         _extent = GeoExtent::INVALID;
         _key = "invalid";
+        _keyFull = "invalid";
     }
 }
 
 TileKey::TileKey( const TileKey& rhs ) :
 _key( rhs._key ),
+_keyFull( rhs._keyFull ),
 _lod(rhs._lod),
 _x(rhs._x),
 _y(rhs._y),
+_rBand(rhs._rBand),
+_gBand(rhs._gBand),
+_bBand(rhs._bBand),
+_aBand(rhs._aBand),
 _profile( rhs._profile.get() ),
 _extent( rhs._extent )
 {
     //NOP
+}
+
+
+void
+TileKey::setBands( unsigned int rBand, unsigned int gBand, unsigned int bBand, unsigned int aBand )
+{
+    _rBand = rBand;
+    _gBand = gBand;
+    _bBand = bBand;
+    _aBand = aBand;
+
+    _keyFull = Stringify() << _lod << "/" << _x << "/" << _y << "/"
+                       << _rBand << "/" << _gBand << "/" << _bBand << "/" << _aBand;
 }
 
 const Profile*
@@ -78,6 +98,19 @@ TileKey::getTileXY(unsigned int& out_tile_x,
 {
     out_tile_x = _x;
     out_tile_y = _y;
+}
+
+void
+TileKey::getTileRGBA(
+    unsigned int& out_tile_r_band,
+    unsigned int& out_tile_g_band,
+    unsigned int& out_tile_b_band,
+    unsigned int& out_tile_a_band) const
+{
+    out_tile_r_band = _rBand;
+    out_tile_g_band = _gBand;
+    out_tile_b_band = _bBand;
+    out_tile_a_band = _aBand;
 }
 
 unsigned
@@ -129,6 +162,16 @@ TileKey::createChildKey( unsigned int quadrant ) const
     return TileKey( lod, x, y, _profile.get());
 }
 
+void
+TileKey::setupNextAvailableBands( int nbBands )
+{
+    // band 'a' is considered the last used band
+    unsigned int maxMinOne = nbBands - 1;
+    _rBand = _aBand < maxMinOne ? _aBand+1 : 0;
+    _gBand = _rBand < maxMinOne ? _rBand+1 : 0;
+    _bBand = _gBand < maxMinOne ? _gBand+1 : 0;
+    _aBand = _bBand < maxMinOne ? _bBand+1 : 0;
+}
 
 TileKey
 TileKey::createParentKey() const
