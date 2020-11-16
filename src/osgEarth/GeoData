@@ -467,6 +467,11 @@ namespace osgEarth
         Bounds bounds() const;
 
         /**
+         * The original extent before any clamping computations
+         */
+        const Bounds& originalBounds() const { return _originalBounds; };
+
+        /**
          * Gets a geo circle bounding this extent.
          */
         GeoCircle computeBoundingGeoCircle() const;
@@ -543,6 +548,7 @@ namespace osgEarth
     private:
         osg::ref_ptr<const SpatialReference> _srs;
         double _west, _width, _south, _height;
+        Bounds _originalBounds;
 
         double normalizeX( double longitude ) const;
 

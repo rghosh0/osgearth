@@ -722,9 +722,9 @@ _srs(rhs._srs),
 _west(rhs._west),
 _width(rhs._width),
 _south(rhs._south),
-_height(rhs._height)
+_height(rhs._height),
+_originalBounds(rhs._originalBounds)
 {
-    //NOP
 }
 
 bool
@@ -774,6 +774,7 @@ GeoExtent::setOriginAndSize(double west, double south, double width, double heig
     _south = south;
     _width = width;
     _height = height;
+
     clamp();
 }
 
@@ -1355,6 +1356,9 @@ GeoExtent::expand(double x, double y)
 void
 GeoExtent::clamp()
 {
+    // Store original extent
+    _originalBounds.set(_west, _south, _west+_width, _south+_height);
+
     if (osg::equivalent(_west, floor(_west)))
         _west = floor(_west);
     else if (osg::equivalent(_west, ceil(_west)))
