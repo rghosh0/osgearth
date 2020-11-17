@@ -361,7 +361,7 @@ namespace {
     // the extend used by the sphere texture cooordinates
     // s coordinate will wrap [0;1] to [-0.125;359.875]
     // t coordinate will wrap [0;1] to [-90.125;90.125]
-    const osg::ref_ptr<const Profile> sphereProfile = Profile::create(SpatialReference::create("wgs84"), -0.125, -90., 359.875, 90.);
+    static const osg::ref_ptr<const Profile> sphereProfile = Profile::create(SpatialReference::create("wgs84"), -0.125, -90., 359.875, 90.);
 
     // constucts an ellipsoidal mesh to support the imagelayer
     osg::Geode* s_makeEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid)
