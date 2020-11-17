@@ -252,7 +252,7 @@ namespace {
     }
 
 
-    static osg::ref_ptr<osg::Geometry> _ellipsoidGeom;
+    static osg::ref_ptr<osg::Geode> _ellipsoidGeom;
 
     // the unfiform to change the selected band
     // must be "MultiBandRampColorFilter::uniform_name.c_str()"
@@ -304,7 +304,7 @@ namespace {
             // hyp : bands are considered to in increasing order
             int channel = band - _minBand;
 
-            return channel < 0 || channel > 3 ? 0 : channel;
+            return (channel < 0 || channel > 3) ? -1 : channel;
         }
 
         unsigned _minBand;
@@ -364,7 +364,7 @@ namespace {
     const osg::ref_ptr<const Profile> sphereProfile = Profile::create(SpatialReference::create("wgs84"), -0.125, -90., 359.875, 90.);
 
     // constucts an ellipsoidal mesh to support the imagelayer
-    osg::Geometry* s_makeEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid)
+    osg::Geode* s_makeEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid)
     {
         double outerRadius = ellipsoid->getRadiusEquator();
         double hae = outerRadius - ellipsoid->getRadiusPolar();
@@ -433,12 +433,15 @@ namespace {
         geom->setVertexArray( verts );
         geom->addPrimitiveSet( el );
 
-        return geom;
+        osg::Geode* geode = new osg::Geode();
+        geode->addDrawable(geom);
+
+        return geode;
     }
 
     // ensure to share the sphere geometry between all FMG instances
     // TODO We must implement one mesh per ellipsoid model and image profile
-    osg::Geometry* s_getOrCreateEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid)
+    osg::Geode* s_getOrCreateEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid)
     {
         if (! _ellipsoidGeom.valid() )
         {
@@ -480,11 +483,20 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
         osg::ref_ptr<BandsInformation> bandsInfo = new BandsInformation(keyTmp);
         int channel = bandsInfo->getChannelForBand(defaultBand);
         pagedNode->setUserData( bandsInfo );
-        pagedNode->setNodeMask( channel == 0 ? 0 : ~0 );
 
         osg::Uniform* uniform = new osg::Uniform(osg::Uniform::INT, _multiBand_uniform_name.c_str());
         pagedNode->getOrCreateStateSet()->addUniform(uniform, osg::StateAttribute::OVERRIDE);
-        uniform->set( channel );
+
+        if ( channel == -1 )
+        {
+            uniform->set(0);
+            pagedNode->setNodeMask(0);
+        }
+        else
+        {
+            uniform->set(channel);
+            pagedNode->setNodeMask(~0);
+        }
 
         keyTmp.setupNextAvailableBands(bandNumber);
     }
@@ -538,7 +550,7 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
             colorFilter->installAsFunction( bandsGroup->getOrCreateStateSet() );
 
         osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageProfile->getSRS()->getEllipsoid();
-        osg::Geometry* sphere = s_getOrCreateEllipsoidGeometry(ellipsoidModel.get());
+        osg::Geode* sphere = s_getOrCreateEllipsoidGeometry(ellipsoidModel.get());
 
         bandsGroup->addChild(sphere);
         return bandsGroup;
