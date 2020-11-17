@@ -165,12 +165,22 @@ TileKey::createChildKey( unsigned int quadrant ) const
 void
 TileKey::setupNextAvailableBands( int nbBands )
 {
+    // check if last band is used
+    unsigned int uNbBands = static_cast<unsigned int>(nbBands);
+    if ( _rBand == uNbBands || _gBand == uNbBands || _bBand == uNbBands || _aBand == uNbBands)
+    {
+        setBands( 0, 0, 0, 0);
+    }
+
     // band 'a' is considered the last used band
-    unsigned int maxMinOne = nbBands - 1;
-    _rBand = _aBand < maxMinOne ? _aBand+1 : 0;
-    _gBand = _rBand < maxMinOne ? _rBand+1 : 0;
-    _bBand = _gBand < maxMinOne ? _gBand+1 : 0;
-    _aBand = _bBand < maxMinOne ? _bBand+1 : 0;
+    else
+    {
+        unsigned int rBand = _aBand < uNbBands ? _aBand+1 : 0;
+        unsigned int gBand = rBand < uNbBands && rBand != 0 ? rBand+1 : 0;
+        unsigned int bBand = gBand < uNbBands && gBand != 0 ? gBand+1 : 0;
+        unsigned int aBand = bBand < uNbBands && bBand != 0 ? bBand+1 : 0;
+        setBands( rBand, gBand, bBand, aBand);
+    }
 }
 
 TileKey
