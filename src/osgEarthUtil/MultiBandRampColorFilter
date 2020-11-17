@@ -89,6 +89,7 @@ namespace osgEarth { namespace Util
         virtual std::string getEntryPointFunctionName(void) const;
         virtual void install(osg::StateSet* stateSet) const;
         virtual osg::Uniform* installAsFunction(osg::StateSet* stateSet, bool uniqueUniform = false) const;
+        virtual void mergeInShader(std::string& shaderCode, const std::string& uniformName, const std::string& extractValueCode="") const;
         virtual Config getConfig() const;
 
     protected:

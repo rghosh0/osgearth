@@ -252,12 +252,16 @@ namespace {
     }
 
 
+    // the extend used by the sphere texture cooordinates
+    // s coordinate will wrap [0;1] to [-0.125;359.875]
+    // t coordinate will wrap [0;1] to [-90.125;90.125]
+    static osg::ref_ptr<const Profile> sphereProfile;
     static osg::ref_ptr<osg::Geode> _ellipsoidGeom;
 
-    // the unfiform to change the selected band
+    // the uniform to change the selected band
     // must be "MultiBandRampColorFilter::uniform_name.c_str()"
     // but we cant include osgearthutil as it creates a cyclic dependance
-    static const std::string _multiBand_uniform_name = "osgearthutil_u_channelRamp_";
+    const std::string _multiBand_uniform_name = "osgearthutil_u_channelRamp_";
 
     const char* imageVS =
         "#version " GLSL_VERSION_STR "\n"
@@ -271,6 +275,9 @@ namespace {
         "#version " GLSL_VERSION_STR "\n"
         GLSL_DEFAULT_PRECISION_FLOAT "\n"
         "in vec2 imageBinding_texcoord; \n"
+
+        "__VAR_DEF__"
+
         "uniform sampler2D image_tex; \n"
         "uniform vec2 image_origin; \n"
         "uniform vec2 image_scale; \n"
@@ -279,7 +286,10 @@ namespace {
         "    if (texCoord.s < 0. || texCoord.s > 1. || texCoord.t < 0. || texCoord.t > 1.) \n"
         "        discard; \n"
         "    else \n"
-        "        color = texture(image_tex, texCoord); \n"
+        "    { \n"
+        "        __BODY_CODE__"
+        "        //color = vec4(texture(image_tex, texCoord).g, 0., 0., 1.); \n"
+        "    } \n"
         "} \n";
 
     struct BandsInformation : public osg::Referenced
@@ -333,6 +343,10 @@ namespace {
                     if ( uniform )
                         uniform->set(bandsInfo->getChannelForBand(band));
                 }
+                else
+                {
+                    group->removeChildren(0, group->getNumChildren());
+                }
             }
             _band = band;
         }
@@ -358,17 +372,11 @@ namespace {
         }
     };
 
-    // the extend used by the sphere texture cooordinates
-    // s coordinate will wrap [0;1] to [-0.125;359.875]
-    // t coordinate will wrap [0;1] to [-90.125;90.125]
-    static const osg::ref_ptr<const Profile> sphereProfile = Profile::create(SpatialReference::create("wgs84"), -0.125, -90., 359.875, 90.);
-
     // constucts an ellipsoidal mesh to support the imagelayer
-    osg::Geode* s_makeEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid)
+    osg::Geode* s_makeEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid, double startX)
     {
         double outerRadius = ellipsoid->getRadiusEquator();
         double hae = outerRadius - ellipsoid->getRadiusPolar();
-        double startX = sphereProfile->getExtent().xMin();
 
         osg::Geometry* geom = new osg::Geometry();
         geom->setUseVertexBufferObjects(true);
@@ -443,13 +451,17 @@ namespace {
     // TODO We must implement one mesh per ellipsoid model and image profile
     osg::Geode* s_getOrCreateEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid)
     {
-        if (! _ellipsoidGeom.valid() )
+        if (! _ellipsoidGeom.valid() || ! sphereProfile.valid())
         {
             static Threading::Mutex mutex;
             mutex.lock();
+            if (! sphereProfile.valid())
+            {
+                sphereProfile = Profile::create(SpatialReference::create("wgs84"), -0.125, -90., 359.875, 90.);
+            }
             if (! _ellipsoidGeom.valid())
             {
-                _ellipsoidGeom = s_makeEllipsoidGeometry(ellipsoid);
+                _ellipsoidGeom = s_makeEllipsoidGeometry(ellipsoid, sphereProfile->getExtent().xMin());
             }
             mutex.unlock();
         }
@@ -515,10 +527,21 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
     GeoImage image = imageLayer->createImage(key, progress);
     if (image.valid() && imageProfile)
     {
-        osg::Vec2 scale ( sphereProfile->getExtent().originalBounds().width()  / imageProfile->getExtent().originalBounds().width(),
-                          sphereProfile->getExtent().originalBounds().height() / imageProfile->getExtent().originalBounds().height() );
-        osg::Vec2 origin ( (imageProfile->getExtent().originalBounds().xMin() - sphereProfile->getExtent().originalBounds().xMin()) / sphereProfile->getExtent().originalBounds().width(),
-                           (imageProfile->getExtent().originalBounds().yMin() - sphereProfile->getExtent().originalBounds().yMin()) / sphereProfile->getExtent().originalBounds().height());
+        osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageProfile->getSRS()->getEllipsoid();
+        osg::Geode* sphere = s_getOrCreateEllipsoidGeometry(ellipsoidModel.get());
+
+        osg::Vec2 scale ( 1., 1. );
+        osg::Vec2 origin ( 0., 0. );
+
+        // the sphere profile is built with the sphere singleton in s_getOrCreateEllipsoidGeometry()
+        // it is invalid if accessed before
+        if (sphereProfile.valid())
+        {
+            osg::Vec2 scale ( sphereProfile->getExtent().originalBounds().width()  / imageProfile->getExtent().originalBounds().width(),
+                              sphereProfile->getExtent().originalBounds().height() / imageProfile->getExtent().originalBounds().height() );
+            osg::Vec2 origin ( (imageProfile->getExtent().originalBounds().xMin() - sphereProfile->getExtent().originalBounds().xMin()) / sphereProfile->getExtent().originalBounds().width(),
+                               (imageProfile->getExtent().originalBounds().yMin() - sphereProfile->getExtent().originalBounds().yMin()) / sphereProfile->getExtent().originalBounds().height());
+        }
 
         OE_DEBUG << LC << "A new Image has been read. Scale: (" << scale.x() << ";" << scale.y() << "). Origin: ("
                  << origin.x() << ";" << origin.y() << ")." << std::endl;
@@ -537,8 +560,7 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
 
         VirtualProgram* program = new VirtualProgram();
         program->setInheritShaders(true);
-        program->setFunction("oe_ImageBinding_VS", imageVS, ShaderComp::LOCATION_VERTEX_MODEL);
-        program->setFunction("oe_ImageBinding_FS", imageFS, ShaderComp::LOCATION_FRAGMENT_COLORING);
+        std::string imageFSupdated = imageFS;
 
         bandsGroup->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
         bandsGroup->getOrCreateStateSet()->setTextureAttributeAndModes(0, tex, osg::StateAttribute::ON);
@@ -546,11 +568,16 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         bandsGroup->getOrCreateStateSet()->addUniform( new osg::Uniform("image_origin", origin) );
         bandsGroup->getOrCreateStateSet()->addUniform( new osg::Uniform("image_scale", scale) );
 
+        std::string valueExtraction = "texture(image_tex, texCoord)";
         for ( auto colorFilter : imageLayer->getColorFilters() )
-            colorFilter->installAsFunction( bandsGroup->getOrCreateStateSet() );
+            colorFilter->mergeInShader(imageFSupdated, _multiBand_uniform_name, valueExtraction);
 
-        osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageProfile->getSRS()->getEllipsoid();
-        osg::Geode* sphere = s_getOrCreateEllipsoidGeometry(ellipsoidModel.get());
+        // if no color filter has been applied then simply display the texture as is
+        osgEarth::replaceIn(imageFSupdated, "__VAR_DEF__", "");
+        osgEarth::replaceIn(imageFSupdated, "__BODY_CODE__", "        color = texture(image_tex, texCoord); \n");
+
+        program->setFunction("oe_ImageBinding_VS", imageVS, ShaderComp::LOCATION_VERTEX_MODEL);
+        program->setFunction("oe_ImageBinding_FS", imageFSupdated, ShaderComp::LOCATION_FRAGMENT_COLORING);
 
         bandsGroup->addChild(sphere);
         return bandsGroup;

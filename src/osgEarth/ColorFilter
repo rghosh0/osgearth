@@ -69,6 +69,11 @@ namespace osgEarth
         virtual osg::Uniform* installAsFunction(osg::StateSet* stateSet, bool uniqueUniform = false) const;
 
         /**
+         * Merge the given shader code with this ColorFilter
+         */
+        virtual void mergeInShader(std::string& shaderCode, const std::string& uniformName, const std::string& extractValueCode="") const;
+
+        /**
          * Serializes this object to a Config (optional).
          */
         virtual Config getConfig() const { return Config(); }

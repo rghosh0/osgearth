@@ -36,14 +36,11 @@ namespace
         "#version " GLSL_VERSION_STR "\n"
         GLSL_DEFAULT_PRECISION_FLOAT "\n"
 
-        "uniform int __UNIFORM_NAME__;\n"
-
-        "__CONST_DEF__"
+        "__VAR_DEF__"
 
         "void __ENTRY_POINT_FS__(inout vec4 color)\n"
         "{\n"
-        "    float value = color[__UNIFORM_NAME__];\n"
-        "    __RAMP_CODE__"
+        "    __BODY_CODE__"
         "} \n";
 }
 
@@ -110,6 +107,43 @@ osg::Uniform* MultiBandRampColorFilter::installAsFunction(osg::StateSet* stateSe
     return uniform;
 }
 
+void MultiBandRampColorFilter::mergeInShader(std::string& shaderCode, const std::string& uniformName, const std::string& extractValueCode) const
+{
+    std::string extract = extractValueCode.empty() ? "color" : extractValueCode;
+    std::string rampCode = "    float value = " + extractValueCode + "[" + uniformName + "];\n";
+    std::string varDefCode = "uniform int " + uniformName + ";\n";
+
+    int iConst = 0;
+    for (auto ramp : m_ramps)
+    {
+        // add color to the constant block
+        std::string colorConstName = "color"+std::to_string(iConst);
+        if (ramp._color.isSet())
+        {
+            Color color = *ramp._color;
+            varDefCode += "const vec4 " + colorConstName + " = vec4("
+                    + std::to_string(color.r()) + "f, "
+                    + std::to_string(color.g()) + "f, "
+                    + std::to_string(color.b()) + "f, "
+                    + std::to_string(color.a()) + "f);\n";
+            iConst++;
+        }
+
+        // first ramp -> discard below a threshold
+        if (ramp._from.isSet())
+            rampCode += "    if (value < " + std::to_string(*ramp._from) + "f) color = vec4(0.f, 0.f, 0.f, 0.f);\n";
+
+        // other cases
+        if (ramp._to.isSet())
+            rampCode += "    else if (value < " + std::to_string(*ramp._to) + "f) color = " + colorConstName + ";\n";
+
+        // last ramp
+        if (! ramp._from.isSet() && ! ramp._to.isSet())
+            rampCode += "    else color = " + colorConstName + ";\n";
+    }
+    osgEarth::replaceIn(shaderCode, "__VAR_DEF__", varDefCode);
+    osgEarth::replaceIn(shaderCode, "__BODY_CODE__", rampCode);
+}
 
 osg::Uniform* MultiBandRampColorFilter::installCodeAndUniforms(osg::StateSet* stateSet, std::string& entryPoint, std::string& code,
                                                                bool installAsFunction, bool uniqueUniform) const
@@ -147,38 +181,7 @@ osg::Uniform* MultiBandRampColorFilter::installCodeAndUniforms(osg::StateSet* st
         osgEarth::replaceIn(code, "__UNIFORM_NAME__", colorComponent->getName());
         osgEarth::replaceIn(code, "__ENTRY_POINT_FS__", entryPoint);
 
-        std::string rampCode;
-        std::string constDefCode;
-        int iConst = 0;
-        for (auto ramp : m_ramps)
-        {
-            // add color to the constant block
-            std::string colorConstName = "color"+std::to_string(iConst);
-            if (ramp._color.isSet())
-            {
-                Color color = *ramp._color;
-                constDefCode += "const vec4 " + colorConstName + " = vec4("
-                        + std::to_string(color.r()) + "f, "
-                        + std::to_string(color.g()) + "f, "
-                        + std::to_string(color.b()) + "f, "
-                        + std::to_string(color.a()) + "f);\n";
-                iConst++;
-            }
-
-            // first ramp -> discard below a threshold
-            if (ramp._from.isSet())
-                rampCode += "    if (value < " + std::to_string(*ramp._from) + "f) color = vec4(0.f, 0.f, 0.f, 0.f);\n";
-
-            // other cases
-            if (ramp._to.isSet())
-                rampCode += "    else if (value < " + std::to_string(*ramp._to) + "f) color = " + colorConstName + ";\n";
-
-            // last ramp
-            if (! ramp._from.isSet() && ! ramp._to.isSet())
-                rampCode += "    else color = " + colorConstName + ";\n";
-        }
-        osgEarth::replaceIn(code, "__CONST_DEF__", constDefCode);
-        osgEarth::replaceIn(code, "__RAMP_CODE__", rampCode);
+        mergeInShader(code, colorComponent->getName());
     }
 
     return colorComponent.get();

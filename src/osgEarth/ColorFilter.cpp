@@ -119,6 +119,10 @@ osg::Uniform* ColorFilter::installAsFunction(osg::StateSet* /**stateSet**/, bool
     return nullptr;
 }
 
+void ColorFilter::mergeInShader(std::string& /**shaderCode**/, const std::string& /**uniformName**/, const std::string& /**extractValueCode**/) const
+{
+    OE_WARN << "[ColorFilter] mergeInShader() is not implemented but has been called!" << std::endl;
+}
 
 void ColorFilter::installVP( VirtualProgram* vp, const std::string& entryPoint, const std::string& code, bool installAsFunction ) const
 {
