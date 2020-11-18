@@ -1842,6 +1842,12 @@ public:
                 }
             }
 
+            // don't maintain those data in the GDAL cache as the output image will be stored in disk cache
+            bandRed->FlushCache();
+            if (bandGreen) bandGreen->FlushCache();
+            if (bandBlue) bandBlue->FlushCache();
+            if (bandAlpha) bandAlpha->FlushCache();
+
             delete []red;
             delete []green;
             delete []blue;
