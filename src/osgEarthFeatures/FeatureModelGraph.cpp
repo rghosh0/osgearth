@@ -366,8 +366,9 @@ namespace {
                 GroupMultiBands* root = static_cast<GroupMultiBands*>( node );
                 root->setBand(band);
                 band++;
+                if (band == 300) band = 1;
 
-                traceNode( *(_fmg->getParent(0)->getParent(0)) );
+                //traceNode( *(_fmg->getParent(0)->getParent(0)) );
             }
         }
     };
@@ -537,10 +538,10 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         // it is invalid if accessed before
         if (sphereProfile.valid())
         {
-            osg::Vec2 scale ( sphereProfile->getExtent().originalBounds().width()  / imageProfile->getExtent().originalBounds().width(),
-                              sphereProfile->getExtent().originalBounds().height() / imageProfile->getExtent().originalBounds().height() );
-            osg::Vec2 origin ( (imageProfile->getExtent().originalBounds().xMin() - sphereProfile->getExtent().originalBounds().xMin()) / sphereProfile->getExtent().originalBounds().width(),
-                               (imageProfile->getExtent().originalBounds().yMin() - sphereProfile->getExtent().originalBounds().yMin()) / sphereProfile->getExtent().originalBounds().height());
+            scale.set(  sphereProfile->getExtent().originalBounds().width()  / imageProfile->getExtent().originalBounds().width(),
+                        sphereProfile->getExtent().originalBounds().height() / imageProfile->getExtent().originalBounds().height() );
+            origin.set( (imageProfile->getExtent().originalBounds().xMin() - sphereProfile->getExtent().originalBounds().xMin()) / sphereProfile->getExtent().originalBounds().width(),
+                        (imageProfile->getExtent().originalBounds().yMin() - sphereProfile->getExtent().originalBounds().yMin()) / sphereProfile->getExtent().originalBounds().height());
         }
 
         OE_DEBUG << LC << "A new Image has been read. Scale: (" << scale.x() << ";" << scale.y() << "). Origin: ("
@@ -559,7 +560,6 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         tex->setMaxAnisotropy( 1.f );
 
         VirtualProgram* program = new VirtualProgram();
-        program->setInheritShaders(true);
         std::string imageFSupdated = imageFS;
 
         bandsGroup->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
