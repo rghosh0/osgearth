@@ -122,6 +122,9 @@ namespace osgEarth { namespace Features
         //! Options passed in.
         const FeatureModelSourceOptions& options() const { return _options; }
 
+        // Traces for profiling purpose, will be written only on destruction of the FMG
+        void addProfilingLogs(const std::string& trace);
+
     public: // osg::Node
 
         virtual void traverse(osg::NodeVisitor& nv);
@@ -222,6 +225,9 @@ namespace osgEarth { namespace Features
         OpenThreads::ReentrantMutex      _redrawMutex;
         osg::BoundingSphered             _rootBs;
         float                            _rootMaxRange;
+
+        OpenThreads::Mutex               _profilingLogsMutex;
+        std::vector<std::string>         _profilingLogs;
 
         OpenThreads::Atomic _cacheReads;
         OpenThreads::Atomic _cacheHits;

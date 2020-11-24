@@ -192,22 +192,23 @@ _filters          ( filters )
             // note: "Directly" above means _spatialFilter takes ownership if ring handle
         }
 
+        std::string trace;
         if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
         {
-            OE_DEBUG << LC << "SQL: " << expr << std::endl;
+            trace = "SQL: " + expr;
             if (_spatialFilter)
             {
                 char* buf;
                 if (OGR_G_ExportToWkt( _spatialFilter, &buf ) == OGRERR_NONE)
                 {
                     std::string spatialFilter = std::string(buf);
-                    OE_DEBUG << LC << "    with spatialFilter : " << spatialFilter << std::endl;
+                    trace += "\twith spatialFilter : " + spatialFilter;
                     OGRFree( buf );
                 }
             }
             else
             {
-                OE_DEBUG << LC << "    with spatialFilter : none" << std::endl;
+                trace += "\twith spatialFilter : none";
             }
         }
 
@@ -223,8 +224,7 @@ _filters          ( filters )
         {
             osg::Timer_t t_end = osg::Timer::instance()->tick();
             double t = osg::Timer::instance()->delta_s(t_start, t_end);
-            OE_DEBUG << LC << "Profiling the time to fetch new data:\n";
-            OE_DEBUG << LC << "    execution of the query " << t << "s\n";
+            OE_DEBUG << LC << "[Profiling] " + trace << "\t" << t << "\n";
         }
     }
 
@@ -289,13 +289,13 @@ FeatureCursorOGR::readChunk()
     if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
         t_start = osg::Timer::instance()->tick();
 
-
     while( _queue.size() < _chunkSize && !_resultSetEndReached )
     {
         FeatureList filterList;
         while( filterList.size() < _chunkSize && !_resultSetEndReached )
         {
             OGRFeatureH handle = OGR_L_GetNextFeature( _resultSetHandle );
+
             if ( handle )
             {
                 /*
@@ -347,30 +347,34 @@ FeatureCursorOGR::readChunk()
             }
         }
 
-        // preprocess the features using the filter list:
-        if ( _filters.valid() && !_filters->empty() )
+        // post process
+        if (! filterList.empty() )
         {
-            FilterContext cx;
-            cx.setProfile( _profile.get() );
-            if (_query.bounds().isSet())
+            // preprocess the features using the filter list:
+            if ( _filters.valid() && !_filters->empty() )
             {
-                cx.extent() = GeoExtent(_profile->getSRS(), _query.bounds().get());
-            }
-            else
-            {
-                cx.extent() = _profile->getExtent();
+                FilterContext cx;
+                cx.setProfile( _profile.get() );
+                if (_query.bounds().isSet())
+                {
+                    cx.extent() = GeoExtent(_profile->getSRS(), _query.bounds().get());
+                }
+                else
+                {
+                    cx.extent() = _profile->getExtent();
+                }
+
+                for( FeatureFilterChain::const_iterator i = _filters->begin(); i != _filters->end(); ++i )
+                {
+                    FeatureFilter* filter = i->get();
+                    cx = filter->push( filterList, cx );
+                }
             }
 
-            for( FeatureFilterChain::const_iterator i = _filters->begin(); i != _filters->end(); ++i )
+            for(FeatureList::const_iterator i = filterList.begin(); i != filterList.end(); ++i)
             {
-                FeatureFilter* filter = i->get();
-                cx = filter->push( filterList, cx );
+                _queue.push( i->get() );
             }
-        }
-
-        for(FeatureList::const_iterator i = filterList.begin(); i != filterList.end(); ++i)
-        {
-            _queue.push( i->get() );
         }
 
         // provide some performance info
@@ -378,7 +382,7 @@ FeatureCursorOGR::readChunk()
         {
             osg::Timer_t t_end = osg::Timer::instance()->tick();
             double t = osg::Timer::instance()->delta_s(t_start, t_end);
-            OE_DEBUG << LC << "    readChunk " << t << "s (for " <<_queue.size() << " features)\n";
+            OE_DEBUG << LC << "[Profiling] readChunk \t(for " << _queue.size() << " features)\t" << t << "\n";
         }
     }
 }

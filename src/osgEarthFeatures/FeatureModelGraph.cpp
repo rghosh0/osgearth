@@ -184,9 +184,31 @@ struct osgEarthFeatureModelPseudoLoader : public osgDB::ReaderWriter {
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
-        Registry::instance()->startActivity(uri);
+        // provide some performance info
+        osg::Timer_t t_start;
+        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+        {
+            t_start = osg::Timer::instance()->tick();
+            Registry::instance()->startActivity(uri);
+        }
+
+        // actually load the tile
         osg::Node *node = graph->load(lod, x, y, uri, readOptions, r, g, b, a);
-        Registry::instance()->endActivity(uri);
+
+        // provide some performance info
+        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+        {
+            osg::Timer_t t_end = osg::Timer::instance()->tick();
+            double t = osg::Timer::instance()->delta_s(t_start, t_end);
+            Registry::instance()->endActivity(uri);
+
+            FindNodesVisitor<osg::Drawable> searchGeom;
+            node->accept(searchGeom);
+
+            graph->addProfilingLogs( Stringify() << graph->getSession()->getName() <<
+                                     "\t" << uri << "\t" << t_end <<
+                                     "\t" << t << "\t" << searchGeom._results.size() );
+        }
         return ReadResult(node);
     }
 };
@@ -812,8 +834,18 @@ void FeatureModelGraph::ctor() {
     redraw();
 }
 
-FeatureModelGraph::~FeatureModelGraph() {
-    // nop
+
+void FeatureModelGraph::addProfilingLogs(const std::string& trace)
+{
+    OpenThreads::ScopedLock< OpenThreads::Mutex > lock ( _profilingLogsMutex );
+    _profilingLogs.push_back(trace);
+}
+
+FeatureModelGraph::~FeatureModelGraph()
+{
+    if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+        for ( auto s : _profilingLogs )
+            OE_DEBUG << LC << "[Profiling] " << s << std::endl;
 }
 
 Session *FeatureModelGraph::getSession() { return _session.get(); }
