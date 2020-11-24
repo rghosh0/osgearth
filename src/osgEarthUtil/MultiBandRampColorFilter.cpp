@@ -135,7 +135,7 @@ void MultiBandRampColorFilter::mergeInShader(std::string& shaderCode, const std:
 
         // other cases
         if (ramp._to.isSet())
-            rampCode += "    else if (value < " + std::to_string(*ramp._to) + "f) color = " + colorConstName + ";\n";
+            rampCode += "    else if (value <= " + std::to_string(*ramp._to) + "f) color = " + colorConstName + ";\n";
 
         // last ramp
         if (! ramp._from.isSet() && ! ramp._to.isSet())

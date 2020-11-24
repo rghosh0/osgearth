@@ -730,7 +730,7 @@ class GDALTileSource : public TileSource
 
             if ( obsTileSource.valid() && obsRasterBand
                  && ! obsTileSource->isValidValue_noLock(value, obsRasterBand) )
-                return 0.f;//NO_DATA_VALUE;
+                return NO_DATA_VALUE;
             else
                 return value;
         }
