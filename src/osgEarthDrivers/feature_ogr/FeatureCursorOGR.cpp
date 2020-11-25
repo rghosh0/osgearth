@@ -90,14 +90,15 @@ _resultSetEndReached(false),
 _profile          ( profile ),
 _filters          ( filters )
 {
+
+    // provide some performance info
+    osg::Timer_t t_start;
+    std::string trace;
+    if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
+        t_start = osg::Timer::instance()->tick();
+
     {
         OGR_SCOPED_LOCK;
-
-
-        // provide some performance info
-        osg::Timer_t t_start;
-        if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
-            t_start = osg::Timer::instance()->tick();
 
 
         std::string expr;
@@ -192,7 +193,6 @@ _filters          ( filters )
             // note: "Directly" above means _spatialFilter takes ownership if ring handle
         }
 
-        std::string trace;
         if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
         {
             trace = "SQL: " + expr;
@@ -218,18 +218,18 @@ _filters          ( filters )
         {
             OGR_L_ResetReading( _resultSetHandle );
         }
-
-        // provide some performance info
-        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
-        {
-            osg::Timer_t t_end = osg::Timer::instance()->tick();
-            double t = osg::Timer::instance()->delta_s(t_start, t_end);
-            OE_DEBUG << LC << "[Profiling] " + trace << "\t" << t << "\n";
-        }
     }
 
 
     readChunk();
+
+    // provide some performance info
+    if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
+    {
+        osg::Timer_t t_end = osg::Timer::instance()->tick();
+        double t = osg::Timer::instance()->delta_s(t_start, t_end);
+        OE_DEBUG << LC << "[Profiling] " + trace << "\t" << _queue.size() << "\t" << t << "\n";
+    }
 }
 
 FeatureCursorOGR::~FeatureCursorOGR()
@@ -282,12 +282,6 @@ FeatureCursorOGR::readChunk()
         return;
     
     OGR_SCOPED_LOCK;
-
-
-    // provide some performance info
-    osg::Timer_t t_start;
-    if(osgEarth::isNotifyEnabled( osg::DEBUG_INFO ))
-        t_start = osg::Timer::instance()->tick();
 
     while( _queue.size() < _chunkSize && !_resultSetEndReached )
     {
@@ -375,14 +369,6 @@ FeatureCursorOGR::readChunk()
             {
                 _queue.push( i->get() );
             }
-        }
-
-        // provide some performance info
-        if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
-        {
-            osg::Timer_t t_end = osg::Timer::instance()->tick();
-            double t = osg::Timer::instance()->delta_s(t_start, t_end);
-            OE_DEBUG << LC << "[Profiling] readChunk \t(for " << _queue.size() << " features)\t" << t << "\n";
         }
     }
 }
