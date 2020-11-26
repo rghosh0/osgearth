@@ -466,7 +466,6 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             double angle = 0;
             osg::Quat rot;
             osg::Vec3d to;
-            osg::Vec3f pos(annoDrawable->_cull_anchorOnScreen);
             bool visible = true;
 
             // local transformation data
@@ -486,13 +485,14 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             if (annoDrawable->isAutoFollowLine())
             {
                 osg::Vec3f slidingOffset;
-                updateOffsetForAutoLabelOnLine(box, vp, pos, annoDrawable, camVPW, slidingOffset, to);
-                pos += slidingOffset;
+                updateOffsetForAutoLabelOnLine(box, vp, annoDrawable->_cull_anchorOnScreen, annoDrawable, camVPW, slidingOffset, to);
+                annoDrawable->_cull_anchorOnScreen += slidingOffset;
             }
             
-            //computes the clamped labels (used for graticules)
-            if(annoDrawable->screenClamping())
+            // computes the clamped labels (used for graticules)
+            if (annoDrawable->screenClamping())
             {
+                osg::Vec3f pos(annoDrawable->_cull_anchorOnScreen);
                 const osgEarth::SpatialReference* srs = osgEarth::SpatialReference::create("epsg:4326");
                 
                 // Calculate the "clip to world" matrix = MVPinv.
@@ -612,7 +612,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
                         pos.y()-=abs(offsetFromLine*cos(rlabel));
                     }
                 }
-            }
+            } // end computes the clamped labels (used for graticules)
 
             // Expand the box if this object is currently not visible, so that it takes a little
             // more room for it to before visible once again.
@@ -640,7 +640,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //            }
 
             float  leftOffset = box._max.x()+box._min.x();
-            box.set( box._min + pos - buffer, box._max + pos + buffer);
+            box.set( box._min + annoDrawable->_cull_anchorOnScreen - buffer, box._max + annoDrawable->_cull_anchorOnScreen + buffer);
 
             osg::BoundingBox symBBox;
             //when the left/right logic is in place, computes the symmetrical BBox of the label
@@ -779,7 +779,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             }
 
             osg::Matrix newModelView;
-            newModelView.makeTranslate(static_cast<double>(pos.x()), static_cast<double>(pos.y()), 0);
+            newModelView.makeTranslate(annoDrawable->_cull_anchorOnScreen.x(), annoDrawable->_cull_anchorOnScreen.y(), 0);
 
             if (! rot.zeroRotation())
                 newModelView.preMultRotate(rot);

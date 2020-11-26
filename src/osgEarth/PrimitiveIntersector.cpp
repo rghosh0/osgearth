@@ -323,6 +323,22 @@ struct PrimitiveIntersectorFunctor
 
 };
 
+// compute a new bbox for a given rotation
+void rotateBBox( osg::BoundingBox& box, double angle )
+{
+    osg::Quat rot( angle, osg::Vec3d(0, 0, 1) );
+    osg::Vec3f ld = rot * ( osg::Vec3f(box.xMin(), box.yMin(), 0.) );
+    osg::Vec3f lu = rot * ( osg::Vec3f(box.xMin(), box.yMax(), 0.) );
+    osg::Vec3f ru = rot * ( osg::Vec3f(box.xMax(), box.yMax(), 0.) );
+    osg::Vec3f rd = rot * ( osg::Vec3f(box.xMax(), box.yMin(), 0.) );
+    if ( angle > - osg::PI / 2. && angle < osg::PI / 2. )
+        box.set( osg::minimum(ld.x(), lu.x()), osg::minimum(ld.y(), rd.y()), 0,
+                 osg::maximum(rd.x(), ru.x()), osg::maximum(lu.y(), ru.y()), 0 );
+    else
+        box.set( osg::minimum(rd.x(), ru.x()), osg::minimum(lu.y(), ru.y()), 0,
+                 osg::maximum(ld.x(), lu.x()), osg::maximum(ld.y(), rd.y()), 0 );
+}
+
 } //namespace
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -517,12 +533,41 @@ void PrimitiveIntersector::intersect(osgUtil::IntersectionVisitor& iv, osg::Draw
     // new screenspacelayout 2
     else if (MPScreenSpaceGeometry* ssGeom = dynamic_cast<MPScreenSpaceGeometry*>(drawable))
     {
-        ssPt = ssGeom->getAnchorPoint();
-        osg::Vec3d screenSpacePoint = ssGeom->getAnchorPoint() * _camMatrix;
-        if ((osg::Vec2d(screenSpacePoint.x(), screenSpacePoint.y()) - _pickCoord).length() > _buffer)
+        // no pick if not visible
+        if ( ssGeom->getNodeMask() == 0 )
             return;
 
-        inScreenSpace = true;
+        // from center to pick point
+        if ((osg::Vec2d(ssGeom->_cull_anchorOnScreen.x(), ssGeom->_cull_anchorOnScreen.y()) - _pickCoord).length() <= _buffer)
+        {
+            inScreenSpace = true;
+        }
+
+        // case object was in cluttered mode then the previous test is enough
+        else if (! ssGeom->_declutter_visible)
+        {
+            return;
+        }
+
+        // else try with the bbox
+        else
+        {
+            osg::BoundingBox bb = drawable->getBoundingBox();
+            if (bb.valid())
+            {
+                if (ssGeom->isAutoRotate() && ssGeom->_cull_rotationRadOnScreen != 0.)
+                    rotateBBox(bb, ssGeom->_cull_rotationRadOnScreen);
+
+                bb.set( bb._min + ssGeom->_cull_anchorOnScreen, bb._max + ssGeom->_cull_anchorOnScreen);
+
+                if ( bb.xMin() <= _pickCoord.x() && bb.xMax() >= _pickCoord.x()
+                     && bb.yMin() <= _pickCoord.y() && bb.yMax() >= _pickCoord.y() )
+                    inScreenSpace = true;
+            }
+
+            if (! inScreenSpace)
+                return;
+        }
     }
     // new screenspacelayout
     else
