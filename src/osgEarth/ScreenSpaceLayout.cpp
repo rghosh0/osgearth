@@ -154,10 +154,10 @@ static bool s_declutteringEnabledGlobally = true;
 static const char* s_faderFS =
         "#version " GLSL_VERSION_STR "\n"
         GLSL_DEFAULT_PRECISION_FLOAT "\n"
-                                     "uniform float " FADE_UNIFORM_NAME ";\n"
-                                                                        "void oe_declutter_apply_fade(inout vec4 color) { \n"
-                                                                        "    color.a *= " FADE_UNIFORM_NAME ";\n"
-                                                                                                            "}\n";
+        "uniform float " FADE_UNIFORM_NAME ";\n"
+        "void oe_declutter_apply_fade(inout vec4 color) { \n"
+        "    color.a *= " FADE_UNIFORM_NAME ";\n"
+        "}\n";
 }
 
 //----------------------------------------------------------------------------
@@ -165,22 +165,23 @@ static const char* s_faderFS =
 void
 ScreenSpaceLayoutOptions::fromConfig( const Config& conf )
 {
-    conf.get( "min_animation_scale", _minAnimScale );
-    conf.get( "min_animation_alpha", _minAnimAlpha );
-    conf.get( "in_animation_time",   _inAnimTime );
-    conf.get( "out_animation_time",  _outAnimTime );
-    conf.get( "sort_by_priority",    _sortByPriority );
-    conf.get( "sort_by_distance",    _sortByDistance);
-    conf.get( "snap_to_pixel",       _snapToPixel );
-    conf.get( "max_objects",         _maxObjects );
-    conf.get( "render_order",        _renderBinNumber );
-    conf.get( "use_screen_grid",     _useScreenGrid );
-    conf.get( "screen_grid_NbCol",   _screenGridNbCol );
-    conf.get( "screen_grid_NbRow",   _screenGridNbRow );
-    conf.get( "font_default",        _defaultFont );
-    conf.get( "font_altas",          _fontAltas );
-    conf.get( "icon_altas",          _iconAltas );
-    conf.get( "right_left_placement",_rightLeftPlacementActivated );
+    conf.get( "min_animation_scale",  _minAnimScale );
+    conf.get( "min_animation_alpha",  _minAnimAlpha );
+    conf.get( "in_animation_time",    _inAnimTime );
+    conf.get( "out_animation_time",   _outAnimTime );
+    conf.get( "sort_by_priority",     _sortByPriority );
+    conf.get( "sort_by_distance",     _sortByDistance);
+    conf.get( "snap_to_pixel",        _snapToPixel );
+    conf.get( "max_objects",          _maxObjects );
+    conf.get( "render_order",         _renderBinNumber );
+    conf.get( "use_screen_grid",      _useScreenGrid );
+    conf.get( "screen_grid_NbCol",    _screenGridNbCol );
+    conf.get( "screen_grid_NbRow",    _screenGridNbRow );
+    conf.get( "font_default",         _defaultFont );
+    conf.get( "font_altas",           _fontAltas );
+    conf.get( "icon_altas",           _iconAltas );
+    conf.get( "right_left_placement", _rightLeftPlacementActivated );
+    conf.get( "declutter_min_space",  _declutterMinSpace );
 }
 
 Config
@@ -203,6 +204,7 @@ ScreenSpaceLayoutOptions::getConfig() const
     conf.set( "font_altas",          _fontAltas );
     conf.set( "icon_altas",          _iconAltas );
     conf.set( "right_left_placement",_rightLeftPlacementActivated );
+    conf.set( "declutter_min_space", _declutterMinSpace );
     return conf;
 }
 

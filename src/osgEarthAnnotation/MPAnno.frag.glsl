@@ -4,7 +4,7 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 #pragma vp_entryPoint oe_anno_FS
 #pragma vp_location   fragment_coloring
 
-#pragma import_defines(TYPE_CHARACTER_MSDF, TYPE_ICON, TYPE_BBOX, TYPE_BBOX_STROKE_SIDED, TYPE_BBOX_ROUNDED, TYPE_BBOX_ONEARROW, TYPE_BBOX_TWOARROWS, TYPE_BBOX_STAIR, TYPE_BBOX_ROUNDED_ORIENTED)
+#pragma import_defines(TYPE_CHARACTER_MSDF, TYPE_ICON, TYPE_BBOX, TYPE_BBOX_NO_PICK, TYPE_BBOX_STROKE_SIDED, TYPE_BBOX_ROUNDED, TYPE_BBOX_ONEARROW, TYPE_BBOX_TWOARROWS, TYPE_BBOX_STAIR, TYPE_BBOX_ROUNDED_ORIENTED)
 
 
 uniform sampler2D oe_anno_icon_tex;
@@ -103,7 +103,7 @@ void oe_anno_FS(inout vec4 color)
         int minIsOnX = 0;
 
         // Rectange BBOX
-        if ( oe_anno_info.z == TYPE_BBOX )
+        if ( oe_anno_info.z == TYPE_BBOX || oe_anno_info.z == TYPE_BBOX_NO_PICK )
         {
             minDist = min( distX, distY );
         }
@@ -162,7 +162,7 @@ void oe_anno_FS(inout vec4 color)
         }
 
         // case highlight
-        else if ( selected == 1 )
+        else if ( selected == 1 && oe_anno_info.z != TYPE_BBOX_NO_PICK )
         {
             color = oe_anno_highlightFillColor;
         }

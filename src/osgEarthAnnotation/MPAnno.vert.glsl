@@ -4,7 +4,7 @@ $GLSL_DEFAULT_PRECISION_FLOAT
 #pragma vp_entryPoint oe_anno_VS
 #pragma vp_location   vertex_model
 
-#pragma import_defines(TYPE_CHARACTER_MSDF, TYPE_BBOX_STROKE_SIDED, TYPE_ICON)
+#pragma import_defines(TYPE_CHARACTER_MSDF, TYPE_BBOX_NO_PICK, TYPE_BBOX_STROKE_SIDED, TYPE_ICON)
 
 
 in vec4 oe_anno_attr_info;
@@ -41,12 +41,20 @@ void oe_anno_VS(inout vec4 vertex)
         oe_anno_fill_white_threshold = floor(oe_anno_info.w);
         oe_anno_stroke_width = (oe_anno_info.w - oe_anno_fill_white_threshold) * 10.;
 
-        if ( selected == 1 && oe_anno_info.z != TYPE_BBOX_STROKE_SIDED )
+        if ( selected == 1 && oe_anno_info.z != TYPE_BBOX_STROKE_SIDED && oe_anno_info.z != TYPE_BBOX_NO_PICK )
         {
-            vec2 deltaStroke = vec2(oe_anno_highlightStrokeWidth - oe_anno_stroke_width);
+            float deltaStroke = oe_anno_highlightStrokeWidth - oe_anno_stroke_width;
             oe_anno_stroke_width = oe_anno_highlightStrokeWidth;
             oe_anno_color2 = oe_anno_highlightStrokeColor;
-            vertex.xy += mix(-deltaStroke, deltaStroke, oe_anno_texcoord);
+            if (vertex.x < 0.)
+                vertex.x -= deltaStroke;
+            else
+                vertex.x += deltaStroke;
+
+            if (vertex.y < 0.)
+                vertex.y -= deltaStroke;
+            else
+                vertex.y += deltaStroke;
         }
         else
         {

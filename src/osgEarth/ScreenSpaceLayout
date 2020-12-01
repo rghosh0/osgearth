@@ -150,7 +150,8 @@ public:
           _renderBinNumber      ( 13 ),
           _useScreenGrid        ( false ),
           _screenGridNbCol      ( 28 ),
-          _screenGridNbRow      ( 20 )
+          _screenGridNbRow      ( 20 ),
+          _declutterMinSpace    ( 0.f )
     {
         fromConfig(_conf);
     }
@@ -223,6 +224,11 @@ public:
     optional<bool>& rightLeftPlacementActivated() { return _rightLeftPlacementActivated; }
     const optional<bool>& rightLeftPlacementActivated() const { return _rightLeftPlacementActivated; }
 
+    /** The minimum space to keep between two labels before they declutter */
+    optional<float>& declutterMinSpace() { return _declutterMinSpace; }
+    const optional<float>& declutterMinSpace() const { return _declutterMinSpace; }
+
+
 public:
 
     Config getConfig() const;
@@ -244,6 +250,7 @@ protected:
     optional<std::string>  _fontAltas;
     optional<std::string>  _iconAltas;
     optional<bool>      _rightLeftPlacementActivated;
+    optional<float> _declutterMinSpace;
 
     void fromConfig( const Config& conf );
 };

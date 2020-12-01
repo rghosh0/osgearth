@@ -83,6 +83,7 @@ public:
         TYPE_CHARACTER_MSDF,
         TYPE_ICON,
         TYPE_BBOX,
+        TYPE_BBOX_NO_PICK,
         TYPE_BBOX_STROKE_SIDED,
         TYPE_BBOX_ROUNDED,
         TYPE_BBOX_ONEARROW,

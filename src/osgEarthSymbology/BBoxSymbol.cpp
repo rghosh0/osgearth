@@ -57,6 +57,7 @@ BBoxSymbol::getConfig() const
     conf.set( "margin", _margin );
 
     conf.set( "geom", "box", _bboxGeom, GEOM_BOX );
+    conf.set( "geom", "box_no_pick", _bboxGeom, GEOM_BOX_NO_PICK );
     conf.set( "geom", "box_oriented", _bboxGeom, GEOM_BOX_ORIENTED );
     conf.set( "geom", "box_oriented_symetric", _bboxGeom, GEOM_BOX_ORIENTED_SYM );
     conf.set( "geom", "box_oriented_2ways", _bboxGeom, GEOM_BOX_ORIENTED_2WAYS );
@@ -84,6 +85,7 @@ BBoxSymbol::mergeConfig( const Config& conf )
     conf.get( "margin", _margin );
 
     conf.get( "geom", "box", _bboxGeom, GEOM_BOX );
+    conf.get( "geom", "box_no_pick", _bboxGeom, GEOM_BOX_NO_PICK );
     conf.get( "geom", "box_oriented", _bboxGeom, GEOM_BOX_ORIENTED );
     conf.get( "geom", "box_oriented_symetric", _bboxGeom, GEOM_BOX_ORIENTED_SYM );
     conf.get( "geom", "box_oriented_2ways", _bboxGeom, GEOM_BOX_ORIENTED_2WAYS );
@@ -122,6 +124,9 @@ BBoxSymbol::parseSLD(const Config& c, Style& style)
     else if ( match(c.key(), "text-bbox-geom") ) {
         if      ( match(c.value(), "box") ) {
             style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX;
+        }
+        else if ( match(c.value(), "box_no_pick") ) {
+            style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_NO_PICK;
         }
         else if ( match(c.value(), "box_oriented") ) {
             style.getOrCreate<BBoxSymbol>()->geom() = GEOM_BOX_ORIENTED;

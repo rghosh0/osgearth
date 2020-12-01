@@ -36,6 +36,7 @@ namespace osgEarth { namespace Symbology
 
         enum BboxGeom {
             GEOM_BOX,
+            GEOM_BOX_NO_PICK,
             GEOM_BOX_ORIENTED,
             GEOM_BOX_ORIENTED_SYM,
             GEOM_BOX_ORIENTED_2WAYS,

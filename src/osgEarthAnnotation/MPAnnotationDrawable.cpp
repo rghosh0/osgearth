@@ -443,7 +443,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
                     osg::BoundingBox box;
                     for (unsigned int j = _v->size() - nbVert ; j < _v->size() ; j++)
                         box.expandBy( (*_v)[j] );
-                    appendBox( box, Color::Black, Color::White, BBoxSymbol::GEOM_BOX, false, 1.f, 0.f, 3.f, _alt2ndLevel);
+                    appendBox( box, Color::Black, Color::White, BBoxSymbol::GEOM_BOX_NO_PICK, false, 1.f, 0.f, 3.f, _alt2ndLevel);
                 }
             }
         }
@@ -686,6 +686,9 @@ int MPAnnotationDrawable::appendBox(const osg::BoundingBox& bbox, const osg::Vec
             break;
         case BBoxSymbol::GEOM_BOX_STROKE_SIDES:
             drawType = MPStateSetFontAltas::TYPE_BBOX_STROKE_SIDED;
+            break;
+        case BBoxSymbol::GEOM_BOX_NO_PICK:
+            drawType = MPStateSetFontAltas::TYPE_BBOX_NO_PICK;
             break;
         default: ;
     }
