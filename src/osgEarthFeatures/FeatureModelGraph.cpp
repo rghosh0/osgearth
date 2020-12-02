@@ -367,7 +367,8 @@ namespace {
                 }
                 else
                 {
-                    group->removeChildren(0, group->getNumChildren());
+                    // \todo manage the memory of grib bands in a better way
+                    //group->removeChildren(0, group->getNumChildren());
                 }
             }
             _band = band;
