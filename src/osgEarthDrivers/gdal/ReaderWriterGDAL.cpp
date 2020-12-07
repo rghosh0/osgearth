@@ -2345,6 +2345,10 @@ public:
                     }
                 }
             }
+
+            // don't maintain those data in the GDAL cache as the output image will be stored in disk cache
+            if (band)
+                band->FlushCache();
         }
         else
         {
