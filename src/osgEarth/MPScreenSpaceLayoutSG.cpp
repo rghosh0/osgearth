@@ -430,7 +430,6 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
         const double minAnimationScale = static_cast<double>(*options.minAnimationScale());
         const float inAnimationTime = *options.inAnimationTime();
         const float outAnimationTime = *options.outAnimationTime();
-        const float declutterMinSpace = *options.declutterMinSpace();
         bool needRedraw = false;
 
         //        bool snapToPixel = options.snapToPixel() == true;
@@ -462,7 +461,7 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             //osg::BoundingBox box = annoDrawable->isAutoFollowLine() ? annoDrawable->getBBox() : annoDrawable->getBoundingBox();
             osg::BoundingBox box = annoDrawable->getBoundingBox();
 
-            double angle = 0;
+            double angle = 0.;
             osg::Quat rot;
             osg::Vec3d to;
             bool visible = true;
@@ -472,12 +471,8 @@ struct /*internal*/ MPDeclutterSortSG : public osgUtil::RenderBin::SortCallback
             if (annoDrawable->isAutoRotate())
             {
                 angle = annoDrawable->_cull_rotationRadOnScreen;
-            }
-
-            // handle the local rotation
-            if ( angle != 0. )
-            {
-                rotateBBox(box,angle,rot);
+                if ( angle != 0. )
+                    rotateBBox( box, angle, rot);
             }
 
             // adapt the offset for auto sliding label

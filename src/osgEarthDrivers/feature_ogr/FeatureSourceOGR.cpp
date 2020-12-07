@@ -185,8 +185,6 @@ public:
             OGR_L_CreateField(_layerHandle, fdef, TRUE);
         }
 
-        _featureCount = 0;
-
         _geometryType = geometryType;
 
         return getStatus();
@@ -347,10 +345,6 @@ public:
                 }
             }
 
-
-            //Get the feature count
-            _featureCount = OGR_L_GetFeatureCount( _layerHandle, 1 );
-
             // establish the feature schema:
             initSchema();
 
@@ -488,6 +482,10 @@ public:
 
     virtual int getFeatureCount() const
     {
+        // costly operation ...
+        if (_layerHandle)
+            return OGR_L_GetFeatureCount( _layerHandle, 1 );
+
         return _featureCount;
     }
 
