@@ -515,26 +515,13 @@ void PrimitiveIntersector::intersect(osgUtil::IntersectionVisitor& iv, osg::Draw
 
     // if the drawable is in the screenspace then compute intersection in screenspace
     bool inScreenSpace = false;
-    GeoTransform* geoTransform = nullptr;
     osg::Vec3d ssPt;
-    // old screenspacelayout
-    if ( (geoTransform = getScreenSpaceGeoTransform(iv.getNodePath())) )
-    {
-        if(_camMatrix.isIdentity())
-            return;
 
-        geoTransform->getPosition().toWorld(ssPt);
-        osg::Vec3d screenSpacePoint = ssPt * _camMatrix;
-        if ((osg::Vec2d(screenSpacePoint.x(), screenSpacePoint.y()) - _pickCoord).length() > _buffer)
-            return;
-
-        inScreenSpace = true;
-    }
-    // new screenspacelayout 2
-    else if (MPScreenSpaceGeometry* ssGeom = dynamic_cast<MPScreenSpaceGeometry*>(drawable))
+    // screenspacelayout annotations
+    if (MPScreenSpaceGeometry* ssGeom = dynamic_cast<MPScreenSpaceGeometry*>(drawable))
     {
         // no pick if not visible
-        if ( ssGeom->getNodeMask() == 0 )
+        if ( ssGeom->getNodeMask() == 0 || ! ssGeom->_declutter_isInitialised )
             return;
 
         // from center to pick point
@@ -569,20 +556,7 @@ void PrimitiveIntersector::intersect(osgUtil::IntersectionVisitor& iv, osg::Draw
                 return;
         }
     }
-    // new screenspacelayout
-    else
-    {
-        osg::ref_ptr<ScreenSpaceLayoutData> ssld = dynamic_cast<ScreenSpaceLayoutData*>(drawable->getUserData());
-        if (ssld.valid())
-        {
-            ssPt = ssld->getAnchorPoint();
-            osg::Vec3d screenSpacePoint = ssld->getAnchorPoint() * _camMatrix;
-            if ((osg::Vec2d(screenSpacePoint.x(), screenSpacePoint.y()) - _pickCoord).length() > _buffer)
-                return;
 
-            inScreenSpace = true;
-        }
-    }
 
     if (! inScreenSpace)
     {
