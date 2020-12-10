@@ -406,7 +406,7 @@ namespace {
         geom->setUseVertexBufferObjects(true);
         OE_DEBUG << "[FeatureModelGraph] Build the sphere singleton for image overlay" << std::endl;
 
-        int latSegments = 40;
+        int latSegments = 180;
         int lonSegments = 2 * latSegments;
 
         double segmentSize = 180./(double)latSegments;
