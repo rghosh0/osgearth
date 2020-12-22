@@ -119,6 +119,10 @@ namespace osgEarth { namespace Drivers
         osg::ref_ptr<ExternalDataset>& externalDataset() { return _externalDataset; }
         const osg::ref_ptr<ExternalDataset>& externalDataset() const { return _externalDataset; }
 
+        /** SRS string to force in the profile */
+        optional<std::string>& forceSRS() { return _forceSRS; }
+        const optional<std::string>& forceSRS() const { return _forceSRS; }
+
     public: // ctors
 
         GDALOptions( const TileSourceOptions& options =TileSourceOptions() ) :
@@ -154,6 +158,8 @@ namespace osgEarth { namespace Drivers
 
             conf.set( "warp_profile", _warpProfile );
 
+            conf.set( "force_srs", _forceSRS );
+
             conf.setNonSerializable( "GDALOptions::ExternalDataset", _externalDataset.get() );
 
             return conf;
@@ -180,6 +186,8 @@ namespace osgEarth { namespace Drivers
 
             conf.get( "warp_profile", _warpProfile );
 
+            conf.get( "force_srs", _forceSRS );
+
             _externalDataset = conf.getNonSerializable<ExternalDataset>( "GDALOptions::ExternalDataset" );
         }
 
@@ -192,6 +200,7 @@ namespace osgEarth { namespace Drivers
         optional<unsigned int>            _subDataSet;
         optional<ProfileOptions>          _warpProfile;
         osg::ref_ptr<ExternalDataset>     _externalDataset;
+        optional<std::string>             _forceSRS;
     };
 
 } } // namespace osgEarth::Drivers

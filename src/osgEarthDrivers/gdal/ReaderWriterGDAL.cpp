@@ -1,4 +1,4 @@
-/* -*-c++-*- */
+﻿/* -*-c++-*- */
 /* osgEarth - Geospatial SDK for OpenSceneGraph
 * Copyright 2019 Pelican Mapping
 * http://osgearth.org
@@ -653,7 +653,7 @@ GDALDatasetH GDALAutoCreateWarpedVRTforPolarStereographic(
 /**
  * Gets the GeoExtent of the given filename.
  */
-GeoExtent getGeoExtent(std::string& filename)
+GeoExtent getGeoExtent(std::string& filename, const optional<std::string>& forceSRS = optional<std::string>())
 {
     GDALDataset* ds = (GDALDataset*)GDALOpen(filename.c_str(), GA_ReadOnly );
     if (!ds)
@@ -671,7 +671,7 @@ GeoExtent getGeoExtent(std::string& filename)
     GDALApplyGeoTransform(geotransform, ds->GetRasterXSize(), 0.0, &maxX, &maxY);
 
     std::string srsString = ds->GetProjectionRef();
-    const SpatialReference* srs = SpatialReference::create(srsString);
+    const SpatialReference* srs = SpatialReference::create(forceSRS.getOrUse(srsString));
 
     GDALClose(ds);
 
@@ -1033,6 +1033,14 @@ public:
         {
             src_srs = getProfile()->getSRS();
         }
+        else if ( _options.forceSRS().isSet() )
+        {
+            src_srs = SpatialReference::create( _options.forceSRS().get() );
+            if ( !src_srs.valid() )
+            {
+                OE_DEBUG << LC << "Cannot create source SRS from the user defined: " << _options.forceSRS().get() << std::endl;
+            }
+        }
         else if ( !srcProj.empty() )
         {
             src_srs = SpatialReference::create( srcProj );
@@ -1087,14 +1095,11 @@ public:
         if ( getProfile() )
         {
             profile = getProfile();
-            if ( profile )
-            {
-                OE_DEBUG << LC << INDENT << "Using override Profile: " << profile->toString() <<  std::endl;
-            }
+            OE_DEBUG << LC << INDENT << "Using override Profile: " << profile->toString() <<  std::endl;
         }
 
         // If neither a warp nor override profile were provided, work out the profile from the source's own SRS.
-        if ( !profile && src_srs->isGeographic() )
+        if ( !profile && src_srs->isGeographic() && ! _options.forceSRS().isSet() )
         {
             OE_DEBUG << LC << INDENT << "Creating Profile from source's geographic SRS: " << src_srs->getName() <<  std::endl;
             profile = Profile::create(src_srs.get(), -180.0, -90.0, 180.0, 90.0, 2u, 1u);
@@ -1160,7 +1165,6 @@ public:
             _geotransform[3] =  getProfile()->getExtent().yMax(); //Top left y
             _geotransform[4] =  0;
             _geotransform[5] = -getProfile()->getExtent().height() / (double)_warpedDS->GetRasterYSize();//pixel height
-
         }
         else
         {
@@ -1275,7 +1279,7 @@ public:
                 for( int i = 0; papszFileList[i] != NULL; i++ )
                 {
                     std::string file = papszFileList[i];
-                    GeoExtent ext = getGeoExtent(file);
+                    GeoExtent ext = getGeoExtent(file, _options.forceSRS());
                     if (ext.isValid())
                     {
                         dataExtents.push_back(DataExtent(ext, 0, _maxDataLevel));
