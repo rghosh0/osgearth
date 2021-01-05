@@ -665,7 +665,7 @@ ImageLayer::createImageInKeyProfile(const TileKey&    key,
         }
     }
     
-    if (key.getProfile()->isHorizEquivalentTo(getProfile()))
+    if (key.hasBandsDefined() || key.getProfile()->isHorizEquivalentTo(getProfile()))
     {
         result = createImageImplementation(key, progress);
     }
@@ -737,7 +737,7 @@ ImageLayer::createImageFromTileSource(const TileKey&    key,
         return GeoImage::INVALID;
 
     // If the profiles are different, use a compositing method to assemble the tile.
-    if ( !key.getProfile()->isHorizEquivalentTo( getProfile() ) )
+    if ( !key.hasBandsDefined() && !key.getProfile()->isHorizEquivalentTo( getProfile() ) )
     {
         return assembleImage( key, progress );
     }

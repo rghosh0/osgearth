@@ -181,7 +181,6 @@ FeatureModelSourceOptions::fromConfig( const Config& conf )
     _featureSource = conf.getNonSerializable<FeatureSource>("feature_source");
 
     conf.get( "image",            _imageOptions );
-    conf.get( "image_extent",     _imageProfileOptions );
     conf.get( "image_band",       _imageBand );
 
     conf.get( "styles",           _styles );
@@ -213,7 +212,6 @@ FeatureModelSourceOptions::getConfig() const
     conf.set("feature_source", _featureSourceLayer);
 
     conf.set( "image",            _imageOptions );
-    conf.set( "image_extent",     _imageProfileOptions );
     conf.set( "image_band",       _imageBand );
 
     conf.set( "styles",           _styles );
@@ -276,8 +274,6 @@ FeatureModelSource::initialize(const osgDB::Options* readOptions)
     else if ( _options.imageOptions().isSet() )
     {
         setFeatureSource(new TiledExtendSource(/**options()**/));
-        if (_options.imageProfileOptions().isSet())
-            _imageProfile = Profile::create(_options.imageProfileOptions().value());
         _imageLayer = new ImageLayer(_options.imageOptions().value());
         _imageLayer->setReadOptions(_readOptions);
         Status status = _imageLayer->open();
@@ -371,12 +367,9 @@ FeatureModelSource::createNodeImplementation(const Map*        map,
         _features.get(), 
         _readOptions.get() );
 
+    // Associated ImageLayer
     if ( _imageLayer.valid() )
-    {
         session->setImageLayer( _imageLayer.get() );
-        if ( _imageProfile.valid() )
-            session->setImageProfile( _imageProfile.get() );
-    }
 
     // Name the session (for debugging purposes)
     session->setName( this->getName() );

@@ -128,9 +128,6 @@ namespace osgEarth { namespace Features
         optional<ImageLayerOptions>& imageOptions() { return _imageOptions; }
         const optional<ImageLayerOptions>& imageOptions() const { return _imageOptions; }
 
-        optional<ProfileOptions>& imageProfileOptions() { return _imageProfileOptions; }
-        const optional<ProfileOptions>& imageProfileOptions() const { return _imageProfileOptions; }
-
         optional<int>& imageBand() { return _imageBand; }
         const optional<int>& imageBand() const { return _imageBand; }
 
@@ -157,7 +154,6 @@ namespace osgEarth { namespace Features
 
         optional<FeatureSourceOptions> _featureOptions;
         optional<ImageLayerOptions>    _imageOptions;
-        optional<ProfileOptions>       _imageProfileOptions;
         osg::ref_ptr<FeatureSource>    _featureSource;
         optional<int>                  _imageBand;
     };
@@ -274,7 +270,6 @@ namespace osgEarth { namespace Features
 
         osg::ref_ptr<FeatureSource>        _features;
         osg::ref_ptr<ImageLayer>           _imageLayer;
-        osg::ref_ptr<const Profile>        _imageProfile;
         osg::observer_ptr<const Map>       _map;
         const FeatureModelSourceOptions    _options;
         osg::ref_ptr<FeatureNodeFactory>   _factory;

@@ -310,7 +310,7 @@ namespace {
         "    else \n"
         "    { \n"
         "        __BODY_CODE__"
-        "        //color = vec4(texture(image_tex, texCoord).g, 0., 0., 1.); \n"
+        "        //color = vec4(texCoord.st, 0., 1.); \n"
         "    } \n"
         "} \n";
 
@@ -502,7 +502,6 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
         return;
 
     GroupMultiBands* groupMultiBands = new GroupMultiBands();
-
     unsigned defaultBand = _options.imageBand().getOrUse(0);
     TileKey keyTmp(key);
     keyTmp.setupNextAvailableBands(bandNumber);
@@ -547,11 +546,14 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
 // setup the image as a texture and bind it the to sphere
 osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const TileKey& key, ProgressCallback* progress )
 {
-    const Profile* imageProfile = _session->getImageProfile();
+    if (! _session || ! imageLayer || ! imageLayer->getProfile() )
+        return nullptr;
+
+    const osgEarth::Bounds& rasterBounds = imageLayer->getProfile()->getLatLongExtent().originalBounds();
     GeoImage image = imageLayer->createImage(key, progress);
-    if (image.valid() && imageProfile)
+    if (image.valid())
     {
-        osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageProfile->getSRS()->getEllipsoid();
+        osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageLayer->getProfile()->getSRS()->getEllipsoid();
         osg::Geode* sphere = s_getOrCreateEllipsoidGeometry(ellipsoidModel.get());
 
         osg::Vec2 scale ( 1., 1. );
@@ -561,10 +563,11 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         // it is invalid if accessed before
         if (sphereProfile.valid())
         {
-            scale.set(  sphereProfile->getExtent().originalBounds().width()  / imageProfile->getExtent().originalBounds().width(),
-                        sphereProfile->getExtent().originalBounds().height() / imageProfile->getExtent().originalBounds().height() );
-            origin.set( (imageProfile->getExtent().originalBounds().xMin() - sphereProfile->getExtent().originalBounds().xMin()) / sphereProfile->getExtent().originalBounds().width(),
-                        (imageProfile->getExtent().originalBounds().yMin() - sphereProfile->getExtent().originalBounds().yMin()) / sphereProfile->getExtent().originalBounds().height());
+
+            scale.set(  sphereProfile->getExtent().originalBounds().width()  / rasterBounds.width(),
+                        sphereProfile->getExtent().originalBounds().height() / rasterBounds.height() );
+            origin.set( (rasterBounds.xMin() - sphereProfile->getExtent().originalBounds().xMin()) / sphereProfile->getExtent().originalBounds().width(),
+                        (rasterBounds.yMin() - sphereProfile->getExtent().originalBounds().yMin()) / sphereProfile->getExtent().originalBounds().height());
         }
 
         OE_DEBUG << LC << "A new Image has been read. Scale: (" << scale.x() << ";" << scale.y() << "). Origin: ("

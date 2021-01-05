@@ -209,16 +209,3 @@ Session::getImageLayer() const
 {
     return _imageLayer.get();
 }
-
-
-void
-Session::setImageProfile(const Profile* ip)
-{
-    _imageProfile = ip;
-}
-
-const Profile*
-Session::getImageProfile() const
-{
-    return _imageProfile.get();
-}

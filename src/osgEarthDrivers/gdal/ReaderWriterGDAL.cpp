@@ -117,6 +117,14 @@ typedef struct
     double adfGeoTransform[6];
     int    nBlockXSize;
     int    nBlockYSize;
+
+    std::string to_string() const
+    {
+        ostringstream out;
+        out << "isFileOK:" << isFileOK << " nRasterXSize:" << nRasterXSize << " nRasterYSize:" << nRasterYSize
+            << " nBlockXSize:" << nBlockXSize << " nBlockYSize:" << nBlockYSize;
+        return out.str();
+    }
 } DatasetProperty;
 
 typedef struct
@@ -308,12 +316,12 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                     {
                         bandProperties[j].colorTable = GDALGetRasterColorTable( hRasterBand );
                         if (bandProperties[j].colorTable)
-                        {
                             bandProperties[j].colorTable = GDALCloneColorTable(bandProperties[j].colorTable);
-                        }
                     }
                     else
+                    {
                         bandProperties[j].colorTable = 0;
+                    }
                     bandProperties[j].noDataValue = GDALGetRasterNoDataValue(hRasterBand, &bandProperties[j].bHasNoData);
                 }
             }
@@ -369,6 +377,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                 if (product_maxX > maxX) maxX = product_maxX;
                 if (product_maxY > maxY) maxY = product_maxY;
             }
+
             if (resolutionStrategy == AVERAGE_RESOLUTION)
             {
                 we_res += psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES];
@@ -446,9 +455,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
         hBand = GDALGetRasterBand(hVRTDS, j+1);
         GDALSetRasterColorInterpretation(hBand, bandProperties[j].colorInterpretation);
         if (bandProperties[j].colorInterpretation == GCI_PaletteIndex)
-        {
             GDALSetRasterColorTable(hBand, bandProperties[j].colorTable);
-        }
         if (bandProperties[j].bHasNoData)
             GDALSetRasterNoDataValue(hBand, bandProperties[j].noDataValue);
     }
@@ -457,8 +464,8 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
     {
         if (psDatasetProperties[i].isFileOK == 0)
             continue;
-        const char* dsFileName = files[i].c_str();
 
+        const char* dsFileName = files[i].c_str();
         bool isProxy = true;
 
 #if GDAL_VERSION_1_6_OR_NEWER
@@ -472,13 +479,8 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                                            psDatasetProperties[i].adfGeoTransform);
 
         for(j=0;j<nBands;j++)
-        {
-            GDALProxyPoolDatasetAddSrcBandDescription(hDS,
-                                                      bandProperties[j].dataType,
-                                                      psDatasetProperties[i].nBlockXSize,
-                                                      psDatasetProperties[i].nBlockYSize);
-        }
-        isProxy = true;
+            GDALProxyPoolDatasetAddSrcBandDescription(hDS, bandProperties[j].dataType, psDatasetProperties[i].nBlockXSize, psDatasetProperties[i].nBlockYSize);
+
         OE_DEBUG << LC << "Using GDALProxyPoolDatasetH" << std::endl;
 
 #else // !GDAL_VERSION_1_6_OR_NEWER
@@ -490,14 +492,10 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
 
 #endif
 
-        int xoffset = (int)
-                (0.5 + (psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_X] - minX) / we_res);
-        int yoffset = (int)
-                (0.5 + (maxY - psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_Y]) / -ns_res);
-        int dest_width = (int)
-                (0.5 + psDatasetProperties[i].nRasterXSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES] / we_res);
-        int dest_height = (int)
-                (0.5 + psDatasetProperties[i].nRasterYSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_NS_RES] / ns_res);
+        int xoffset = (int) (0.5 + (psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_X] - minX) / we_res);
+        int yoffset = (int) (0.5 + (maxY - psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_Y]) / -ns_res);
+        int dest_width = (int) (0.5 + psDatasetProperties[i].nRasterXSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES] / we_res);
+        int dest_height = (int) (0.5 + psDatasetProperties[i].nRasterYSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_NS_RES] / ns_res);
 
         for(j=0;j<nBands;j++)
         {
@@ -514,9 +512,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
         }
         //Only dereference if it is a proxy dataset
         if (isProxy)
-        {
             GDALDereferenceDataset(hDS);
-        }
     }
 end:
     CPLFree(psDatasetProperties);
@@ -1212,15 +1208,15 @@ public:
         }
 
 
-
-
         OE_DEBUG << LC << INDENT << "Geo extents: " << minX << ", " << minY << " -> " << maxX << ", " << maxY << std::endl;
 
         if ( !profile )
         {
-            profile = Profile::create(
-                        warpedSRSWKT,
-                        minX, minY, maxX, maxY);
+            // TODO: not exact. to be improved
+            if ( _options.coverage().isSetTo(true) && _options.forceSRS().isSet() )
+                profile = Profile::create( warpedSRSWKT, minX, minY, maxX, maxY, "", 1, 1 );
+            else
+                profile = Profile::create( warpedSRSWKT, minX, minY, maxX, maxY );
 
             if ( !profile )
             {
@@ -1560,8 +1556,6 @@ public:
 
         double west = intersection.xMin();
         double east = intersection.xMax();
-        double north = intersection.yMax();
-        double south = intersection.yMin();
 
         // The extents and the intersection will be normalized between -180 and 180 longitude if they are geographic.
         // However, the georeferencing will expect the coordinates to be in the same longitude frame as the original dataset,
@@ -1623,12 +1617,13 @@ public:
                     rasterWidth : (int)ceil((intersection.width() / key.getExtent().width())*(double)tileSize);
         int target_height = isImageEmbededInFeature ?
                     rasterHeight : (int)ceil((intersection.height() / key.getExtent().height())*(double)tileSize);
-        int tile_offset_left = (int)floor((offset_left / key.getExtent().width()) * (double)tileSize);
-        int tile_offset_top = (int)floor((offset_top / key.getExtent().height()) * (double)tileSize);
+        int tile_offset_left = isImageEmbededInFeature ?
+                    0 : (int)floor((offset_left / key.getExtent().width()) * (double)tileSize);
+        int tile_offset_top = isImageEmbededInFeature ?
+                    0 : (int)floor((offset_top / key.getExtent().height()) * (double)tileSize);
 
         OE_DEBUG << LC << "ReadWindow " << off_x << "," << off_y << " " << width << "x" << height << std::endl;
         OE_DEBUG << LC << "DestWindow " << tile_offset_left << "," << tile_offset_top << " " << target_width << "x" << target_height << std::endl;
-
 
         //Return if parameters are out of range.
         if (width <= 0 || height <= 0 || target_width <= 0 || target_height <= 0)

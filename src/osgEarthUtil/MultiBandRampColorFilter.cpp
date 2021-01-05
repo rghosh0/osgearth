@@ -110,7 +110,7 @@ osg::Uniform* MultiBandRampColorFilter::installAsFunction(osg::StateSet* stateSe
 void MultiBandRampColorFilter::mergeInShader(std::string& shaderCode, const std::string& uniformName, const std::string& extractValueCode) const
 {
     std::string extract = extractValueCode.empty() ? "color" : extractValueCode;
-    std::string rampCode = "    float value = " + extractValueCode + "[" + uniformName + "];\n";
+    std::string rampCode = "    float value = " + extract + "[" + uniformName + "];\n";
     std::string varDefCode = "uniform int " + uniformName + ";\n";
 
     int iConst = 0;
