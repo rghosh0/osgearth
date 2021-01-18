@@ -251,6 +251,9 @@ namespace osgEarth { namespace Features
         /** The underlying feature source. */
         FeatureSource* getFeatureSource() { return _features.get(); }
 
+        /** The optional embeded ImageLayer. */
+        ImageLayer* getImageLayer() { return _imageLayer.get(); }
+
         /** The options with which this source was created */
         virtual const FeatureModelSourceOptions& getFeatureModelOptions() const { return _options; }
 

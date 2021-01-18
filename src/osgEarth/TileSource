@@ -245,8 +245,11 @@ namespace osgEarth
         //! Get the number of bands
         virtual bool getBandsNumber ( int& /**bandsNumber**/ ) const { return false; }
 
-        //! Get the number of bands
+        //! Get one meta band for one band
         virtual std::string getBandMetaData ( int /**band**/, const std::string& /**attribute**/ ) const  { return ""; }
+
+        //! Get the metadata for a given band
+        virtual char** getBandAllMetaData ( int /**band**/ ) const  { return NULL; }
 
         /**
          * Creates an image for the given TileKey. The TileKey's profile must match

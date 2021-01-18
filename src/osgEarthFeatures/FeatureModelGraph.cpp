@@ -301,17 +301,9 @@ namespace {
         "__VAR_DEF__"
 
         "uniform sampler2D image_tex; \n"
-        "uniform vec2 image_origin; \n"
-        "uniform vec2 image_scale; \n"
         "void oe_ImageBinding_FS(inout vec4 color) { \n"
-        "    vec2 texCoord = image_scale * (imageBinding_texcoord - image_origin); \n"
-        "    if (texCoord.s < 0. || texCoord.s > 1. || texCoord.t < 0. || texCoord.t > 1.) \n"
-        "        discard; \n"
-        "    else \n"
-        "    { \n"
-        "        __BODY_CODE__"
-        "        //color = vec4(texCoord.st, 0., 1.); \n"
-        "    } \n"
+        "    __BODY_CODE__"
+        "    //color = vec4(imageBinding_texcoord.st, 0., 1.); \n"
         "} \n";
 
     struct BandsInformation : public osg::Referenced
@@ -389,40 +381,46 @@ namespace {
                 GroupMultiBands* root = static_cast<GroupMultiBands*>( node );
                 root->setBand(band);
                 band++;
-                if (band == 300) band = 1;
+                if (band == 14) band = 1;
 
                 //traceNode( *(_fmg->getParent(0)->getParent(0)) );
             }
         }
     };
 
-    // constucts an ellipsoidal mesh to support the imagelayer
-    osg::Geode* s_makeEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid, double startX)
+
+    // build a part of sphere for a given extent
+    osg::Geode* buildPartialEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid, const osgEarth::Bounds& imageBounds)
     {
         double outerRadius = ellipsoid->getRadiusEquator();
         double hae = outerRadius - ellipsoid->getRadiusPolar();
 
         osg::Geometry* geom = new osg::Geometry();
         geom->setUseVertexBufferObjects(true);
-        OE_DEBUG << "[FeatureModelGraph] Build the sphere singleton for image overlay" << std::endl;
 
-        int latSegments = 180;
-        int lonSegments = 2 * latSegments;
-
-        double segmentSize = 180./(double)latSegments;
+        osgEarth::Bounds shapeBounds(imageBounds);
+        if (shapeBounds.yMin() < -90.) shapeBounds.yMin() = -90.;
+        if (shapeBounds.yMax() > 90.)  shapeBounds.yMax() =  90.;
+        const double segmentSizeRefInDegree = 1.; // reference resolution of the sphere
+        int latSegments = static_cast<int>(ceil(shapeBounds.height() / segmentSizeRefInDegree));
+        int lonSegments = static_cast<int>(ceil(shapeBounds.width() / segmentSizeRefInDegree));
         int arraySize = ( (latSegments+1) * (lonSegments+1) );
+        const double segmentSizeLat = shapeBounds.height() / latSegments;
+        const double segmentSizeLong = shapeBounds.width() / lonSegments;
+        const double scaleY = shapeBounds.height() / imageBounds.height();
+        const double shiftY = (shapeBounds.yMin() - imageBounds.yMin()) / imageBounds.height();
+
+        OE_DEBUG << "[FeatureModelGraph] Build partial sphere for image overlay. Extent " << imageBounds.toString() << ". "
+                 << "Resolution " << (lonSegments+1) << "*" << (latSegments+1) << ". scaleY:" << scaleY << ". shiftY:" << shiftY << std::endl;
 
         osg::Vec3Array* verts = new osg::Vec3Array();
         verts->reserve( arraySize );
 
-        osg::Vec2Array* texCoords = nullptr;
-        osg::Vec3Array* normals = nullptr;
-
-        texCoords = new osg::Vec2Array();
+        osg::Vec2Array* texCoords  = new osg::Vec2Array();
         texCoords->reserve( arraySize );
         geom->setTexCoordArray( 0, texCoords );
 
-        normals = new osg::Vec3Array(osg::Array::BIND_PER_VERTEX);
+        osg::Vec3Array* normals = new osg::Vec3Array(osg::Array::BIND_PER_VERTEX);
         normals->reserve( arraySize );
         geom->setNormalArray( normals );
 
@@ -431,16 +429,16 @@ namespace {
 
         for( int y = 0; y <= latSegments; ++y )
         {
-            double lat = -90. + segmentSize * (double)y;
+            double lat = shapeBounds.yMin() + segmentSizeLat * (double)y;
             for( int x = 0; x <= lonSegments; ++x )
             {
-                double lon = startX + segmentSize * (double)x;
+                double lon = shapeBounds.xMin() + segmentSizeLong * (double)x;
                 double gx, gy, gz;
                 ellipsoid->convertLatLongHeightToXYZ( osg::DegreesToRadians(lat), osg::DegreesToRadians(lon), hae, gx, gy, gz );
                 verts->push_back( osg::Vec3(gx, gy, gz) );
 
                 double s = ((double) x) / lonSegments;
-                double t = ((double) y) / latSegments;
+                double t = shiftY + (((double) y) / latSegments) * scaleY;
                 texCoords->push_back( osg::Vec2(s, t ) );
 
                 osg::Vec3d normal(gx, gy, gz);
@@ -470,36 +468,21 @@ namespace {
 
         return geode;
     }
-
-    // ensure to share the sphere geometry between all FMG instances
-    // TODO We must implement one mesh per ellipsoid model and image profile
-    osg::Geode* s_getOrCreateEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid)
-    {
-        if (! _ellipsoidGeom.valid() || ! sphereProfile.valid())
-        {
-            static Threading::Mutex mutex;
-            mutex.lock();
-            if (! sphereProfile.valid())
-            {
-                sphereProfile = Profile::create(SpatialReference::create("wgs84"), -0.125, -90., 359.875, 90.);
-            }
-            if (! _ellipsoidGeom.valid())
-            {
-                _ellipsoidGeom = s_makeEllipsoidGeometry(ellipsoid, sphereProfile->getExtent().xMin());
-            }
-            mutex.unlock();
-        }
-
-        return _ellipsoidGeom.get();
-    }
 }
 
 
 void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageLayer, const TileKey& key)
 {
+    // expected pre conditions
     int bandNumber = 0;
-    if (! imageLayer->getTileSource() || ! imageLayer->getTileSource()->getBandsNumber(bandNumber) || key.hasBandsDefined() )
+    if (! imageLayer->getTileSource() || ! imageLayer->getTileSource()->getBandsNumber(bandNumber)
+            || ! imageLayer->getProfile() || ! imageLayer->getProfile()->getSRS() || ! imageLayer->getProfile()->getSRS()->getEllipsoid()
+            || key.hasBandsDefined() )
         return;
+
+    // build the sphere section which will be used to drape the image
+    osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageLayer->getProfile()->getSRS()->getEllipsoid();
+    _sphereForOverlay = buildPartialEllipsoidGeometry(ellipsoidModel.get(), imageLayer->getProfile()->getLatLongExtent().originalBounds());
 
     GroupMultiBands* groupMultiBands = new GroupMultiBands();
     unsigned defaultBand = _options.imageBand().getOrUse(0);
@@ -549,36 +532,15 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
     if (! _session || ! imageLayer || ! imageLayer->getProfile() )
         return nullptr;
 
-    const osgEarth::Bounds& rasterBounds = imageLayer->getProfile()->getLatLongExtent().originalBounds();
     GeoImage image = imageLayer->createImage(key, progress);
     if (image.valid())
     {
-        osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageLayer->getProfile()->getSRS()->getEllipsoid();
-        osg::Geode* sphere = s_getOrCreateEllipsoidGeometry(ellipsoidModel.get());
-
-        osg::Vec2 scale ( 1., 1. );
-        osg::Vec2 origin ( 0., 0. );
-
-        // the sphere profile is built with the sphere singleton in s_getOrCreateEllipsoidGeometry()
-        // it is invalid if accessed before
-        if (sphereProfile.valid())
-        {
-
-            scale.set(  sphereProfile->getExtent().originalBounds().width()  / rasterBounds.width(),
-                        sphereProfile->getExtent().originalBounds().height() / rasterBounds.height() );
-            origin.set( (rasterBounds.xMin() - sphereProfile->getExtent().originalBounds().xMin()) / sphereProfile->getExtent().originalBounds().width(),
-                        (rasterBounds.yMin() - sphereProfile->getExtent().originalBounds().yMin()) / sphereProfile->getExtent().originalBounds().height());
-        }
-
-        OE_DEBUG << LC << "A new Image has been read. Scale: (" << scale.x() << ";" << scale.y() << "). Origin: ("
-                 << origin.x() << ";" << origin.y() << ")." << std::endl;
-
         osg::Group* bandsGroup = new osg::Group();
 
         osg::Texture2D* tex = new osg::Texture2D( image.getImage() );
         tex->setBorderColor( osg::Vec4d(1., 0., 0., 1.) );
-        tex->setWrap( osg::Texture::WRAP_S, scale.x() != 1. ? osg::Texture::CLAMP_TO_BORDER : osg::Texture::REPEAT );
-        tex->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_BORDER );
+        tex->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE );
+        tex->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE );
         tex->setResizeNonPowerOfTwoHint(false);
         tex->setFilter( osg::Texture::MAG_FILTER, imageLayer->options().magFilter().getOrUse(osg::Texture::NEAREST) );
         tex->setFilter( osg::Texture::MIN_FILTER, imageLayer->options().minFilter().getOrUse(osg::Texture::NEAREST) );
@@ -591,21 +553,19 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         bandsGroup->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
         bandsGroup->getOrCreateStateSet()->setTextureAttributeAndModes(0, tex, osg::StateAttribute::ON);
         bandsGroup->getOrCreateStateSet()->addUniform( new osg::Uniform("image_tex", 0) );
-        bandsGroup->getOrCreateStateSet()->addUniform( new osg::Uniform("image_origin", origin) );
-        bandsGroup->getOrCreateStateSet()->addUniform( new osg::Uniform("image_scale", scale) );
 
-        std::string valueExtraction = "texture(image_tex, texCoord)";
+        std::string valueExtraction = "texture(image_tex, imageBinding_texcoord)";
         for ( auto colorFilter : imageLayer->getColorFilters() )
             colorFilter->mergeInShader(imageFSupdated, _multiBand_uniform_name, valueExtraction);
 
         // if no color filter has been applied then simply display the texture as is
         osgEarth::replaceIn(imageFSupdated, "__VAR_DEF__", "");
-        osgEarth::replaceIn(imageFSupdated, "__BODY_CODE__", "        color = texture(image_tex, texCoord); \n");
+        osgEarth::replaceIn(imageFSupdated, "__BODY_CODE__", "        color = texture(image_tex, imageBinding_texcoord); \n");
 
         program->setFunction("oe_ImageBinding_VS", imageVS, ShaderComp::LOCATION_VERTEX_MODEL);
         program->setFunction("oe_ImageBinding_FS", imageFSupdated, ShaderComp::LOCATION_FRAGMENT_COLORING);
 
-        bandsGroup->addChild(sphere);
+        bandsGroup->addChild(_sphereForOverlay.get());
         return bandsGroup;
     }
 
@@ -1050,12 +1010,14 @@ osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
                 else if ( _session->getImageLayer()->getProfile() && _session->getImageLayer()->getProfile()->getSRS()
                           && _session->styles() && _session->styles()->getDefaultStyle() )
                 {
+                    // case build of the top root node
                     if (! key.hasBandsDefined() )
                     {
                         geometry = _factory->getOrCreateStyleGroup(*_session->styles()->getDefaultStyle(), _session.get());
                         applyRenderSymbology(*_session->styles()->getDefaultStyle(), geometry);
                         setupRootSGForImage( geometry, _session->getImageLayer(), key );
                     }
+                    // case build of one image to bind on the sphere
                     else
                     {
                         geometry = bindGeomWithImage( _session->getImageLayer(), key, nullptr );

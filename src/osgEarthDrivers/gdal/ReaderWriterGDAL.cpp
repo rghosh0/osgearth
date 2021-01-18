@@ -127,14 +127,66 @@ typedef struct
     }
 } DatasetProperty;
 
-typedef struct
+struct BandProperty
 {
     GDALColorInterp        colorInterpretation;
     GDALDataType           dataType;
-    GDALColorTableH        colorTable;
+    GDALColorTableH        colorTable{NULL};
+    std::string            metaDataString;
     int                    bHasNoData;
     double                 noDataValue;
-} BandProperty;
+    std::vector<std::pair<int,int>> sourceFileAndBand;
+
+    BandProperty()
+    {
+    }
+
+    ~BandProperty()
+    {
+        GDALDestroyColorTable( colorTable );
+//        CSLDestroy( metaData );
+    }
+
+    char** getMetaData()
+    {
+        return metaData;
+    }
+
+    void setMetaData(char** pMetaData)
+    {
+        metaData = pMetaData;
+
+        // build a string which concatenates all meta data sorted by alphabetical order
+        // so that this string can be used to compare this meta data to other band meta data
+        std::string metaDataStringLocal = "";
+        if (metaData)
+        {
+            std::vector<std::string> metaDataList;
+            for (int i=0 ; metaData[i] != NULL ; ++i)
+            {
+                std::string meta = metaData[i];
+                unsigned int j=0;
+                while ( j < metaDataList.size() && meta > metaDataList[j] )
+                    j++;
+                metaDataList.insert(metaDataList.begin()+j, meta);
+            }
+            for (const auto& str : metaDataList)
+            {
+                if (str.find("STATISTICS") == std::string::npos)
+                    metaDataStringLocal += "xxxx"+str;
+            }
+        }
+        metaDataString = metaDataStringLocal.c_str();
+    }
+
+    bool isSameBand(BandProperty& bandProp2) const
+    {
+        return metaDataString == bandProp2.metaDataString;
+    }
+
+private:
+    char**                 metaData{NULL};
+};
 
 static void
 getFiles(const osgDB::Options& options, const std::string &file, const std::vector<std::string> &exts, const std::vector<std::string> &blackExts, std::vector<std::string> &files)
@@ -232,7 +284,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
 
     char* projectionRef = NULL;
     int nBands = 0;
-    BandProperty* bandProperties = NULL;
+    std::vector<BandProperty> bandProperties;
     double minX = 0, minY = 0, maxX = 0, maxY = 0;
     int i,j;
     double we_res = 0;
@@ -306,23 +358,26 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                 maxX = product_maxX;
                 maxY = product_maxY;
                 nBands = GDALGetRasterCount(hDS);
-                bandProperties = (BandProperty*)CPLMalloc(nBands*sizeof(BandProperty));
                 for(j=0;j<nBands;j++)
                 {
                     GDALRasterBandH hRasterBand = GDALGetRasterBand( hDS, j+1 );
-                    bandProperties[j].colorInterpretation = GDALGetRasterColorInterpretation(hRasterBand);
-                    bandProperties[j].dataType = GDALGetRasterDataType(hRasterBand);
-                    if (bandProperties[j].colorInterpretation == GCI_PaletteIndex)
+                    bandProperties.resize(j+1);
+                    BandProperty& bandProperty = bandProperties.back();
+                    bandProperty.colorInterpretation = GDALGetRasterColorInterpretation(hRasterBand);
+                    bandProperty.dataType = GDALGetRasterDataType(hRasterBand);
+                    bandProperty.setMetaData( CSLDuplicate(GDALGetMetadata(hRasterBand, NULL)) );
+                    bandProperty.sourceFileAndBand.push_back( make_pair(i, j+1) );
+                    if (bandProperty.colorInterpretation == GCI_PaletteIndex)
                     {
-                        bandProperties[j].colorTable = GDALGetRasterColorTable( hRasterBand );
-                        if (bandProperties[j].colorTable)
-                            bandProperties[j].colorTable = GDALCloneColorTable(bandProperties[j].colorTable);
+                        bandProperty.colorTable = GDALGetRasterColorTable( hRasterBand );
+                        if (bandProperty.colorTable)
+                            bandProperty.colorTable = GDALCloneColorTable(bandProperty.colorTable);
                     }
                     else
                     {
-                        bandProperties[j].colorTable = 0;
+                        bandProperty.colorTable = 0;
                     }
-                    bandProperties[j].noDataValue = GDALGetRasterNoDataValue(hRasterBand, &bandProperties[j].bHasNoData);
+                    bandProperty.noDataValue = GDALGetRasterNoDataValue(hRasterBand, &bandProperty.bHasNoData);
                 }
             }
             else
@@ -336,16 +391,36 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                     continue;
                 }
                 int _nBands = GDALGetRasterCount(hDS);
-                if (nBands != _nBands)
-                {
-                    OE_WARN << LC << "gdalbuildvrt does not support heterogeneous band numbers. Skipping " << dsFileName << std::endl;
-                    GDALClose(hDS);
-                    hDS = NULL;
-                    continue;
-                }
-                for(j=0;j<nBands && hDS != NULL;j++)
+
+                for(j=0;j<_nBands && hDS != NULL;j++)
                 {
                     GDALRasterBandH hRasterBand = GDALGetRasterBand( hDS, j+1 );
+
+                    BandProperty bandProperty;
+                    bandProperty.colorInterpretation = GDALGetRasterColorInterpretation(hRasterBand);
+                    bandProperty.dataType = GDALGetRasterDataType(hRasterBand);
+                    bandProperty.setMetaData( CSLDuplicate(GDALGetMetadata(hRasterBand, NULL)) );
+                    if (bandProperty.colorInterpretation == GCI_PaletteIndex)
+                    {
+                        bandProperty.colorTable = GDALGetRasterColorTable( hRasterBand );
+                        if (bandProperty.colorTable)
+                            bandProperty.colorTable = GDALCloneColorTable(bandProperty.colorTable);
+                    }
+                    else
+                    {
+                        bandProperty.colorTable = 0;
+                    }
+                    bandProperty.noDataValue = GDALGetRasterNoDataValue(hRasterBand, &bandProperty.bHasNoData);
+
+                    for (auto& bandProp : bandProperties)
+                    {
+                        if (bandProp.isSameBand(bandProperty))
+                        {
+                            bandProp.sourceFileAndBand.push_back( make_pair(i, j+1) );
+                            break;
+                        }
+                    }
+
                     if (bandProperties[j].colorInterpretation != GDALGetRasterColorInterpretation(hRasterBand) ||
                             bandProperties[j].dataType != GDALGetRasterDataType(hRasterBand))
                     {
@@ -453,6 +528,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
         GDALRasterBandH hBand;
         GDALAddBand(hVRTDS, bandProperties[j].dataType, NULL);
         hBand = GDALGetRasterBand(hVRTDS, j+1);
+        GDALSetMetadata(hBand, CSLDuplicate(bandProperties[j].getMetaData()), NULL);
         GDALSetRasterColorInterpretation(hBand, bandProperties[j].colorInterpretation);
         if (bandProperties[j].colorInterpretation == GCI_PaletteIndex)
             GDALSetRasterColorTable(hBand, bandProperties[j].colorTable);
@@ -462,8 +538,8 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
 
     for(i=0;i<nInputFiles;i++)
     {
-        if (psDatasetProperties[i].isFileOK == 0)
-            continue;
+//        if (psDatasetProperties[i].isFileOK == 0)
+//            continue;
 
         const char* dsFileName = files[i].c_str();
         bool isProxy = true;
@@ -497,18 +573,26 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
         int dest_width = (int) (0.5 + psDatasetProperties[i].nRasterXSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES] / we_res);
         int dest_height = (int) (0.5 + psDatasetProperties[i].nRasterYSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_NS_RES] / ns_res);
 
-        for(j=0;j<nBands;j++)
+        j=1;
+        for (const auto& prop : bandProperties)
         {
-            VRTSourcedRasterBandH hVRTBand = (VRTSourcedRasterBandH)GDALGetRasterBand(hVRTDS, j + 1);
+            VRTSourcedRasterBandH hVRTBand = (VRTSourcedRasterBandH)GDALGetRasterBand(hVRTDS, j);
 
-            /* Place the raster band at the right position in the VRT */
-            VRTAddSimpleSource(hVRTBand, GDALGetRasterBand((GDALDatasetH)hDS, j + 1),
-                               0, 0,
-                               psDatasetProperties[i].nRasterXSize,
-                               psDatasetProperties[i].nRasterYSize,
-                               xoffset, yoffset,
-                               dest_width, dest_height, "near",
-                               VRT_NODATA_UNSET);
+            int bandNb = 0;
+            for (const auto& sources : prop.sourceFileAndBand)
+                if (sources.first == i)
+                    bandNb = sources.second;
+
+            if (bandNb > 0)
+                /* Place the raster band at the right position in the VRT */
+                VRTAddSimpleSource(hVRTBand, GDALGetRasterBand((GDALDatasetH)hDS, bandNb),
+                                   0, 0,
+                                   psDatasetProperties[i].nRasterXSize,
+                                   psDatasetProperties[i].nRasterYSize,
+                                   xoffset, yoffset,
+                                   dest_width, dest_height, "near",
+                                   VRT_NODATA_UNSET);
+            j++;
         }
         //Only dereference if it is a proxy dataset
         if (isProxy)
@@ -516,11 +600,6 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
     }
 end:
     CPLFree(psDatasetProperties);
-    for(j=0;j<nBands;j++)
-    {
-        GDALDestroyColorTable(bandProperties[j].colorTable);
-    }
-    CPLFree(bandProperties);
     CPLFree(projectionRef);
     return hVRTDS;
 }
@@ -1308,7 +1387,7 @@ public:
 
         //Set the profile
         setProfile( profile );
-        OE_DEBUG << LC << INDENT << "Set Profile to " << (profile ? profile->toString() : "NULL") <<  std::endl;
+        OE_DEBUG << LC << INDENT << "Set Profile to " << (profile ? profile->toString() : "NULL") <<  std::endl;        
 
         return STATUS_OK;
     }
@@ -1334,8 +1413,20 @@ public:
 
         GDALRasterBand* gdalBand = _warpedDS->GetRasterBand(band);
         if ( gdalBand )
-            return gdalBand->GetMetadataItem( attribute.c_str() );
+        {
+            const char* out = gdalBand->GetMetadataItem( attribute.c_str() );
+            return out ? out : "";
+        }
         return "";
+    }
+
+    //! Get the metadata for a given band
+    char** getBandAllMetaData ( int band ) const
+    {
+        GDAL_SCOPED_LOCK;
+
+        GDALRasterBand* gdalBand = _warpedDS ?_warpedDS->GetRasterBand(band) : NULL;
+        return gdalBand ? gdalBand->GetMetadata() : NULL;
     }
 
     /**

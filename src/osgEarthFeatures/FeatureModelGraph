@@ -225,6 +225,7 @@ namespace osgEarth { namespace Features
         OpenThreads::ReentrantMutex      _redrawMutex;
         osg::BoundingSphered             _rootBs;
         float                            _rootMaxRange;
+        osg::ref_ptr<osg::Geode>         _sphereForOverlay;
 
         OpenThreads::Mutex               _profilingLogsMutex;
         std::vector<std::string>         _profilingLogs;
