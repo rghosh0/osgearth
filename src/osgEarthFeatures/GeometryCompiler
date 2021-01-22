@@ -112,6 +112,10 @@ namespace osgEarth { namespace Features
         optional<bool>& useGPUScreenSpaceLines() { return _useGPULines; }
         const optional<bool>& useGPUScreenSpaceLines() const { return _useGPULines; }
 
+        /** Whether to use a color binding overall instead of per vertex  */
+        optional<bool>& bindColorOverall() { return _bindColorOverall; }
+        const optional<bool>& bindColorOverall() const { return _bindColorOverall; }
+
     public:
         Config getConfig() const;
 
@@ -135,6 +139,7 @@ namespace osgEarth { namespace Features
         optional<bool>                 _validate;
         optional<float>                _maxPolyTilingAngle;
         optional<bool>                 _useGPULines;
+        optional<bool>                 _bindColorOverall;
 
 
         static GeometryCompilerOptions s_defaults;

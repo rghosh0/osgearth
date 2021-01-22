@@ -231,12 +231,23 @@ BuildGeometryFilter::processPolygons(FeatureList& features, FilterContext& conte
                         ms.run( *osgGeom, threshold, *_geoInterp );
                 }
 
-                // assign the primary color array. PER_VERTEX required in order to support
+                // assign the primary color array. PER_VERTEX prefered in order to support
                 // vertex optimization later
-                unsigned count = osgGeom->getVertexArray()->getNumElements();
-                osg::Vec4Array* colors = new osg::Vec4Array(osg::Array::BIND_PER_VERTEX);
-                colors->assign( count, primaryColor );
-                osgGeom->setColorArray( colors );
+                if (_bindColorOverall.isSetTo(true))
+                {
+                    // case bind overall
+                    osg::Vec4Array* colors = new osg::Vec4Array(osg::Array::BIND_OVERALL);
+                    colors->assign( 1, primaryColor );
+                    osgGeom->setColorArray( colors );
+                }
+                else
+                {
+                    // case bind per vertex
+                    unsigned count = osgGeom->getVertexArray()->getNumElements();
+                    osg::Vec4Array* colors = new osg::Vec4Array(osg::Array::BIND_PER_VERTEX);
+                    colors->assign( count, primaryColor );
+                    osgGeom->setColorArray( colors );
+                }
 
                 geode->addDrawable( osgGeom );
 

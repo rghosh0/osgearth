@@ -121,6 +121,7 @@ GeometryCompilerOptions::fromConfig( const Config& conf )
     conf.get( "validate", _validate );
     conf.get( "max_polygon_tiling_angle", _maxPolyTilingAngle );
     conf.get( "use_gpu_screen_space_lines", _useGPULines );
+    conf.get( "bind_color_overall", _bindColorOverall );
 
     conf.get( "shader_policy", "disable",  _shaderPolicy, SHADERPOLICY_DISABLE );
     conf.get( "shader_policy", "inherit",  _shaderPolicy, SHADERPOLICY_INHERIT );
@@ -145,6 +146,7 @@ GeometryCompilerOptions::getConfig() const
     conf.set( "validate", _validate );
     conf.set( "max_polygon_tiling_angle", _maxPolyTilingAngle );
     conf.set( "use_gpu_screen_space_lines", _useGPULines );
+    conf.set( "bind_color_overall", _bindColorOverall );
 
     conf.set( "shader_policy", "disable",  _shaderPolicy, SHADERPOLICY_DISABLE );
     conf.set( "shader_policy", "inherit",  _shaderPolicy, SHADERPOLICY_INHERIT );
@@ -459,6 +461,9 @@ GeometryCompiler::compile(FeatureList&          workingSet,
 
         if (render && render->maxCreaseAngle().isSet())
             filter.maxCreaseAngle() = render->maxCreaseAngle().get();
+
+        if (_options.bindColorOverall().isSet())
+            filter.bindColorOverall() = *_options.bindColorOverall();
 
         osg::Node* node = filter.push( workingSet, sharedCX );
         if ( node )
