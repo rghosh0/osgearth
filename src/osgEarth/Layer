@@ -108,6 +108,8 @@ namespace osgEarth
         LayerOptions();
         LayerOptions(const ConfigOptions& configOptions);
 
+        virtual ~LayerOptions() {}
+
         virtual Config getConfig() const;
         void fromConfig(const Config& conf);
         virtual void mergeConfig(const Config& conf);
@@ -140,7 +142,17 @@ namespace osgEarth
 
 #define META_Layer(LIBRARY, TYPE, OPTIONS, SLUG) \
     private: \
-        OPTIONS * _options; \
+        OPTIONS * _options {nullptr}; \
+        TYPE ( const TYPE& rhs, const osg::CopyOp& op ) { } \
+    public: \
+        META_Object(LIBRARY, TYPE); \
+        OPTIONS& options() { return *_options; } \
+        const OPTIONS& options() const { return *_options; } \
+        virtual const char* getConfigKey() const { return #SLUG ; }
+
+#define META_Layer_Concrete(LIBRARY, TYPE, OPTIONS, SLUG) \
+    private: \
+        OPTIONS * _options {nullptr}; \
         OPTIONS   _optionsConcrete; \
         TYPE ( const TYPE& rhs, const osg::CopyOp& op ) { } \
     public: \

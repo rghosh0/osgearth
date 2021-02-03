@@ -111,7 +111,7 @@ namespace osgEarth { namespace Util
     class OSGEARTHUTIL_EXPORT SimpleOceanLayer : public VisibleLayer
     {
     public:
-        META_Layer(osgEarth, SimpleOceanLayer, SimpleOceanLayerOptions, simple_ocean);
+        META_Layer_Concrete(osgEarth, SimpleOceanLayer, SimpleOceanLayerOptions, simple_ocean);
 
         /** Constructs a new ocean layer */
         SimpleOceanLayer();

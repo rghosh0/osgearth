@@ -86,7 +86,7 @@ namespace osgEarth { namespace Features
     class OSGEARTHFEATURES_EXPORT ImageToFeatureLayer : public FeatureSourceLayer
     {
     public:
-        META_Layer(osgEarth, ImageToFeatureLayer, ImageToFeatureLayerOptions, image_to_feature);
+        META_Layer_Concrete(osgEarth, ImageToFeatureLayer, ImageToFeatureLayerOptions, image_to_feature);
 
         //! Create an empty layer
         ImageToFeatureLayer();

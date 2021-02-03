@@ -25,7 +25,7 @@ SET(HEADERS_ROOT
     Ephemeris
     ExampleResources
     Export
-    FlatteningLayer
+    #FlatteningLayer
     Fog
     Formatter
     FractalElevationLayer
@@ -116,7 +116,7 @@ SET(SOURCES_ROOT
     EarthManipulator.cpp
     Ephemeris.cpp
     ExampleResources.cpp
-    FlatteningLayer.cpp
+    #FlatteningLayer.cpp
     Fog.cpp
     FractalElevationLayer.cpp
     GARSGraticule.cpp

@@ -46,23 +46,23 @@ namespace
     {
     public:
         FeatureGeomModelSource( const ModelSourceOptions& options )
-            : FeatureModelSource( options ),
-              _options( options )
+            : FeatureModelSource( options )//,
+              //_options( options )
         {
             //nop
         }
 
-        const FeatureGeomModelOptions& getOptions() const { return _options; }
+        //const FeatureGeomModelOptions& getOptions() const { return _options; }
 
     public: // FeatureModelSource
 
         FeatureNodeFactory* createFeatureNodeFactory()
         {
-            return new GeomFeatureNodeFactory(_options);
+            return new GeomFeatureNodeFactory( FeatureGeomModelOptions(_options) );
         }
 
     private:
-        const FeatureGeomModelOptions _options;
+        //const FeatureGeomModelOptions _options;
     };
 }
 

@@ -65,7 +65,7 @@ namespace osgEarth { namespace Annotation
     class OSGEARTHANNO_EXPORT AnnotationLayer : public VisibleLayer
     {
     public:
-        META_Layer(osgEarthAnnotation, AnnotationLayer, AnnotationLayerOptions, annotations);
+        META_Layer_Concrete(osgEarthAnnotation, AnnotationLayer, AnnotationLayerOptions, annotations);
 
         //! Construct a default layer
         AnnotationLayer();

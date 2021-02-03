@@ -235,8 +235,8 @@ TerrainLayer::CacheBinMetadata::getConfig() const
 //------------------------------------------------------------------------
 
 TerrainLayer::TerrainLayer(TerrainLayerOptions* optionsPtr) :
-VisibleLayer(optionsPtr ? optionsPtr : &_optionsConcrete),
-_options(optionsPtr ? optionsPtr : &_optionsConcrete),
+VisibleLayer(optionsPtr),
+_options(optionsPtr),
 _openCalled(false),
 _tileSourceExpected(true)
 {
@@ -244,8 +244,8 @@ _tileSourceExpected(true)
 }
 
 TerrainLayer::TerrainLayer(TerrainLayerOptions* optionsPtr, TileSource* tileSource) :
-VisibleLayer(optionsPtr ? optionsPtr : &_optionsConcrete),
-_options(optionsPtr ? optionsPtr : &_optionsConcrete),
+VisibleLayer(optionsPtr),
+_options(optionsPtr),
 _tileSource(tileSource),
 _openCalled(false),
 _tileSourceExpected(true)

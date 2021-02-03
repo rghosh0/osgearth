@@ -102,7 +102,7 @@ namespace osgEarth { namespace Splat
     class OSGEARTHSPLAT_EXPORT RoadSurfaceLayer : public osgEarth::ImageLayer
     {
     public:
-        META_Layer(osgEarth, RoadSurfaceLayer, RoadSurfaceLayerOptions, road_surface);
+        META_Layer_Concrete(osgEarth, RoadSurfaceLayer, RoadSurfaceLayerOptions, road_surface);
 
         //! Create a blank layer to be configured with options()
         RoadSurfaceLayer();

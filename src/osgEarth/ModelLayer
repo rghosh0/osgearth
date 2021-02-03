@@ -53,6 +53,8 @@ namespace osgEarth
             const std::string& name, 
             const ModelSourceOptions& driverOptions);
 
+        virtual ~ModelLayerOptions() { }
+
         /**
          * Options for the underlying model source driver.
          */
@@ -109,7 +111,7 @@ namespace osgEarth
     class OSGEARTH_EXPORT ModelLayer : public VisibleLayer
     {
     public:
-        META_Layer(osgEarth, ModelLayer, ModelLayerOptions, model);
+        META_Layer_Concrete(osgEarth, ModelLayer, ModelLayerOptions, model);
 
         /**
          * Blank ModelLayer. Use options() to setup before calling open.

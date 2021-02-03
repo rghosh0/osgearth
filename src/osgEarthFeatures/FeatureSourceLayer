@@ -57,7 +57,7 @@ namespace osgEarth { namespace Features
     class OSGEARTHFEATURES_EXPORT FeatureSourceLayer : public Layer
     {
     public:
-        META_Layer(osgEarth, FeatureSourceLayer, FeatureSourceLayerOptions, feature_source);
+        META_Layer_Concrete(osgEarth, FeatureSourceLayer, FeatureSourceLayerOptions, feature_source);
 
         /**
          * Construct an empty feature source layer.
