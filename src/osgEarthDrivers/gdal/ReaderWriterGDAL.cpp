@@ -252,6 +252,11 @@ getFiles(const osgDB::Options& options, const std::string &file, const std::vect
     }
 }
 
+static void shiftToModuloRight(DatasetProperty& dsProp)
+{
+    dsProp.adfGeoTransform[GEOTRSFRM_TOPLEFT_X] += 360.;
+}
+
 // "build_vrt()" is adapted from the gdalbuildvrt application. Following is
 // the copyright notice from the source. The original code can be found at
 // http://trac.osgeo.org/gdal/browser/trunk/gdal/apps/gdalbuildvrt.cpp
@@ -286,6 +291,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
     int nBands = 0;
     std::vector<BandProperty> bandProperties;
     double minX = 0, minY = 0, maxX = 0, maxY = 0;
+    bool shiftToRight{false};
     int i,j;
     double we_res = 0;
     double ns_res = 0;
@@ -447,10 +453,26 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                 if (j != nBands || hDS == NULL)
                     continue;
 
-                if (product_minX < minX) minX = product_minX;
-                if (product_minY < minY) minY = product_minY;
-                if (product_maxX > maxX) maxX = product_maxX;
-                if (product_maxY > maxY) maxY = product_maxY;
+                // consolidate and merge the extends
+                if (product_minX < 0. && minX > 180.)
+                {
+                    product_minX += 360.;
+                    product_maxX += 360.;
+                    shiftToModuloRight( psDatasetProperties[i] );
+                    shiftToRight = true;
+                }
+                else if (minX < 0. && product_minX > 180.)
+                {
+                    for (int prevI = 0 ; prevI < i ; ++prevI)
+                    {
+                        if (psDatasetProperties[prevI].isFileOK &&
+                                psDatasetProperties[prevI].adfGeoTransform[GEOTRSFRM_TOPLEFT_X] < 0.)
+                        {
+                            shiftToModuloRight( psDatasetProperties[prevI] );
+                        }
+                    }
+                    shiftToRight = true;
+                }
             }
 
             if (resolutionStrategy == AVERAGE_RESOLUTION)
@@ -501,6 +523,32 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
     {
         we_res /= nCount;
         ns_res /= nCount;
+    }
+
+    // consolidate the global extent in case we have to shift it because it crosses the anti meridian
+    if (shiftToRight)
+    {
+        bool first = true;
+        for(i=0 ; i < nInputFiles ; i++)
+        {
+            if (psDatasetProperties[i].isFileOK)
+            {
+                double product_minX = psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_X];
+                double product_maxX = product_minX +
+                        psDatasetProperties[i].nBlockXSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES];
+                if (first)
+                {
+                    minX = product_minX;
+                    maxX = product_maxX;
+                    first = false;
+                }
+                else
+                {
+                    if (product_minX < minX) minX = product_minX;
+                    if (product_maxX > maxX) maxX = product_maxX;
+                }
+            }
+        }
     }
 
     rasterXSize = (int)(0.5 + (maxX - minX) / we_res);
@@ -1387,7 +1435,7 @@ public:
 
         //Set the profile
         setProfile( profile );
-        OE_DEBUG << LC << INDENT << "Set Profile to " << (profile ? profile->toString() : "NULL") <<  std::endl;        
+        OE_DEBUG << LC << INDENT << "Set Profile to " << (profile ? profile->toString() : "NULL") <<  std::endl;
 
         return STATUS_OK;
     }
@@ -1672,7 +1720,7 @@ public:
                 }
             }
         }
-        
+
         // Determine the read window
         double src_min_x, src_min_y, src_max_x, src_max_y;
         // Get the pixel coordiantes of the intersection
@@ -2027,7 +2075,7 @@ public:
                 // coverage data; one channel data that is not subject to interpolated values
                 unsigned char* data = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
                 memset(data, 0, target_width * target_height * dataCoverage.gdalSampleSize);
-                
+
                 if (rasterIO(bandGray, GF_Read, off_x, off_y, width, height, data, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST))
                 {
                     // copy from data to image.
@@ -2097,7 +2145,7 @@ public:
                 }
 
                 image->flipVertical();
-                
+
                 delete []gray;
                 delete []alpha;
             }
