@@ -542,8 +542,8 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         tex->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE );
         tex->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE );
         tex->setResizeNonPowerOfTwoHint(false);
-        tex->setFilter( osg::Texture::MAG_FILTER, imageLayer->options().magFilter().getOrUse(osg::Texture::NEAREST) );
-        tex->setFilter( osg::Texture::MIN_FILTER, imageLayer->options().minFilter().getOrUse(osg::Texture::NEAREST) );
+        tex->setFilter( osg::Texture::MAG_FILTER, osg::Texture::LINEAR );
+        tex->setFilter( osg::Texture::MIN_FILTER, osg::Texture::LINEAR );
         tex->setUnRefImageDataAfterApply(true);
         tex->setMaxAnisotropy( 1.f );
 
