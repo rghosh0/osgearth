@@ -121,8 +121,10 @@ typedef struct
     std::string to_string() const
     {
         ostringstream out;
-        out << "isFileOK:" << isFileOK << " nRasterXSize:" << nRasterXSize << " nRasterYSize:" << nRasterYSize
-            << " nBlockXSize:" << nBlockXSize << " nBlockYSize:" << nBlockYSize;
+        out << "isFileOK:" << isFileOK << " left:" << adfGeoTransform[GEOTRSFRM_TOPLEFT_X]
+               << " right:" << (adfGeoTransform[GEOTRSFRM_TOPLEFT_X] + nRasterXSize * adfGeoTransform[GEOTRSFRM_WE_RES])
+               << " nRasterXSize:" << nRasterXSize << " nRasterYSize:" << nRasterYSize
+               << " nBlockXSize:" << nBlockXSize << " nBlockYSize:" << nBlockYSize;
         return out.str();
     }
 } DatasetProperty;
@@ -144,7 +146,6 @@ struct BandProperty
     ~BandProperty()
     {
         GDALDestroyColorTable( colorTable );
-//        CSLDestroy( metaData );
     }
 
     char** getMetaData()
@@ -252,10 +253,116 @@ getFiles(const osgDB::Options& options, const std::string &file, const std::vect
     }
 }
 
-static void shiftToModuloRight(DatasetProperty& dsProp)
+struct BboxTile
 {
-    dsProp.adfGeoTransform[GEOTRSFRM_TOPLEFT_X] += 360.;
-}
+    float min = FLT_MAX;
+    float max = -FLT_MAX;
+    std::vector<unsigned int> listFiles;
+    const float epsilon = 0.01;
+    bool mustShiftToRight = false;
+
+    BboxTile(const DatasetProperty& dsProp, unsigned int iFile)
+    {
+        min = dsProp.adfGeoTransform[GEOTRSFRM_TOPLEFT_X];
+        max = min + dsProp.nRasterXSize * dsProp.adfGeoTransform[GEOTRSFRM_WE_RES];
+        listFiles.push_back(iFile);
+    }
+
+    BboxTile& operator = (const BboxTile& other)
+    {
+        if (this != &other)
+        {
+            min = other.min;
+            max = other.max;
+            listFiles = other.listFiles;
+            mustShiftToRight = other.mustShiftToRight;
+        }
+        return *this;
+    }
+
+    bool isContiguous(const BboxTile& otherTile) const
+    {
+        return otherTile.min <= max+epsilon && otherTile.max >= min+epsilon;
+    }
+
+    void expandWith(const BboxTile& otherTile)
+    {
+        min = osg::minimum(min, otherTile.min);
+        max = osg::maximum(max, otherTile.max);
+        for (auto otherFile : otherTile.listFiles)
+            listFiles.push_back(otherFile);
+    }
+
+    bool expandIfContiguous(const BboxTile& otherTile)
+    {
+        if (isContiguous(otherTile))
+        {
+            expandWith(otherTile);
+            return true;
+        }
+        return false;
+    }
+
+    bool operator < (const BboxTile& otherTile) const
+    {
+        return max < otherTile.min;
+    }
+
+    static bool mergeBboxes(std::vector<BboxTile>& bboxList)
+    {
+        bool changed = false;
+        bool dirty = true;
+
+        while (dirty)
+        {
+            dirty = false;
+            for (unsigned int i = 0 ; i < (bboxList.size()-1) && ! dirty ; ++i)
+            {
+                for (unsigned int j = i+1 ; j < bboxList.size() ; ++j)
+                {
+                    dirty = bboxList[i].expandIfContiguous(bboxList[j]);
+                    if (dirty)
+                    {
+                        bboxList.erase(bboxList.begin() + j);
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return changed;
+    }
+
+    static void correctAntiMeridian(std::vector<BboxTile>& bboxList)
+    {
+        mergeBboxes(bboxList);
+        std::sort(bboxList.begin(), bboxList.end());
+        if (bboxList.size() <= 1)
+            return;
+
+        float maxGap = -FLT_MAX;
+        unsigned int maxGapLastIndex = 0;
+        for (unsigned int i = 0 ; i < (bboxList.size()-1) ; ++i)
+        {
+            float gap = bboxList[i+1].min - bboxList[i].max;
+            if (gap > maxGap)
+            {
+                maxGap = gap;
+                maxGapLastIndex = i;
+            }
+        }
+
+        float antimeridianGap = bboxList.front().min+360. - bboxList.back().max;
+
+        // case we need to shift to 360 some tiles
+        if (maxGap > 180. && antimeridianGap < 90.)
+        {
+            for (unsigned int i = 0 ; i <= maxGapLastIndex ; ++i)
+                bboxList[i].mustShiftToRight = true;
+        }
+    }
+};
+
 
 // "build_vrt()" is adapted from the gdalbuildvrt application. Following is
 // the copyright notice from the source. The original code can be found at
@@ -290,8 +397,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
     char* projectionRef = NULL;
     int nBands = 0;
     std::vector<BandProperty> bandProperties;
-    double minX = 0, minY = 0, maxX = 0, maxY = 0;
-    bool shiftToRight{false};
+    double minX = FLT_MAX, minY = 0., maxX = -FLT_MAX, maxY = 0.;
     int i,j;
     double we_res = 0;
     double ns_res = 0;
@@ -344,10 +450,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
             }
             psDatasetProperties[i].nRasterXSize = GDALGetRasterXSize(hDS);
             psDatasetProperties[i].nRasterYSize = GDALGetRasterYSize(hDS);
-            double product_minX = psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_X];
             double product_maxY = psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_Y];
-            double product_maxX = product_minX +
-                    GDALGetRasterXSize(hDS) * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES];
             double product_minY = product_maxY +
                     GDALGetRasterYSize(hDS) * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_NS_RES];
 
@@ -359,9 +462,7 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
             {
                 if (proj)
                     projectionRef = CPLStrdup(proj);
-                minX = product_minX;
                 minY = product_minY;
-                maxX = product_maxX;
                 maxY = product_maxY;
                 nBands = GDALGetRasterCount(hDS);
                 for(j=0;j<nBands;j++)
@@ -396,8 +497,11 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                     GDALClose(hDS);
                     continue;
                 }
-                int _nBands = GDALGetRasterCount(hDS);
 
+                minY = osg::minimum(product_minY, minY);
+                maxY = osg::maximum(product_maxY, maxY);
+
+                int _nBands = GDALGetRasterCount(hDS);
                 for(j=0;j<_nBands && hDS != NULL;j++)
                 {
                     GDALRasterBandH hRasterBand = GDALGetRasterBand( hDS, j+1 );
@@ -452,27 +556,6 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                 }
                 if (j != nBands || hDS == NULL)
                     continue;
-
-                // consolidate and merge the extends
-                if (product_minX < 0. && minX > 180.)
-                {
-                    product_minX += 360.;
-                    product_maxX += 360.;
-                    shiftToModuloRight( psDatasetProperties[i] );
-                    shiftToRight = true;
-                }
-                else if (minX < 0. && product_minX > 180.)
-                {
-                    for (int prevI = 0 ; prevI < i ; ++prevI)
-                    {
-                        if (psDatasetProperties[prevI].isFileOK &&
-                                psDatasetProperties[prevI].adfGeoTransform[GEOTRSFRM_TOPLEFT_X] < 0.)
-                        {
-                            shiftToModuloRight( psDatasetProperties[prevI] );
-                        }
-                    }
-                    shiftToRight = true;
-                }
             }
 
             if (resolutionStrategy == AVERAGE_RESOLUTION)
@@ -516,137 +599,133 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
         }
     }
 
-    if (nCount == 0)
-        goto end;
-
-    if (resolutionStrategy == AVERAGE_RESOLUTION)
+    if (nCount != 0)
     {
-        we_res /= nCount;
-        ns_res /= nCount;
-    }
-
-    // consolidate the global extent in case we have to shift it because it crosses the anti meridian
-    if (shiftToRight)
-    {
-        bool first = true;
-        for(i=0 ; i < nInputFiles ; i++)
+        if (resolutionStrategy == AVERAGE_RESOLUTION)
         {
+            we_res /= nCount;
+            ns_res /= nCount;
+        }
+
+        // consolidate the global extent in case we have to shift it because it crosses the anti meridian
+        std::vector<BboxTile> tiles;
+        for(i=0 ; i < nInputFiles ; i++)
             if (psDatasetProperties[i].isFileOK)
+                tiles.push_back(BboxTile(psDatasetProperties[i], i));
+
+        BboxTile::correctAntiMeridian(tiles);
+        for (auto& bbox : tiles)
+        {
+            for (auto fileId : bbox.listFiles)
             {
-                double product_minX = psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_X];
+                if (bbox.mustShiftToRight)
+                    psDatasetProperties[fileId].adfGeoTransform[GEOTRSFRM_TOPLEFT_X] += 360.;
+
+                double product_minX = psDatasetProperties[fileId].adfGeoTransform[GEOTRSFRM_TOPLEFT_X];
                 double product_maxX = product_minX +
-                        psDatasetProperties[i].nBlockXSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES];
-                if (first)
-                {
-                    minX = product_minX;
-                    maxX = product_maxX;
-                    first = false;
-                }
-                else
-                {
-                    if (product_minX < minX) minX = product_minX;
-                    if (product_maxX > maxX) maxX = product_maxX;
-                }
+                        psDatasetProperties[fileId].nRasterXSize * psDatasetProperties[fileId].adfGeoTransform[GEOTRSFRM_WE_RES];
+                minX = osg::minimum(minX, product_minX);
+                maxX = osg::maximum(maxX, product_maxX);
             }
         }
-    }
 
-    rasterXSize = (int)(0.5 + (maxX - minX) / we_res);
-    rasterYSize = (int)(0.5 + (maxY - minY) / -ns_res);
+        rasterXSize = (int)(0.5 + (maxX - minX) / we_res);
+        rasterYSize = (int)(0.5 + (maxY - minY) / -ns_res);
 
-    hVRTDS = VRTCreate(rasterXSize, rasterYSize);
+        hVRTDS = VRTCreate(rasterXSize, rasterYSize);
 
-    if (projectionRef)
-    {
-        //OE_NOTICE << "Setting projection to " << projectionRef << std::endl;
-        GDALSetProjection(hVRTDS, projectionRef);
-    }
+        if (projectionRef)
+        {
+            //OE_NOTICE << "Setting projection to " << projectionRef << std::endl;
+            GDALSetProjection(hVRTDS, projectionRef);
+        }
 
-    double adfGeoTransform[6];
-    adfGeoTransform[GEOTRSFRM_TOPLEFT_X] = minX;
-    adfGeoTransform[GEOTRSFRM_WE_RES] = we_res;
-    adfGeoTransform[GEOTRSFRM_ROTATION_PARAM1] = 0;
-    adfGeoTransform[GEOTRSFRM_TOPLEFT_Y] = maxY;
-    adfGeoTransform[GEOTRSFRM_ROTATION_PARAM2] = 0;
-    adfGeoTransform[GEOTRSFRM_NS_RES] = ns_res;
-    GDALSetGeoTransform(hVRTDS, adfGeoTransform);
+        double adfGeoTransform[6];
+        adfGeoTransform[GEOTRSFRM_TOPLEFT_X] = minX;
+        adfGeoTransform[GEOTRSFRM_WE_RES] = we_res;
+        adfGeoTransform[GEOTRSFRM_ROTATION_PARAM1] = 0;
+        adfGeoTransform[GEOTRSFRM_TOPLEFT_Y] = maxY;
+        adfGeoTransform[GEOTRSFRM_ROTATION_PARAM2] = 0;
+        adfGeoTransform[GEOTRSFRM_NS_RES] = ns_res;
+        GDALSetGeoTransform(hVRTDS, adfGeoTransform);
 
-    for(j=0;j<nBands;j++)
-    {
-        GDALRasterBandH hBand;
-        GDALAddBand(hVRTDS, bandProperties[j].dataType, NULL);
-        hBand = GDALGetRasterBand(hVRTDS, j+1);
-        GDALSetMetadata(hBand, CSLDuplicate(bandProperties[j].getMetaData()), NULL);
-        GDALSetRasterColorInterpretation(hBand, bandProperties[j].colorInterpretation);
-        if (bandProperties[j].colorInterpretation == GCI_PaletteIndex)
-            GDALSetRasterColorTable(hBand, bandProperties[j].colorTable);
-        if (bandProperties[j].bHasNoData)
-            GDALSetRasterNoDataValue(hBand, bandProperties[j].noDataValue);
-    }
+        for(j=0;j<nBands;j++)
+        {
+            GDALRasterBandH hBand;
+            GDALAddBand(hVRTDS, bandProperties[j].dataType, NULL);
+            hBand = GDALGetRasterBand(hVRTDS, j+1);
+            GDALSetMetadata(hBand, CSLDuplicate(bandProperties[j].getMetaData()), NULL);
+            GDALSetRasterColorInterpretation(hBand, bandProperties[j].colorInterpretation);
+            if (bandProperties[j].colorInterpretation == GCI_PaletteIndex)
+                GDALSetRasterColorTable(hBand, bandProperties[j].colorTable);
+            if (bandProperties[j].bHasNoData)
+                GDALSetRasterNoDataValue(hBand, bandProperties[j].noDataValue);
+        }
 
-    for(i=0;i<nInputFiles;i++)
-    {
-//        if (psDatasetProperties[i].isFileOK == 0)
-//            continue;
+        for(i=0;i<nInputFiles;i++)
+        {
+            if (psDatasetProperties[i].isFileOK == 0)
+                continue;
 
-        const char* dsFileName = files[i].c_str();
-        bool isProxy = true;
+            const char* dsFileName = files[i].c_str();
+            bool isProxy = true;
 
 #if GDAL_VERSION_1_6_OR_NEWER
 
-        //Use a proxy dataset if possible.  This helps with huge amount of files to keep the # of handles down
-        GDALProxyPoolDatasetH hDS =
-                GDALProxyPoolDatasetCreate(dsFileName,
-                                           psDatasetProperties[i].nRasterXSize,
-                                           psDatasetProperties[i].nRasterYSize,
-                                           GA_ReadOnly, TRUE, projectionRef,
-                                           psDatasetProperties[i].adfGeoTransform);
+            //Use a proxy dataset if possible.  This helps with huge amount of files to keep the # of handles down
+            GDALProxyPoolDatasetH hDS =
+                    GDALProxyPoolDatasetCreate(dsFileName,
+                                               psDatasetProperties[i].nRasterXSize,
+                                               psDatasetProperties[i].nRasterYSize,
+                                               GA_ReadOnly, TRUE, projectionRef,
+                                               psDatasetProperties[i].adfGeoTransform);
 
-        for(j=0;j<nBands;j++)
-            GDALProxyPoolDatasetAddSrcBandDescription(hDS, bandProperties[j].dataType, psDatasetProperties[i].nBlockXSize, psDatasetProperties[i].nBlockYSize);
+            for(j=0;j<nBands;j++)
+                GDALProxyPoolDatasetAddSrcBandDescription(hDS, bandProperties[j].dataType, psDatasetProperties[i].nBlockXSize, psDatasetProperties[i].nBlockYSize);
 
-        OE_DEBUG << LC << "Using GDALProxyPoolDatasetH" << std::endl;
+            OE_DEBUG << LC << "Using GDALProxyPoolDatasetH" << std::endl;
 
 #else // !GDAL_VERSION_1_6_OR_NEWER
 
-        OE_DEBUG << LC << "Using GDALDataset, no proxy support enabled" << std::endl;
-        //Just open the dataset
-        GDALDatasetH hDS = (GDALDatasetH)GDALOpen(dsFileName, GA_ReadOnly);
-        isProxy = false;
+            OE_DEBUG << LC << "Using GDALDataset, no proxy support enabled" << std::endl;
+            //Just open the dataset
+            GDALDatasetH hDS = (GDALDatasetH)GDALOpen(dsFileName, GA_ReadOnly);
+            isProxy = false;
 
 #endif
 
-        int xoffset = (int) (0.5 + (psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_X] - minX) / we_res);
-        int yoffset = (int) (0.5 + (maxY - psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_Y]) / -ns_res);
-        int dest_width = (int) (0.5 + psDatasetProperties[i].nRasterXSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES] / we_res);
-        int dest_height = (int) (0.5 + psDatasetProperties[i].nRasterYSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_NS_RES] / ns_res);
+            int xoffset = (int) (0.5 + (psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_X] - minX) / we_res);
+            int yoffset = (int) (0.5 + (maxY - psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_Y]) / -ns_res);
+            int dest_width = (int) (0.5 + psDatasetProperties[i].nRasterXSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES] / we_res);
+            int dest_height = (int) (0.5 + psDatasetProperties[i].nRasterYSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_NS_RES] / ns_res);
 
-        j=1;
-        for (const auto& prop : bandProperties)
-        {
-            VRTSourcedRasterBandH hVRTBand = (VRTSourcedRasterBandH)GDALGetRasterBand(hVRTDS, j);
+            j=1;
+            for (const auto& prop : bandProperties)
+            {
+                VRTSourcedRasterBandH hVRTBand = (VRTSourcedRasterBandH)GDALGetRasterBand(hVRTDS, j);
 
-            int bandNb = 0;
-            for (const auto& sources : prop.sourceFileAndBand)
-                if (sources.first == i)
-                    bandNb = sources.second;
+                int bandNb = 0;
+                for (const auto& sources : prop.sourceFileAndBand)
+                    if (sources.first == i)
+                        bandNb = sources.second;
 
-            if (bandNb > 0)
-                /* Place the raster band at the right position in the VRT */
-                VRTAddSimpleSource(hVRTBand, GDALGetRasterBand((GDALDatasetH)hDS, bandNb),
-                                   0, 0,
-                                   psDatasetProperties[i].nRasterXSize,
-                                   psDatasetProperties[i].nRasterYSize,
-                                   xoffset, yoffset,
-                                   dest_width, dest_height, "near",
-                                   VRT_NODATA_UNSET);
-            j++;
+                if (bandNb > 0)
+                    /* Place the raster band at the right position in the VRT */
+                    VRTAddSimpleSource(hVRTBand, GDALGetRasterBand((GDALDatasetH)hDS, bandNb),
+                                       0, 0,
+                                       psDatasetProperties[i].nRasterXSize,
+                                       psDatasetProperties[i].nRasterYSize,
+                                       xoffset, yoffset,
+                                       dest_width, dest_height, "near",
+                                       VRT_NODATA_UNSET);
+                j++;
+            }
+            //Only dereference if it is a proxy dataset
+            if (isProxy)
+                GDALDereferenceDataset(hDS);
         }
-        //Only dereference if it is a proxy dataset
-        if (isProxy)
-            GDALDereferenceDataset(hDS);
     }
-end:
+
     CPLFree(psDatasetProperties);
     CPLFree(projectionRef);
     return hVRTDS;
