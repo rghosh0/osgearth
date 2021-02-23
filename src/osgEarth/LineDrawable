@@ -146,6 +146,11 @@ namespace osgEarth
         //! proportion plain/blurred set with threshold (value between 0 and 1, 1 for a normal plain line)
         void setMPPatternParams(float alpha, float threshold);
 
+        //! Whether to use a OVERALL technique for color binding
+        //! The property must be set just after the contructor to be taken into account
+        void setBindColorOverall(bool bindColorOverall);
+        bool getBindColorOverall() const { return _bindColorOverall; }
+
     public:
 
         //! Binding location for "previous" vertex attribute (default = 9)
@@ -186,6 +191,7 @@ namespace osgEarth
         GLenum _mode;
         bool _gpu;
         osg::Vec4 _color;
+        bool _bindColorOverall {false};
         GLint _factor;
         GLushort _pattern;
         float _width;

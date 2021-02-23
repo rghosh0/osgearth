@@ -324,6 +324,7 @@ namespace osgEarth { namespace Serializers { namespace LineDrawable
         ADD_FLOAT_SERIALIZER( LineWidth, 1.0f );
         ADD_UINT_SERIALIZER( First, 0u );
         ADD_UINT_SERIALIZER( Count, 0u );
+        ADD_BOOL_SERIALIZER( BindColorOverall, false );
     }
 } } }
 
@@ -381,6 +382,7 @@ osg::Geometry(rhs, copy),
 _mode(rhs._mode),
 _gpu(rhs._gpu),
 _color(rhs._color),
+_bindColorOverall(rhs._bindColorOverall),
 _factor(rhs._factor),
 _pattern(rhs._pattern),
 _width(rhs._width),
@@ -434,7 +436,7 @@ LineDrawable::initialize()
         setVertexArray(_current);
 
         _colors = new osg::Vec4Array();
-        _colors->setBinding(osg::Array::BIND_PER_VERTEX);
+        _colors->setBinding(_bindColorOverall ? osg::Array::BIND_OVERALL : osg::Array::BIND_PER_VERTEX);
         setColorArray(_colors);
 
         if (_gpu)
@@ -459,6 +461,12 @@ LineDrawable::setMode(GLenum mode)
     {
         _mode = mode;
     }
+}
+
+void
+LineDrawable::setBindColorOverall(bool bindColorOverall)
+{
+    _bindColorOverall = bindColorOverall;
 }
 
 void
@@ -507,7 +515,8 @@ LineDrawable::setLineSmooth(bool value)
     }
 }
 
-void LineDrawable::setMPPatternParams(float alpha, float threshold) {
+void LineDrawable::setMPPatternParams(float alpha, float threshold)
+{
     GLUtils::setLineMPPatternAlpha(getOrCreateStateSet(), alpha, 1);
     GLUtils::setLineMPPatternThreshold(getOrCreateStateSet(), threshold, 1);
     GLUtils::setLineMPPattern(getOrCreateStateSet(), 1);
@@ -532,7 +541,11 @@ LineDrawable::setColor(const osg::Vec4& color)
 void
 LineDrawable::setColor(unsigned vi, const osg::Vec4& color)
 {
-    if (_gpu)
+    if (_bindColorOverall)
+    {
+        (*_colors)[0] = color;
+    }
+    else if (_gpu)
     {
         if (_mode == GL_LINE_STRIP || _mode == GL_LINE_LOOP)
         {
@@ -658,10 +671,13 @@ LineDrawable::pushVertex(const osg::Vec3& vert)
             _next->push_back(vert);
             _next->push_back(vert);
 
-            _colors->push_back(_color);
-            _colors->push_back(_color);
-            _colors->push_back(_color);
-            _colors->push_back(_color);
+            if (! _bindColorOverall)
+            {
+                _colors->push_back(_color);
+                _colors->push_back(_color);
+                _colors->push_back(_color);
+                _colors->push_back(_color);
+            }
         }
 
         else if (_mode == GL_LINE_LOOP)
@@ -696,10 +712,13 @@ LineDrawable::pushVertex(const osg::Vec3& vert)
             _next->push_back(_current->front());
             _next->push_back(_current->front());
 
-            _colors->push_back(_color);
-            _colors->push_back(_color);
-            _colors->push_back(_color);
-            _colors->push_back(_color);
+            if (! _bindColorOverall)
+            {
+                _colors->push_back(_color);
+                _colors->push_back(_color);
+                _colors->push_back(_color);
+                _colors->push_back(_color);
+            }
         }
 
         else if (_mode == GL_LINES)
@@ -729,8 +748,11 @@ LineDrawable::pushVertex(const osg::Vec3& vert)
             _current->push_back(vert);
             _current->push_back(vert);
 
-            _colors->push_back(_color);
-            _colors->push_back(_color);
+            if (! _bindColorOverall)
+            {
+                _colors->push_back(_color);
+                _colors->push_back(_color);
+            }
         }
 
         _previous->dirty();
@@ -740,7 +762,10 @@ LineDrawable::pushVertex(const osg::Vec3& vert)
     else
     {
         _current->push_back(vert);
-        _colors->push_back(_color);
+        if (! _bindColorOverall)
+        {
+            _colors->push_back(_color);
+        }
     }
 
     _current->dirty();
@@ -940,6 +965,12 @@ LineDrawable::importVertexArray(const osg::Vec3Array* verts)
         {
             pushVertex(*i);
         }
+
+        if (_bindColorOverall)
+        {
+            _colors->push_back(_color);
+            _colors->dirty();
+        }
     }
 
     dirty();
@@ -1035,7 +1066,10 @@ LineDrawable::reserve(unsigned size)
         ArrayList arrays;
         getArrayList(arrays);
         for (ArrayList::iterator i = arrays.begin(); i != arrays.end(); ++i)
-            i->get()->reserveArray(actualSize);
+        {
+            if (i->get()->getBinding() != osg::Array::BIND_OVERALL)
+                i->get()->reserveArray(actualSize);
+        }
     }
 }
 

@@ -530,6 +530,7 @@ BuildGeometryFilter::processLines(FeatureList& features, FilterContext& context)
             bool gpu = !line->stroke().isSet() || line->stroke()->gpu().get();
             // construct a drawable for the lines
             LineDrawable* drawable = new LineDrawable(static_cast<GLenum>((isRing? GL_LINE_LOOP : GL_LINE_STRIP)), gpu);
+            drawable->setBindColorOverall(_bindColorOverall.isSetTo(true));
 
             drawable->importVertexArray(allPoints.get());
 
