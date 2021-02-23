@@ -660,6 +660,8 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
                 GDALSetRasterColorTable(hBand, bandProperties[j].colorTable);
             if (bandProperties[j].bHasNoData)
                 GDALSetRasterNoDataValue(hBand, bandProperties[j].noDataValue);
+            else
+                GDALSetRasterNoDataValue(hBand, NO_DATA_VALUE);
         }
 
         for(i=0;i<nInputFiles;i++)
