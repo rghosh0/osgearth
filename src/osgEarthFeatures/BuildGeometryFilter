@@ -110,6 +110,10 @@ namespace osgEarth { namespace Features
         optional<bool>& bindColorOverall() { return _bindColorOverall; }
         const optional<bool>& bindColorOverall() const { return _bindColorOverall; }
 
+        /** Whether to desactive the normals computation  */
+        optional<bool>& noNormals() { return _noNormals; }
+        const optional<bool>& noNormals() const { return _noNormals; }
+
 
     protected:
         Style                      _style;
@@ -123,6 +127,7 @@ namespace osgEarth { namespace Features
         optional<Angle>            _maximumCreaseAngle;
         optional<ShaderPolicy>     _shaderPolicy;
         optional<bool>             _bindColorOverall;
+        optional<bool>             _noNormals;
         
         void tileAndBuildPolygon(
             Geometry*               input,

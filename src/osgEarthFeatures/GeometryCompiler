@@ -116,6 +116,10 @@ namespace osgEarth { namespace Features
         optional<bool>& bindColorOverall() { return _bindColorOverall; }
         const optional<bool>& bindColorOverall() const { return _bindColorOverall; }
 
+        /** Whether to desactive the normals computation  */
+        optional<bool>& noNormals() { return _noNormals; }
+        const optional<bool>& noNormals() const { return _noNormals; }
+
     public:
         Config getConfig() const;
 
@@ -140,6 +144,7 @@ namespace osgEarth { namespace Features
         optional<float>                _maxPolyTilingAngle;
         optional<bool>                 _useGPULines;
         optional<bool>                 _bindColorOverall;
+        optional<bool>                 _noNormals;
 
 
         static GeometryCompilerOptions s_defaults;

@@ -1449,8 +1449,11 @@ BuildGeometryFilter::push( FeatureList& input, FilterContext& context )
 
             // Generate normals. CANNOT use OSG's SmoothingVisitor because it adds verts
             // but ignores other vertex attribute arrays.
-            GenerateNormals gen;
-            geode->accept(gen);
+            if (! _noNormals.isSetTo(true))
+            {
+                GenerateNormals gen;
+                geode->accept(gen);
+            }
 
             result->addChild( geode.get() );
         }
