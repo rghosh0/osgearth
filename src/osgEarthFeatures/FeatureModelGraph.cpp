@@ -90,7 +90,8 @@ osg::Group *createPagedNode(const osg::BoundingSphered &bs,
                             SceneGraphCallbacks *sgCallbacks,
                             osgDB::FileLocationCallback *flc,
                             const osgDB::Options *readOptions,
-                            FeatureModelGraph *fmg) {
+                            FeatureModelGraph *fmg)
+{
 #ifdef USE_PROXY_NODE
 
     osg::ProxyNode *p = new osg::ProxyNode();
@@ -113,13 +114,10 @@ osg::Group *createPagedNode(const osg::BoundingSphered &bs,
 
     osg::PagedLOD *p;
 
-    if (sgCallbacks) {
-        PagedLODWithSceneGraphCallbacks *plod =
-                new PagedLODWithSceneGraphCallbacks(sgCallbacks);
-        p = plod;
-    } else {
+    if (sgCallbacks)
+        p = new PagedLODWithSceneGraphCallbacks(sgCallbacks);
+    else
         p = new osg::PagedLOD();
-    }
 
     p->setCenter(bs.center());
     p->setRadius(bs.radius());
@@ -127,15 +125,14 @@ osg::Group *createPagedNode(const osg::BoundingSphered &bs,
     p->setRange(0, minRange, maxRange);
     p->setPriorityOffset(0, layout.priorityOffset().get());
     p->setPriorityScale(0, layout.priorityScale().get());
-    if (layout.minExpiryTime().isSet()) {
-        float value =
-                layout.minExpiryTime() >= 0.0f ? layout.minExpiryTime().get() : FLT_MAX;
+    if (layout.minExpiryTime().isSet())
+    {
+        float value = layout.minExpiryTime() >= 0.0f ? layout.minExpiryTime().get() : FLT_MAX;
         p->setMinimumExpiryTime(0, value);
     }
 
     // force onto the high-latency thread pool.
-    osgDB::Options *options =
-            Registry::instance()->cloneOrCreateOptions(readOptions);
+    osgDB::Options *options = Registry::instance()->cloneOrCreateOptions(readOptions);
     options->setFileLocationCallback(flc);
     p->setDatabaseOptions(options);
     // so we can find the FMG instance in the pseudoloader.
@@ -552,27 +549,27 @@ FeatureModelGraph::getBoundInWorldCoords(const GeoExtent &extent) const {
 #endif
 }
 
-osg::Node *FeatureModelGraph::setupPaging() {
+osg::Node *FeatureModelGraph::setupPaging()
+{
     // calculate the bounds of the full data extent:
     osg::BoundingSphered bs = getBoundInWorldCoords(_usableMapExtent);
 
-    const FeatureProfile *featureProfile =
-            _session->getFeatureSource()->getFeatureProfile();
+    const FeatureProfile *featureProfile = _session->getFeatureSource()->getFeatureProfile();
 
     optional<float> maxRangeOverride;
 
-    if (_options.layout()->maxRange().isSet() || _options.maxRange().isSet()) {
-        // select the max range either from the Layout or from the model layer
-        // options.
+    if (_options.layout()->maxRange().isSet() || _options.maxRange().isSet() || _options.layout()->getNumLevels() == 0)
+    {
+        // select the max range either from the Layout or from the model layer options.
         float userMaxRange = FLT_MAX;
         if (_options.layout()->maxRange().isSet())
             userMaxRange = *_options.layout()->maxRange();
         if (_options.maxRange().isSet())
             userMaxRange = osg::minimum(userMaxRange, *_options.maxRange());
 
-        if (!featureProfile->getTiled()) {
-            // user set a max_range, but we'd not tiled. Just override the top level
-            // plod.
+        if (!featureProfile->getTiled())
+        {
+            // user set a max_range, but we'd not tiled. Just override the top level plod.
             maxRangeOverride = userMaxRange;
         }
     }
@@ -590,12 +587,14 @@ osg::Node *FeatureModelGraph::setupPaging() {
 
     // bulid the top level node:
     osg::Node *topNode;
-
-    if (options().layout()->paged() == true) {
+    if (options().layout()->paged() == true)
+    {
         topNode = createPagedNode(
                     bs, uri, 0.0f, maxRange, _options.layout().get(), _sgCallbacks.get(),
                     _defaultFileLocationCallback.get(), getSession()->getDBOptions(), this);
-    } else {
+    }
+    else
+    {
         topNode = load(0, 0, 0, uri, getSession()->getDBOptions());
     }
 
