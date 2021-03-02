@@ -31,7 +31,7 @@ std::vector<point_t> boostGeometryContext::vec3dArray2CoordSeq( const Geometry* 
     std::vector<point_t> coords;
     for( osg::Vec3dArray::const_iterator it = input->begin(); it != input->end(); ++it )
     {
-        coords.push_back( point_t( it->x(), it->y(), it->z() ));
+        coords.push_back( point_t( it->x(), it->y() ));
     }
     return coords;
 }
