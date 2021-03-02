@@ -37,10 +37,10 @@ macro(check_for_cxx11_compiler _VAR)
        (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT ${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 3.4))
         set(${_VAR} 1)
 
-        message(STATUS "Checking for C++11 compiler - available")
+        message(STATUS "Checking for C++11 compiler - available set 14 instead")
 
         # enable C++11 compilation if available
-        set(CMAKE_CXX_STANDARD 11)
+        set(CMAKE_CXX_STANDARD 14)
         add_definitions(-DOSGEARTH_CXX11)
 
         # is GCC < 5, use the old ABI for binary compatibility
@@ -48,7 +48,7 @@ macro(check_for_cxx11_compiler _VAR)
             add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
         endif()
 	elseif(OSGEARTH_BUILD_PLATFORM_IPHONE)
-		set(CMAKE_CXX_STANDARD 11)
+		set(CMAKE_CXX_STANDARD 14)
         add_definitions(-DOSGEARTH_CXX11)
     else()
         message(STATUS "Checking for C++11 compiler - unavailable")
