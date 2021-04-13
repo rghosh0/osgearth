@@ -1508,6 +1508,13 @@ GeoExtent::createWorldBoundingSphere(double minElev, double maxElev) const
         GeoPoint(getSRS(), xMax(), yMin(), minElev, ALTMODE_ABSOLUTE).toWorld(w); bs.expandBy(w);
         GeoPoint(getSRS(), xMax(), yMax(), minElev, ALTMODE_ABSOLUTE).toWorld(w); bs.expandBy(w);
         GeoPoint(getSRS(), xMin(), yMax(), minElev, ALTMODE_ABSOLUTE).toWorld(w); bs.expandBy(w);
+        // D-30852 This additional point corrects a defect when xMin and xMax are close together on the globe
+        // but very far in the expected x extend
+        // (for example [-170 , +170] -> we need an intermediate point at x=0 to have an accurate bounding sphere)
+        if ( (xMax() - xMin()) > 180. )
+        {
+            GeoPoint(getSRS(), (xMin()+xMax())/2., (yMin()+yMax())/2., (minElev+maxElev)/2., ALTMODE_ABSOLUTE).toWorld(w); bs.expandBy(w);
+        }
         GeoPoint(getSRS(), xMin(), yMin(), maxElev, ALTMODE_ABSOLUTE).toWorld(w); bs.expandBy(w);
         GeoPoint(getSRS(), xMax(), yMin(), maxElev, ALTMODE_ABSOLUTE).toWorld(w); bs.expandBy(w);
         GeoPoint(getSRS(), xMax(), yMax(), maxElev, ALTMODE_ABSOLUTE).toWorld(w); bs.expandBy(w);
