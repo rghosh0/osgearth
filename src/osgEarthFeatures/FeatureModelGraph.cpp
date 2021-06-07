@@ -77,10 +77,10 @@ struct HighLatencyFileLocationCallback : public osgDB::FileLocationCallback {
 // pseudo-loader for paging in feature tiles for a FeatureModelGraph.
 
 namespace {
-static std::string s_makeURI(unsigned lod, unsigned x, unsigned y, unsigned r=0, unsigned g=0, unsigned b=0, unsigned a=0) {
+static std::string s_makeURI(unsigned lod, unsigned x, unsigned y, unsigned minBand=0, unsigned maxBand=0) {
     std::stringstream buf;
     std::string rgbaKey = "";
-    if (r != 0) rgbaKey = Stringify() << "_RGBA_" << r << "_" << g << "_" << b << "_" << a;
+    if (minBand != 0) rgbaKey = Stringify() << "_b_" << minBand << "_" << maxBand;
     buf << lod << "_" << x << "_" << y << rgbaKey  << ".osgearth_pseudo_fmg";
     std::string str;
     str = buf.str();
@@ -159,25 +159,23 @@ struct osgEarthFeatureModelPseudoLoader : public osgDB::ReaderWriter {
         return "osgEarth Feature Model Pseudo-Loader";
     }
 
-    ReadResult readNode(const std::string &uri,
-                        const osgDB::Options *readOptions) const {
+    ReadResult readNode(const std::string &uri, const osgDB::Options *readOptions) const
+    {
         if (!acceptsExtension(osgDB::getLowerCaseFileExtension(uri)))
             return ReadResult::FILE_NOT_HANDLED;
 
         // UID uid;
-        unsigned lod, x, y, r, g, b, a;
-        lod = x = y = r = g = b = a = 0;
-        if (  uri.find("_RGBA") != std::string::npos )
-            sscanf(uri.c_str(), "%d_%d_%d_RGBA_%d_%d_%d_%d.%*s", &lod, &x, &y, &r, &g, &b, &a);
+        unsigned lod, x, y, minb, maxb;
+        lod = x = y = minb = maxb = 0;
+        if ( uri.find("_b") != std::string::npos )
+            sscanf(uri.c_str(), "%d_%d_%d_b_%d_%d.%*s", &lod, &x, &y, &minb, &maxb);
         else
             sscanf(uri.c_str(), "%d_%d_%d.%*s", &lod, &x, &y);
 
         osg::ref_ptr<FeatureModelGraph> graph;
-        if (!OptionsData<FeatureModelGraph>::lock(readOptions, USER_OBJECT_NAME,
-                                                  graph)) {
-            OE_WARN
-                    << LC
-                    << "Internal error - no FeatureModelGraph object in OptionsData\n";
+        if (!OptionsData<FeatureModelGraph>::lock(readOptions, USER_OBJECT_NAME,  graph))
+        {
+            OE_WARN << LC << "Internal error - no FeatureModelGraph object in OptionsData\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
@@ -190,7 +188,7 @@ struct osgEarthFeatureModelPseudoLoader : public osgDB::ReaderWriter {
         }
 
         // actually load the tile
-        osg::Node *node = graph->load(lod, x, y, uri, readOptions, r, g, b, a);
+        osg::Node *node = graph->load(lod, x, y, uri, readOptions, minb, maxb);
 
         // provide some performance info
         if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
@@ -285,7 +283,9 @@ namespace {
     const char* imageVS =
         "#version " GLSL_VERSION_STR "\n"
         GLSL_DEFAULT_PRECISION_FLOAT "\n"
+
         "out vec2 imageBinding_texcoord; \n"
+
         "void oe_ImageBinding_VS(inout vec4 vertex) { \n"
         "    imageBinding_texcoord = gl_MultiTexCoord0.st; \n"
         "} \n";
@@ -293,43 +293,51 @@ namespace {
     const char* imageFS =
         "#version " GLSL_VERSION_STR "\n"
         GLSL_DEFAULT_PRECISION_FLOAT "\n"
+
         "in vec2 imageBinding_texcoord; \n"
+        "__DECLARATION_CODE__"
 
-        "__VAR_DEF__"
-
-        "uniform sampler2D image_tex; \n"
         "void oe_ImageBinding_FS(inout vec4 color) { \n"
-        "    __BODY_CODE__"
+        "__BODY_CODE__"
+        " \n "
+        "    //uncomment to debug texture coordinates \n"
         "    //color = vec4(imageBinding_texcoord.st, 0., 1.); \n"
         "} \n";
 
     struct BandsInformation : public osg::Referenced
     {
-        BandsInformation( unsigned minBand, unsigned maxBand ) : _minBand(minBand), _maxBand(maxBand) {};
-
-        BandsInformation( const TileKey& tileKey )
+        BandsInformation( unsigned int minBand, unsigned int maxBand, unsigned int maxBandsPerTile = 4 ) :
+            _minBand(minBand), _maxBand(maxBand), _maxBandsPerTile(maxBandsPerTile)
         {
-            unsigned r, g, b, a;
-            tileKey.getTileRGBA(r, g, b, a);
-            _minBand = r;
-            _maxBand = a > b ? a : ( b > g ? b : ( g > r ? g : r));
+            _maxBandsPerChannel = maxBandsPerTile / 4;
         }
 
-        bool isBandInRange(unsigned band) const
+        BandsInformation( const TileKey& tileKey, unsigned int maxBandsPerTile = 4 ) :
+            _maxBandsPerTile(maxBandsPerTile)
+        {
+            tileKey.getTileBands(_minBand, _maxBand);
+            _maxBandsPerChannel = maxBandsPerTile / 4;
+        }
+
+        bool isBandInRange(unsigned int band) const
         {
             return band >= _minBand && band <= _maxBand;
         }
 
-        int getChannelForBand(unsigned band) const
+        int getChannelForBand(unsigned int band) const
         {
-            // hyp : bands are considered to in increasing order
             int channel = band - _minBand;
 
-            return (channel < 0 || channel > 3) ? -1 : channel;
+            if (channel < 0 || channel >= static_cast<int>(_maxBandsPerTile))
+                return -1;
+
+            return channel / _maxBandsPerChannel;
         }
 
-        unsigned _minBand;
-        unsigned _maxBand;
+        unsigned int _minBand;
+        unsigned int _maxBand;
+        unsigned int _maxBandsPerTile;
+        unsigned int _maxBandsPerChannel;
     };
 
     struct GroupMultiBands : public osg::Group, public MultiBandsInterface
@@ -463,8 +471,64 @@ namespace {
         osg::Geode* geode = new osg::Geode();
         geode->addDrawable(geom);
 
+//        osgUtil::Optimizer::MergeGeometryVisitor mg;
+//        mg.setTargetMaximumNumberOfVertices(65536);
+//        geode->accept(mg);
+
+////        if (_optimizeVertexOrdering == true)
+////        {
+//            osgUtil::Optimizer o;
+//            o.optimize( geode,
+//                osgUtil::Optimizer::INDEX_MESH
+//                | osgUtil::Optimizer::VERTEX_PRETRANSFORM
+//                | osgUtil::Optimizer::VERTEX_POSTTRANSFORM
+//                );
+////        }
+
         return geode;
     }
+}
+
+
+VirtualProgram* createProgramForImageBinding( const ImageLayer* imageLayer )
+{
+    VirtualProgram* program = new VirtualProgram();
+
+    // build the body of the shader code
+    std::string imageFSupdated = imageFS;
+    std::string bodyCode = "";
+    std::string delcarationCode = "";
+
+    // case no color ramp. just display texture value
+    if (! imageLayer->getTileSource()->getOptions().colorRamp().isSet())
+    {
+        bodyCode += "    color = texture(image_tex, imageBinding_texcoord); \n";
+    }
+
+    // case a color ramp is defined
+    else
+    {
+        IndexedColorRampOptions::ChannelOptimizationTechnique technique
+                = imageLayer->getTileSource()->getOptions().colorRamp()->channelOptimizationTechnique()
+                    .getOrUse(IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND);
+
+        delcarationCode += "    uniform lowp int osgearthutil_u_channelRamp_; \n";
+        delcarationCode += technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND ?
+                    "    uniform sampler2D image_tex; \n" : "    uniform lowp usampler2D image_tex; \n";
+        delcarationCode += imageLayer->getTileSource()->getOptions().colorRamp()->rampDeclCode();
+
+        bodyCode += technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND ? "    float " : "    lowp uint ";
+        bodyCode += "value = texture(image_tex, imageBinding_texcoord)[osgearthutil_u_channelRamp_]; \n";
+        bodyCode += imageLayer->getTileSource()->getOptions().colorRamp()->rampBodyCode("value");
+    }
+
+    osgEarth::replaceIn(imageFSupdated, "__DECLARATION_CODE__", delcarationCode);
+    osgEarth::replaceIn(imageFSupdated, "__BODY_CODE__", bodyCode);
+
+    program->setFunction("oe_ImageBinding_VS", imageVS, ShaderComp::LOCATION_VERTEX_MODEL);
+    program->setFunction("oe_ImageBinding_FS", imageFSupdated, ShaderComp::LOCATION_FRAGMENT_COLORING);
+
+    return program;
 }
 
 
@@ -487,9 +551,9 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
     keyTmp.setupNextAvailableBands(bandNumber);
     while (keyTmp.hasBandsDefined())
     {
-        unsigned r, g, b, a;
-        keyTmp.getTileRGBA(r, g, b, a);
-        std::string uri = s_makeURI(keyTmp.getLOD(), keyTmp.getTileX(), keyTmp.getTileY(), r, g, b, a);
+        unsigned int minBand, maxBand;
+        keyTmp.getTileBands(minBand, maxBand);
+        std::string uri = s_makeURI(keyTmp.getLOD(), keyTmp.getTileX(), keyTmp.getTileY(), minBand, maxBand);
         osg::Node* pagedNode = createPagedNode( _rootBs, uri, 0.0f, _rootMaxRange, _options.layout().get(), _sgCallbacks.get(),
                     _defaultFileLocationCallback.get(), getSession()->getDBOptions(), this );
 
@@ -516,17 +580,22 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
         keyTmp.setupNextAvailableBands(bandNumber);
     }
 
+    // setup the shader
+    VirtualProgram* program = createProgramForImageBinding(imageLayer);
+    groupMultiBands->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
+
     // test the animation of bands
     //groupMultiBands->addUpdateCallback( new BandsAnimation(this) );
 
     root->addChild( groupMultiBands );
-    OE_DEBUG << LC << "Setup " << groupMultiBands->getNumChildren() << " pagedLODs for managing " << bandNumber << " raster bands" << std::endl;
+    OE_DEBUG << LC << "Setup " << groupMultiBands->getNumChildren() << " pagedLODs for managing "
+            << bandNumber << " raster bands for layer " << *imageLayer->options().name() << std::endl;
 }
 
 // setup the image as a texture and bind it the to sphere
 osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const TileKey& key, ProgressCallback* progress )
 {
-    if (! _session || ! imageLayer || ! imageLayer->getProfile() )
+    if (! _session || ! imageLayer || ! imageLayer->getProfile() || ! imageLayer->getTileSource())
         return nullptr;
 
     GeoImage image = imageLayer->createImage(key, progress);
@@ -535,7 +604,7 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         osg::Group* bandsGroup = new osg::Group();
 
         osg::Texture2D* tex = new osg::Texture2D( image.getImage() );
-        tex->setBorderColor( osg::Vec4d(1., 0., 0., 1.) );
+        //tex->setBorderColor( osg::Vec4d(1., 0., 0., 1.) );
         tex->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE );
         tex->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE );
         tex->setResizeNonPowerOfTwoHint(false);
@@ -543,24 +612,13 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         tex->setFilter( osg::Texture::MIN_FILTER, imageLayer->options().minFilter().getOrUse(osg::Texture::NEAREST) );
         tex->setUnRefImageDataAfterApply(true);
         tex->setMaxAnisotropy( 1.f );
+        tex->setInternalFormatMode( osg::Texture::USE_IMAGE_DATA_FORMAT );
 
-        VirtualProgram* program = new VirtualProgram();
-        std::string imageFSupdated = imageFS;
-
-        bandsGroup->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
         bandsGroup->getOrCreateStateSet()->setTextureAttributeAndModes(0, tex, osg::StateAttribute::ON);
         bandsGroup->getOrCreateStateSet()->addUniform( new osg::Uniform("image_tex", 0) );
 
-        std::string valueExtraction = "texture(image_tex, imageBinding_texcoord)";
-        for ( auto colorFilter : imageLayer->getColorFilters() )
-            colorFilter->mergeInShader(imageFSupdated, _multiBand_uniform_name, valueExtraction);
-
-        // if no color filter has been applied then simply display the texture as is
-        osgEarth::replaceIn(imageFSupdated, "__VAR_DEF__", "");
-        osgEarth::replaceIn(imageFSupdated, "__BODY_CODE__", "        color = texture(image_tex, imageBinding_texcoord); \n");
-
-        program->setFunction("oe_ImageBinding_VS", imageVS, ShaderComp::LOCATION_VERTEX_MODEL);
-        program->setFunction("oe_ImageBinding_FS", imageFSupdated, ShaderComp::LOCATION_FRAGMENT_COLORING);
+//        VirtualProgram* program = createProgramForImageBinding(imageLayer);
+//        bandsGroup->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
 
         bandsGroup->addChild(_sphereForOverlay.get());
         return bandsGroup;
@@ -949,26 +1007,27 @@ osg::Node *FeatureModelGraph::setupPaging()
 osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
                                    const std::string &uri,
                                    const osgDB::Options *readOptions,
-                                   unsigned r, unsigned g, unsigned b, unsigned a) {
-    bool isMultiBand = r != 0;
+                                   unsigned minBand, unsigned maxBand)
+{
+    bool isMultiBand = minBand != 0;
     std::string rgba = "";
-    if (isMultiBand) rgba = Stringify() << " RGBA_" << r << "_" << g << "_" << b << "_" << a;
+    if (isMultiBand) rgba = Stringify() << " b_" << minBand << "_" << maxBand;
     OE_TEST << LC << "load " << lod << "_" << tileX << "_" << tileY << rgba << std::endl;
 
     osg::Group *result = 0L;
 
-    if (_useTiledSource) {
+    if (_useTiledSource)
+    {
         // A "tiled" source has a pre-generted tile hierarchy, but no range
         // information. We will calcluate the LOD ranges here, as a function of the
         // tile radius and the "tile size factor" ... see below.
         osg::Group *geometry = 0L;
-        const FeatureProfile *featureProfile =
-                _session->getFeatureSource()->getFeatureProfile();
+        const FeatureProfile *featureProfile = _session->getFeatureSource()->getFeatureProfile();
 
-        if ((int)lod >= featureProfile->getFirstLevel()) {
+        if ((int)lod >= featureProfile->getFirstLevel())
+        {
             // The extent of this tile:
-            GeoExtent tileExtent =
-                    s_getTileExtent(lod, tileX, tileY, _usableFeatureExtent);
+            GeoExtent tileExtent = s_getTileExtent(lod, tileX, tileY, _usableFeatureExtent);
 
             // Calculate the bounds of this new tile:
             osg::BoundingSphered tileBound = getBoundInWorldCoords(tileExtent);
@@ -995,7 +1054,7 @@ osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
             int invertedTileY = h - tileY - 1;
 
             TileKey key(lod, tileX, invertedTileY, featureProfile->getProfile());
-            key.setBands(r, g, b, a);
+            key.setBands(minBand, maxBand);
 
             // Specific case where an image layer serves as input
             if ( _session->getImageLayer() )

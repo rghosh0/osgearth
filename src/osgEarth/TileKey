@@ -38,7 +38,7 @@ namespace osgEarth
         /**
          * Constructs an invalid TileKey.
          */
-        TileKey() : _lod(0), _x(0), _y(0), _rBand(0), _gBand(0), _bBand(0), _aBand(0) { }
+        TileKey() : _lod(0), _x(0), _y(0), _firstBand(0), _lastBand(0) { }
 
         /**
          * Creates a new TileKey with the given tile xy at the specified level of detail
@@ -62,7 +62,7 @@ namespace osgEarth
         TileKey( const TileKey& rhs );
 
         /** Set the bands for this tile key **/
-        void setBands( unsigned int rBand, unsigned int gBand, unsigned int bBand, unsigned int aBand );
+        void setBands( unsigned int firstBand, unsigned int lastBand );
 
         /** dtor */
         virtual ~TileKey() { }
@@ -72,7 +72,7 @@ namespace osgEarth
             return
                 valid() && rhs.valid() && 
                 _lod==rhs._lod && _x==rhs._x && _y==rhs._y && 
-                _rBand==rhs._rBand && _gBand==rhs._gBand && _bBand==rhs._bBand && _aBand==rhs._aBand &&
+                _firstBand==rhs._firstBand && _lastBand==rhs._lastBand &&
                 _profile->isHorizEquivalentTo(rhs._profile.get());
         }
 
@@ -89,13 +89,9 @@ namespace osgEarth
             if (_x > rhs._x) return false;
             if (_y < rhs._y) return true;
             if (_y > rhs._y) return false;
-            if (_rBand < rhs._rBand) return true;
-            if (_rBand > rhs._rBand) return false;
-            if (_gBand < rhs._gBand) return true;
-            if (_gBand > rhs._gBand) return false;
-            if (_bBand < rhs._bBand) return true;
-            if (_bBand > rhs._bBand) return false;
-            return _aBand < rhs._aBand;
+            if (_firstBand < rhs._firstBand) return true;
+            if (_firstBand > rhs._firstBand) return false;
+            return _lastBand < rhs._lastBand;
         }
 
         /**
@@ -128,7 +124,7 @@ namespace osgEarth
         /**
          * Whether this tile key defines the bands.
          */
-        bool hasBandsDefined() const { return _rBand > 0; }
+        bool hasBandsDefined() const { return _firstBand > 0; }
 
         /**
          * Get the quadrant relative to this key's parent.
@@ -145,7 +141,7 @@ namespace osgEarth
         /**
          * Shift all bands to the new available
          */
-        void setupNextAvailableBands( int nbBands = INT_MAX );
+        void setupNextAvailableBands(unsigned int nbBands, unsigned int maxBandsPerTile = 4);
 
         /**
          * Creates and returns a key that represents the parent tile of this key.
@@ -196,11 +192,9 @@ namespace osgEarth
         /**
          * Gets the RGBA bands for this tile.
          */
-        void getTileRGBA(
-            unsigned int& out_tile_r_band,
-            unsigned int& out_tile_g_band,
-            unsigned int& out_tile_b_band,
-            unsigned int& out_tile_a_band) const;
+        void getTileBands(
+            unsigned int& out_tile_first_band,
+            unsigned int& out_tile_last_band) const;
 
         unsigned int getTileX() const { return _x; }
         unsigned int getTileY() const { return _y; }
@@ -231,10 +225,8 @@ namespace osgEarth
         unsigned int _lod;
         unsigned int _x;
         unsigned int _y;
-        unsigned int _rBand;
-        unsigned int _gBand;
-        unsigned int _bBand;
-        unsigned int _aBand;
+        unsigned int _firstBand;
+        unsigned int _lastBand;
         osg::ref_ptr<const Profile> _profile;
         GeoExtent _extent;
     };

@@ -122,7 +122,7 @@ SET(LIB_PUBLIC_HEADERS
     Horizon
     HorizonClipPlane
     HTTPClient
-    ImageCompositionOptions
+    IndexedColorRampOptions
     ImageLayer
     ImageMosaic
     ImageToHeightFieldConverter

@@ -23,7 +23,6 @@
 #include <osgEarth/TileSource>
 #include <osgEarth/GeoCommon>
 #include <osgEarth/URI>
-#include <osgEarth/ImageCompositionOptions>
 
 // forward-declare GDAL type
 class GDALDataset;

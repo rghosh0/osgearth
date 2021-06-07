@@ -1780,8 +1780,8 @@ public:
 
         int tileSize = getPixelsPerTile(); //_options.tileSize().value();
 
-        bool isChannelBandComposition = key.hasBandsDefined()
-                || (_options.imageComposition().isSet() && ! _options.imageComposition()->_channels.empty());
+        bool isChannelBandComposition = key.hasBandsDefined() &&
+                _options.colorRamp().isSet() && ! _options.colorRamp()->ramps().empty();
         bool isCoverage = _options.coverage().isSetTo(true);
         bool isImageEmbededInFeature = isChannelBandComposition && isCoverage && key.getLOD() == 0u;
 
@@ -1882,63 +1882,15 @@ public:
         GDALRasterBand* bandAlpha   = 0L;
         GDALRasterBand* bandGray    = 0L;
         GDALRasterBand* bandPalette = 0L;
+        std::vector<GDALRasterBand*> bands;
 
         // if defined use the color/band composition
         if (isChannelBandComposition)
         {
-            // case bands composition are defined in the tile key
-            if (key.hasBandsDefined())
-            {
-                unsigned int rBand, gBand, bBand, aBand;
-                key.getTileRGBA( rBand, gBand, bBand, aBand);
-
-                if (rBand != 0)
-                    bandRed = _warpedDS->GetRasterBand( rBand );
-                if (gBand != 0)
-                    bandGreen = _warpedDS->GetRasterBand( gBand );
-                if (bBand != 0)
-                    bandBlue = _warpedDS->GetRasterBand( bBand );
-                if (aBand != 0)
-                    bandAlpha = _warpedDS->GetRasterBand( aBand );
-            }
-
-            // case ImageComposition is defined in the options
-            else
-            {
-                for (ImageCompositionOptions::Channels::const_iterator i = _options.imageComposition()->_channels.begin();
-                     i != _options.imageComposition()->_channels.end(); ++i)
-                {
-                    const ImageCompositionOptions::ChannelCompositionOptions& channel = (*i).second;
-                    if (! channel._band.isSet())
-                    {
-                        OE_WARN << LC << "[ImageCompositionOptions] Band must be defined !\n";
-                        continue;
-                    }
-                    if (! channel._color.isSet())
-                    {
-                        OE_WARN << LC << "[ImageCompositionOptions] Color must be defined !\n";
-                        continue;
-                    }
-                    int band = *channel._band;
-                    if (band > _warpedDS->GetRasterCount() || band <= 0)
-                    {
-                        OE_WARN << LC << "[ImageCompositionOptions] Band not existing : " << band << "\n";
-                        continue;
-                    }
-
-                    ImageCompositionOptions::ColorChannel color = *channel._color;
-                    if (color == ImageCompositionOptions::RED)
-                        bandRed = _warpedDS->GetRasterBand( band );
-                    else if (color == ImageCompositionOptions::GREEN)
-                        bandGreen = _warpedDS->GetRasterBand( band );
-                    else if (color == ImageCompositionOptions::BLUE)
-                        bandBlue = _warpedDS->GetRasterBand( band );
-                    else if (color == ImageCompositionOptions::ALPHA)
-                        bandAlpha = _warpedDS->GetRasterBand( band );
-                    else if (color == ImageCompositionOptions::GRAY)
-                        bandGray = _warpedDS->GetRasterBand( band );
-                }
-            }
+            unsigned int minBand, maxBand;
+            key.getTileBands( minBand, maxBand );
+            for ( unsigned int band = minBand ; band <= maxBand ; ++band )
+                bands.push_back( _warpedDS->GetRasterBand(band) );
         }
 
         // if the color/band composition not defined then try to find the color bands in the dataset
@@ -1954,7 +1906,7 @@ public:
 
 
 
-        if (!bandRed && !bandGreen && !bandBlue && !bandAlpha && !bandGray && !bandPalette)
+        if (!bandRed && !bandGreen && !bandBlue && !bandAlpha && !bandGray && !bandPalette && !isChannelBandComposition)
         {
             OE_DEBUG << LC << "Could not determine bands based on color interpretation, using band count" << std::endl;
             //We couldn't find any valid bands based on the color interp, so just make an educated guess based on the number of bands in the file
@@ -1994,108 +1946,107 @@ public:
         // Case RGBA must be extracted from different bands
         if ( isImageEmbededInFeature )
         {
-            // at least the red band must be defined
-            if (! bandRed)
+            // at least one band must be defined
+            if (bands.empty())
+            {
+                OE_WARN << LC << "No bands defined for tile key " << key.full_str() << "\n";
                 return nullptr;
+            }
 
             // get the data types and assume it is the same for all bands
-            GDALDataCoverage dataCoverage(bandRed, this);
+            GDALDataCoverage dataCoverage(bands[0], this);
 
-            // Create an un-normalized luminance image to hold coverage values.
+            // Create an un-normalized image to hold coverage values
+            IndexedColorRampOptions::ChannelOptimizationTechnique technique =
+                    _options.colorRamp()->channelOptimizationTechnique().getOrUse(IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND);
+
             image = new osg::Image();
+            bool isFloatImage = technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND;
+            if (isFloatImage)
+            {
+                image->allocateImage( target_width, target_height, 1, GL_RGBA, GL_FLOAT );
+                image->setInternalTextureFormat( GL_RGBA16F_ARB );
+            }
+            else
+            {
+                image->allocateImage( target_width, target_height, 1, GL_RGBA_INTEGER_EXT, GL_UNSIGNED_BYTE );
+                image->setInternalTextureFormat( GL_RGBA8UI_EXT );
+            }
 
-            image->allocateImage( target_width, target_height, 1, GL_RGBA, GL_FLOAT );
-            image->setInternalTextureFormat( GL_RGBA16F_ARB );
             ImageUtils::markAsUnNormalized( image.get(), true );
+//            ImageUtils::fixInternalFormat( image.get() );
             memset(image->data(), 0, image->getImageSizeInBytes());
 
             ImageUtils::PixelWriter write(image.get());
-            osg::Vec4 temp;
+            osg::Vec4 tempf;
+            osg::Vec4ub tempub;
+            //GLubyte
 
             // init the coverage data structure
-            unsigned char *red = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
-            memset(red, 0, target_width * target_height * dataCoverage.gdalSampleSize);
-            unsigned char *green = nullptr;
-            if ( bandGreen )
+            std::vector<unsigned char*> rawData;
+            bool readSuccess = true;
+            for (unsigned int i=0 ; i<bands.size() ; ++i)
             {
-                green = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
-                memset(green, 0, target_width * target_height * dataCoverage.gdalSampleSize);
-            }
-            unsigned char *blue = nullptr;
-            if ( bandBlue )
-            {
-                blue = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
-                memset(blue, 0, target_width * target_height * dataCoverage.gdalSampleSize);
-            }
-            unsigned char *alpha = nullptr;
-            if ( bandAlpha )
-            {
-                alpha = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
-                memset(alpha, 0, target_width * target_height * dataCoverage.gdalSampleSize);
+                rawData.push_back(new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize]);
+                //memset(rawData[i], 0, target_width * target_height * dataCoverage.gdalSampleSize);
+                readSuccess |= rasterIO(bands[i], GF_Read, off_x, off_y, width, height, rawData[i], target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
             }
 
-            bool readSuccess = rasterIO(bandRed, GF_Read, off_x, off_y, width, height, red, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
-            readSuccess &= !bandGreen || rasterIO(bandGreen, GF_Read, off_x, off_y, width, height, green, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
-            readSuccess &= !bandBlue || rasterIO(bandBlue, GF_Read, off_x, off_y, width, height, blue, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
-            readSuccess &= !bandAlpha || rasterIO(bandAlpha, GF_Read, off_x, off_y, width, height, alpha, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
-
+            std::vector<float> listValues;
             if (readSuccess)
             {
+                unsigned char* readVal = 0;
+                float extractedVal = 0.f;
                 // copy from data to image.
                 for (int src_row = 0, dst_row = tile_offset_top+target_height-1; src_row < target_height; src_row++, dst_row--)
                 {
                     for (int src_col = 0, dst_col = tile_offset_left; src_col < target_width; ++src_col, ++dst_col)
                     {
-                        //red
-                        unsigned char* r = &red[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-                        temp.r() = dataCoverage.extractFloat(r);
-                        //green
-                        if ( bandGreen )
+                        tempf.set(0.f, 0.f, 0.f, 0.f);
+                        tempub.set(0, 0, 0, 0);
+                        for (unsigned int iBand=0u ; iBand<bands.size() ; ++iBand)
                         {
-                            unsigned char* g = &green[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-                            temp.g() = dataCoverage.extractFloat(g);
-                        }
-                        else
-                        {
-                            temp.g() = 0.f;
-                        }
-                        //blue
-                        if ( bandBlue )
-                        {
-                            unsigned char* b = &blue[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-                            temp.b() = dataCoverage.extractFloat(b);
-                        }
-                        else
-                        {
-                            temp.b() = 0.f;
-                        }
-                        //alpha
-                        if ( bandAlpha )
-                        {
-                            unsigned char* a = &alpha[(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-                            temp.a() = dataCoverage.extractFloat(a);
-                        }
-                        else
-                        {
-                            temp.a() = 0.f;
+                            readVal = &rawData[iBand][(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
+                            extractedVal = dataCoverage.extractFloat(readVal);
+
+                            if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND)
+                            {
+                                tempf[iBand] = extractedVal;
+                            }
+                            else if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_BAND)
+                            {
+                                tempub[iBand] = static_cast<unsigned char>(_options.colorRamp()->getRampIndex(extractedVal));
+                                if (src_row > 10 && src_row < 60 && src_col > 10 && src_col < 60 && (tempub[iBand] > 0 || _options.colorRamp()->getRampIndex(extractedVal) > 0))
+                                    OE_WARN << "    JD " << (unsigned) tempub[iBand] << " " << _options.colorRamp()->getRampIndex(extractedVal) << "\n";
+                            }
                         }
 
-                        write(temp, dst_col, dst_row);
+                        if (isFloatImage)
+                        {
+                            write(tempf, dst_col, dst_row);
+                        }
+                        else
+                        {
+                            *(image->data(dst_col, dst_row) + 0) = tempub[0];
+                            *(image->data(dst_col, dst_row) + 1) = tempub[1];
+                            *(image->data(dst_col, dst_row) + 2) = tempub[2];
+                            *(image->data(dst_col, dst_row) + 3) = tempub[3];
+                        }
                     }
                 }
+
+//                OE_WARN << "JD FOUND " << listValues.size() << " DISTINCT VALUES:\n";
+//                for (auto val : listValues)
+//                    OE_WARN << "    JD " << val << "\n";
             }
 
             // don't maintain those data in the GDAL cache as the output image will be stored in disk cache
-            bandRed->FlushCache();
-            if (bandGreen) bandGreen->FlushCache();
-            if (bandBlue) bandBlue->FlushCache();
-            if (bandAlpha) bandAlpha->FlushCache();
-
-            delete []red;
-            delete []green;
-            delete []blue;
-            delete []alpha;
-        } // end red green blue is defined and coverage
+            for (auto& band : bands)
+                band->FlushCache();
+            // clear memory of the raw data
+            for (auto& data : rawData)
+                delete []data;
+        } // image embeded into feature
 
         else if (bandRed && bandGreen && bandBlue)
         {

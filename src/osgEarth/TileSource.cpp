@@ -155,7 +155,7 @@ TileSourceOptions::getConfig() const
     conf.set( "coverage", _coverage );
     conf.set( "osg_option_string", _osgOptionString );
     conf.set( "profile", _profileOptions );
-    conf.set( "image_composition", _imageComp );
+    conf.set( "multiband_color_ramp", _colorRamp );
     return conf;
 }
 
@@ -177,7 +177,7 @@ TileSourceOptions::fromConfig( const Config& conf )
     conf.get( "coverage", _coverage );
     conf.get( "osg_option_string", _osgOptionString );
     conf.get( "profile", _profileOptions );
-    conf.get( "image_composition", _imageComp );
+    conf.get( "multiband_color_ramp", _colorRamp );
 }
 
 

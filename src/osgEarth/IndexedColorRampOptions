@@ -1,0 +1,281 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
+* http://osgearth.org
+*
+* osgEarth is free software; you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>
+*/
+#ifndef OSGEARTH_INDEXED_COLOR_RAMP_OPTIONS_H
+#define OSGEARTH_INDEXED_COLOR_RAMP_OPTIONS_H 1
+
+#include <osgEarth/Common>
+#include <osgEarth/Config>
+#include <vector>
+
+
+namespace osgEarth
+{
+
+    using namespace osgEarth;
+
+    /**
+     * Configuration for defining the composition of an image from multiple bands
+     */
+    class IndexedColorRampOptions : public ConfigOptions  // NO EXPORT; header only
+    {
+    public:
+        enum ChannelOptimizationTechnique
+        {
+            ONE_FLOAT_PER_BAND,
+            ONE_INDEXED_INT_PER_BAND,
+            ONE_INDEXED_INT_PER_TWO_BANDS
+        };
+
+        enum OperatorRamp
+        {
+            GREATER_THAN,
+            GREATER_THAN_OR_EQUAL,
+            LESS_THAN,
+            LESS_THAN_OR_EQUAL,
+            ELSE
+        };
+
+    public:
+
+        // Inner class for defining ramps
+        class RampOptions : public ConfigOptions  // NO EXPORT; header only
+        {
+        public:
+            RampOptions( const ConfigOptions& options = ConfigOptions() )
+                : ConfigOptions          ( options )
+            {
+                fromConfig(_conf);
+            }
+
+            Config getConfig() const
+            {
+                Config conf( "ramp" );
+                conf.set( "op", "greater_than",  _optOp, OperatorRamp::GREATER_THAN );
+                conf.set( "op", "greater_than_or_equal",  _optOp, OperatorRamp::GREATER_THAN_OR_EQUAL );
+                conf.set( "op", "less_than",  _optOp, OperatorRamp::LESS_THAN );
+                conf.set( "op", "less_than_or_equal",  _optOp, OperatorRamp::LESS_THAN_OR_EQUAL );
+                conf.set( "op", "else",  _optOp, OperatorRamp::ELSE );
+                conf.set( "val", _optVal );
+                if (_optColor.isSet())
+                    conf.set("color", vec4fToHtmlColor(_optColor.value()));
+                return conf;
+            }
+
+            void mergeConfig( const Config& conf )
+            {
+                ConfigOptions::mergeConfig( conf );
+                fromConfig( conf );
+            }
+
+            void fromConfig( const Config& conf )
+            {
+                conf.get( "op", "greater_than",  _optOp, OperatorRamp::GREATER_THAN );
+                conf.get( "op", "greater_than_or_equal",  _optOp, OperatorRamp::GREATER_THAN_OR_EQUAL );
+                conf.get( "op", "less_than",  _optOp, OperatorRamp::LESS_THAN );
+                conf.get( "op", "less_than_or_equal",  _optOp, OperatorRamp::LESS_THAN_OR_EQUAL );
+                conf.get( "op", "else",  _optOp, OperatorRamp::ELSE );
+                conf.get( "val", _optVal );
+                if ( conf.hasValue( "color" ) )
+                    _optColor = htmlColorToVec4f( conf.value( "color" ));
+
+                _val = _optVal.getOrUse(0.f);
+                _op = _optOp.getOrUse(OperatorRamp::LESS_THAN);
+            }
+
+            inline bool isInRamp(float v) const
+            {
+                if (_op == OperatorRamp::LESS_THAN && v < _val)
+                    return true;
+
+                if (_op == OperatorRamp::LESS_THAN_OR_EQUAL && v <= _val)
+                    return true;
+
+                if (_op == OperatorRamp::GREATER_THAN && v > _val)
+                    return true;
+
+                if (_op == OperatorRamp::GREATER_THAN_OR_EQUAL && v >= _val)
+                    return true;
+
+                return _op == OperatorRamp::ELSE;
+            }
+
+            optional<float>        _optVal;
+            optional<OperatorRamp> _optOp;
+            optional<osg::Vec4f>   _optColor;
+
+            float _val{0.f};
+            float _op{OperatorRamp::LESS_THAN};
+        }; // end class RampOptions
+
+
+//------------------------------------------------------------------------
+
+        //! Construct from serialized config options
+        IndexedColorRampOptions( const ConfigOptions& options = ConfigOptions() )
+            : ConfigOptions          ( options )
+        {
+            fromConfig(_conf);
+        }
+
+        /** dtor */
+        virtual ~IndexedColorRampOptions() { }
+
+        Config getConfig() const
+        {
+            Config conf( "multiband_color_ramp" );
+            conf.set( "ramps_as_uniform", _optRampsAsUniform );
+            conf.set( "channel_optim_technique", "one_float_per_band",
+                      _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND );
+            conf.set( "channel_optim_technique", "one_indexed_int_per_band",
+                      _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_BAND );
+            conf.set( "channel_optim_technique", "one_indexed_int_per_two_bands",
+                      _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS );
+            for (const auto& ramp : _ramps)
+                conf.add(ramp.getConfig());
+            return conf;
+        }
+
+        void fromConfig(const Config &conf)
+        {
+            conf.get( "ramps_as_uniform", _optRampsAsUniform );
+            conf.get( "channel_optim_technique", "one_float_per_band",
+                      _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND );
+            conf.get( "channel_optim_technique", "one_indexed_int_per_band",
+                      _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_BAND );
+            conf.get( "channel_optim_technique", "one_indexed_int_per_two_bands",
+                      _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS );
+            _nbBandsPerChannel = _channelOptimizationTechnique == ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS ? 2 : 1;
+            ConfigSet children = conf.children("ramp");
+            for (ConfigSet::const_iterator i = children.begin(); i != children.end(); ++i)
+                _ramps.push_back(RampOptions(*i));
+        }
+
+        const std::vector<RampOptions>& ramps() const { return _ramps; }
+
+        unsigned int nbBandsPerChannel() const { return _nbBandsPerChannel; }
+
+        const optional<ChannelOptimizationTechnique>& channelOptimizationTechnique() const { return _channelOptimizationTechnique; }
+
+        inline int getRampIndex(float v) const
+        {
+            int index = 0;
+            for (const auto& ramp : _ramps)
+            {
+                if (ramp.isInRamp(v))
+                    return index;
+                index++;
+            }
+            return 0;
+        }
+
+        // Create the GLSL declaration code for the fragment shader
+        std::string rampDeclCode() const
+        {
+            std::string output = "";
+            unsigned int i = 0u;
+            for (const auto& ramp : _ramps)
+            {
+                if (ramp._optOp.isSet() && ramp._optColor.isSet() && (ramp._optVal.isSet() || ramp._optOp.isSetTo(OperatorRamp::ELSE)))
+                {
+                    if (i > 0u) output += ", \n";
+                    output += "        vec4(" + std::to_string((*ramp._optColor).r()) + "f, "
+                                    + std::to_string((*ramp._optColor).g()) + "f, "
+                                    + std::to_string((*ramp._optColor).b()) + "f, "
+                                    + std::to_string((*ramp._optColor).a()) + "f) ";
+                    i++;
+                }
+            }
+            std::string sizeDecl = "[" + std::to_string(i) + "]";
+            std::string constDecl = _optRampsAsUniform.getOrUse(false) ? "uniform" : "const";
+            return "    " + constDecl + " vec4 " + rampColorVar + sizeDecl + " = vec4" + sizeDecl +"( \n"
+                    + output
+                    + " ); \n";
+        }
+
+        // Create the GLSL body for the fragment shader
+        std::string rampBodyCode(const std::string& rampVar = "rampVal") const
+        {
+            // matching between the operator enum and the associated real GLSL operator
+            static const std::string operatorToString[5] = {" > ", " >= ", " < ", " <= ", " != "};
+
+            bool floatTechnique = _channelOptimizationTechnique.isSetTo(ONE_FLOAT_PER_BAND);
+            std::string output="";
+
+            // The texture is storing the value as float
+            if (floatTechnique)
+            {
+                unsigned int index = 0;
+                for (const auto& ramp : _ramps)
+                {
+                    if (! ramp._optOp.isSet())
+                    {
+                        continue;
+                    }
+
+                    if (ramp._optOp.isSetTo(OperatorRamp::ELSE))
+                    {
+                        output += "else \n";
+                    }
+                    else
+                    {
+                        if (! ramp._optVal.isSet() || ! ramp._optColor.isSet())
+                        {
+                            continue;
+                        }
+
+                        output += output.empty() ? "if " : "else if ";
+                        std::string op = floatTechnique ? operatorToString[*ramp._optOp] : " == ";
+                        std::string val = floatTechnique ? (std::to_string(*ramp._optVal) + "f") : (std::to_string(index) + "u");
+                        output += "(" + rampVar + op + val + ") \n";
+                    }
+
+                    output += "    color = vec4("
+                                        + std::to_string((*ramp._optColor).r()) + "f, "
+                                        + std::to_string((*ramp._optColor).g()) + "f, "
+                                        + std::to_string((*ramp._optColor).b()) + "f, "
+                                        + std::to_string((*ramp._optColor).a()) + "f); \n";
+                    index++;
+                }
+            }
+
+            // The texture is an indexed int type
+            else
+            {
+                output += "    color = " + rampColorVar + "[" + rampVar + "]; \n";
+            }
+
+            return output;
+        }
+
+    private:
+        std::vector<RampOptions> _ramps;
+        unsigned int _nbBandsPerChannel{1}; //the number of encoded bands into one color channel
+        optional<bool> _optRampsAsUniform;
+        optional<ChannelOptimizationTechnique> _channelOptimizationTechnique;
+        std::string rampColorVar = "rampColor";
+    };
+
+} // namespace osgEarth
+
+OSGEARTH_SPECIALIZE_CONFIG(osgEarth::IndexedColorRampOptions);
+
+#endif // OSGEARTH_INDEXED_COLOR_RAMP_OPTIONS_H
