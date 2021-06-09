@@ -931,6 +931,7 @@ class GDALTileSource : public TileSource
             }
         }
 
+        // get the data value from a given pointer in the data
         inline float extractFloat(unsigned char * ptr) const
         {
             float value =
@@ -955,6 +956,7 @@ class GDALTileSource : public TileSource
         GLint          internalFormat = GL_R32F;
     };
 
+    // Inner class for filling an image from provided bands
     struct FillImage
     {
         FillImage(osg::Image* pImage, const GDALDataCoverage& pDataCoverage)
@@ -962,6 +964,7 @@ class GDALTileSource : public TileSource
         {
         }
 
+        // actually fill the image
         inline void fill(const std::vector<unsigned char*>& rawData, const optional<IndexedColorRampOptions>& colorRamp)
         {
             IndexedColorRampOptions::ChannelOptimizationTechnique technique =
@@ -976,6 +979,9 @@ class GDALTileSource : public TileSource
 
         }
 
+    private:
+
+        // fill image / Case the image is floating point format
         inline void fillFloat(const std::vector<unsigned char*>& rawData)
         {
             ImageUtils::PixelWriter write(image.get());
@@ -1001,6 +1007,8 @@ class GDALTileSource : public TileSource
             }
         }
 
+        // fill image / Case the image is containing a int which stores an index in a color ramp
+        // the max size of the int is 255
         inline void fillInt(const std::vector<unsigned char*>& rawData, const optional<IndexedColorRampOptions>& colorRamp)
         {
             osg::Vec4ub tempub;
@@ -1028,6 +1036,10 @@ class GDALTileSource : public TileSource
             }
         }
 
+        // fill image / Case the image is containing a int which stores two indexes in a color ramp
+        // the max size of the int is 255
+        // the last digit contains the first band, the second digit the second band
+        // example : 037 means 7 for band i and 3 for band i+1
         inline void fillInt2(const std::vector<unsigned char*>& rawData, const optional<IndexedColorRampOptions>& colorRamp)
         {
             osg::Vec4ub tempub;
@@ -2089,11 +2101,19 @@ public:
 
             image = new osg::Image();
             bool isFloatImage = technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND;
+
+            // case float image -> the image stores the "real" value as a float (16 bits)
+            // each color channel is storing a specific band
+            // Red = band i / Green = band i+1 / Blue = band i+2 / Alpha = band i+3
             if (isFloatImage)
             {
                 image->allocateImage( target_width, target_height, 1, GL_RGBA, GL_FLOAT );
                 image->setInternalTextureFormat( GL_RGBA16F_ARB );
             }
+
+            // case inr image -> the image stores an int which is directly the index of the ramp
+            // each color channel is storing ether one specific band or two bands
+            // this method improves memory footprint
             else
             {
                 image->allocateImage( target_width, target_height, 1, GL_RGBA_INTEGER_EXT, GL_UNSIGNED_BYTE );
@@ -2109,10 +2129,10 @@ public:
             for (unsigned int i=0 ; i<bands.size() ; ++i)
             {
                 rawData.push_back(new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize]);
-                //memset(rawData[i], 0, target_width * target_height * dataCoverage.gdalSampleSize);
                 readSuccess |= rasterIO(bands[i], GF_Read, off_x, off_y, width, height, rawData[i], target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
             }
 
+            // then fill the image from the raster bands
             if (readSuccess)
             {
                 FillImage(image.get(), dataCoverage).fill(rawData, _options.colorRamp());

@@ -239,6 +239,7 @@ struct SetupFading : public SceneGraphCallback {
 
 namespace {
 
+    // use this util method to trace the scenegraph starting from 'node'
     void traceNode(const osg::Node& node, const std::string tab = "")
     {
         OE_WARN << tab << "[" << node.className() << "/" << node.getName() << "]" << "\n";
@@ -269,16 +270,15 @@ namespace {
     }
 
 
-    // the extend used by the sphere texture cooordinates
-    // s coordinate will wrap [0;1] to [-0.125;359.875]
-    // t coordinate will wrap [0;1] to [-90.125;90.125]
+    // sphere geometry when the feature layer embeds raster images
     static osg::ref_ptr<const Profile> sphereProfile;
     static osg::ref_ptr<osg::Geode> _ellipsoidGeom;
 
-    // the uniform to change the selected band
+    // the uniform to change the selected band for multiband rasters
     const std::string _multiBand_uniform_name = "oe_u_channelRamp";
     const std::string _multiBand_2nd_level_uniform_name = "oe_u_channelRamp_2nd_level";
 
+    // vertex shader for feature layer which embeds raster images
     const char* imageVS =
         "#version " GLSL_VERSION_STR "\n"
         GLSL_DEFAULT_PRECISION_FLOAT "\n"
@@ -289,6 +289,7 @@ namespace {
         "    imageBinding_texcoord = gl_MultiTexCoord0.st; \n"
         "} \n";
 
+    // fragment shader for feature layer which embeds raster images
     const char* imageFS =
         "#version " GLSL_VERSION_STR "\n"
         GLSL_DEFAULT_PRECISION_FLOAT "\n"
@@ -303,6 +304,7 @@ namespace {
         "    //color = vec4(imageBinding_texcoord.st, 0., 1.); \n"
         "} \n";
 
+    // stores information about the bands range that a given texture will handle and associated utils method
     struct BandsInformation : public osg::Referenced
     {
         BandsInformation( const TileKey& tileKey, unsigned int maxBandsPerTile = 4 ) :
@@ -317,6 +319,8 @@ namespace {
             return band >= _minBand && band <= _maxBand;
         }
 
+        // determine the color channel to use for a given band
+        // use this method if the image holds one band per color channel
         int getUniformValForBand_1int(unsigned int band) const
         {
             int channel = band - _minBand;
@@ -327,6 +331,10 @@ namespace {
             return channel / _maxBandsPerChannel;
         }
 
+        // determine the color channel (i) and the offset (j) to use for a given band
+        // use this method if the image holds two bands per color channel
+        // in that case : the last digit encodes the band i and the previous one the band i+1
+        // example : 051 means band i is 1 and band i+1 is 5
         void getUniformValForBand_2int(unsigned int band, int& i, int& j) const
         {
             int index = band - _minBand;
@@ -350,10 +358,12 @@ namespace {
         unsigned int _maxBandsPerChannel;
     };
 
+    // Node holding one raster texture which may encode multiple rasters bands
     struct GroupMultiBands : public osg::Group, public MultiBandsInterface
     {
         explicit GroupMultiBands(unsigned band = 0) : Group(), MultiBandsInterface (band) {}
 
+        // request to make visible a given band
         virtual void setBand(unsigned band) override
         {
             if (band == _band)
@@ -396,6 +406,7 @@ namespace {
         }
     };
 
+    // use this struct to animate the bands (for test only)
     struct BandsAnimation : public osg::NodeCallback
     {
         osg::observer_ptr<osg::Group> _fmg;
@@ -495,25 +506,11 @@ namespace {
         osg::Geode* geode = new osg::Geode();
         geode->addDrawable(geom);
 
-//        osgUtil::Optimizer::MergeGeometryVisitor mg;
-//        mg.setTargetMaximumNumberOfVertices(65536);
-//        geode->accept(mg);
-
-////        if (_optimizeVertexOrdering == true)
-////        {
-//            osgUtil::Optimizer o;
-//            o.optimize( geode,
-//                osgUtil::Optimizer::INDEX_MESH
-//                | osgUtil::Optimizer::VERTEX_PRETRANSFORM
-//                | osgUtil::Optimizer::VERTEX_POSTTRANSFORM
-//                );
-////        }
-
         return geode;
     }
 }
 
-
+// build a new program which will handle the binding of a given texture with the sphere
 VirtualProgram* createProgramForImageBinding( const ImageLayer* imageLayer )
 {
     VirtualProgram* program = new VirtualProgram();
@@ -567,6 +564,7 @@ VirtualProgram* createProgramForImageBinding( const ImageLayer* imageLayer )
 }
 
 
+// setup the root scenegraph for layers which embeds raster images
 void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageLayer, const TileKey& key)
 {
     // expected pre conditions
@@ -584,6 +582,7 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
     int maxBandsPerTile = imageLayer->getTileSource()->getOptions().colorRamp().isSet() ?
                 imageLayer->getTileSource()->getOptions().colorRamp()->nbBandsPerChannel() * 4 : 4;
 
+    // then build one pagedLOD per possible texture (each texture holds many bands defined in 'maxBandsPerTile')
     GroupMultiBands* groupMultiBands = new GroupMultiBands();
     unsigned defaultBand = _options.imageBand().getOrUse(0);
     TileKey keyTmp(key);
@@ -601,9 +600,12 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
         osg::ref_ptr<BandsInformation> bandsInfo = new BandsInformation(keyTmp, maxBandsPerTile);
         pagedNode->setUserData( bandsInfo );
 
+        // this uniform holds the color channel to use to access a given band
         osg::Uniform* uniform = new osg::Uniform(osg::Uniform::INT, _multiBand_uniform_name.c_str());
         pagedNode->getOrCreateStateSet()->addUniform(uniform, osg::StateAttribute::OVERRIDE);
 
+        // case the texture holds one band per color channel
+        // then only one uniform is used to define the color channel to use
         if (maxBandsPerTile == 4)
         {
             int channel = bandsInfo->getUniformValForBand_1int(defaultBand);
@@ -618,6 +620,9 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
                 pagedNode->setNodeMask(~0);
             }
         }
+
+        // case the texture holds two bands per color channel
+        // then a second uniform is necessary to define the offset to use in the given color channel
         else if (maxBandsPerTile == 8)
         {
             osg::Uniform* uniform2nd = new osg::Uniform(osg::Uniform::INT, _multiBand_2nd_level_uniform_name.c_str());
@@ -639,6 +644,7 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
             }
         }
 
+        // go to the next available bands
         keyTmp.setupNextAvailableBands(bandNumber, maxBandsPerTile);
     }
 

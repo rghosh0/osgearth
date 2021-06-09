@@ -40,9 +40,9 @@ namespace osgEarth
     public:
         enum ChannelOptimizationTechnique
         {
-            ONE_FLOAT_PER_BAND,
-            ONE_INDEXED_INT_PER_BAND,
-            ONE_INDEXED_INT_PER_TWO_BANDS
+            ONE_FLOAT_PER_BAND, //each color channel will encode one band real value as a float
+            ONE_INDEXED_INT_PER_BAND, //each color channel will encode the index in the color ramp for a given band
+            ONE_INDEXED_INT_PER_TWO_BANDS //each color channel will encode the indexes in the color ramp for two given bands
         };
 
         enum OperatorRamp

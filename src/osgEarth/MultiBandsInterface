@@ -39,6 +39,7 @@ namespace osgEarth
     protected:
         unsigned _band{0};
 
+        // working variables used to avoid allocations
         int _tmpI{0};
         int _tmpJ{0};
     };
