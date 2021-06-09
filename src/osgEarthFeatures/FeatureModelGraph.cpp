@@ -276,9 +276,8 @@ namespace {
     static osg::ref_ptr<osg::Geode> _ellipsoidGeom;
 
     // the uniform to change the selected band
-    // must be "MultiBandRampColorFilter::uniform_name.c_str()"
-    // but we cant include osgearthutil as it creates a cyclic dependance
-    const std::string _multiBand_uniform_name = "osgearthutil_u_channelRamp_";
+    const std::string _multiBand_uniform_name = "oe_u_channelRamp";
+    const std::string _multiBand_2nd_level_uniform_name = "oe_u_channelRamp_2nd_level";
 
     const char* imageVS =
         "#version " GLSL_VERSION_STR "\n"
@@ -306,12 +305,6 @@ namespace {
 
     struct BandsInformation : public osg::Referenced
     {
-        BandsInformation( unsigned int minBand, unsigned int maxBand, unsigned int maxBandsPerTile = 4 ) :
-            _minBand(minBand), _maxBand(maxBand), _maxBandsPerTile(maxBandsPerTile)
-        {
-            _maxBandsPerChannel = maxBandsPerTile / 4;
-        }
-
         BandsInformation( const TileKey& tileKey, unsigned int maxBandsPerTile = 4 ) :
             _maxBandsPerTile(maxBandsPerTile)
         {
@@ -324,7 +317,7 @@ namespace {
             return band >= _minBand && band <= _maxBand;
         }
 
-        int getChannelForBand(unsigned int band) const
+        int getUniformValForBand_1int(unsigned int band) const
         {
             int channel = band - _minBand;
 
@@ -332,6 +325,23 @@ namespace {
                 return -1;
 
             return channel / _maxBandsPerChannel;
+        }
+
+        void getUniformValForBand_2int(unsigned int band, int& i, int& j) const
+        {
+            int index = band - _minBand;
+
+            if (index < 0 || index >= static_cast<int>(_maxBandsPerTile))
+            {
+                i = -1;
+                j = -1;
+            }
+
+            else
+            {
+                i = index / _maxBandsPerChannel;
+                j = index - i * _maxBandsPerChannel;
+            }
         }
 
         unsigned int _minBand;
@@ -360,7 +370,21 @@ namespace {
                 {
                     osg::Uniform* uniform = group->getStateSet()->getUniform(_multiBand_uniform_name.c_str());
                     if ( uniform )
-                        uniform->set(bandsInfo->getChannelForBand(band));
+                    {
+                        if ( bandsInfo->_maxBandsPerChannel == 1u )
+                        {
+                            uniform->set(bandsInfo->getUniformValForBand_1int(band));
+                        }
+                        else if ( bandsInfo->_maxBandsPerChannel == 2u )
+                        {
+                            bandsInfo->getUniformValForBand_2int(band, _tmpI, _tmpJ);
+                            if (osg::Uniform* uniform2nd = group->getStateSet()->getUniform(_multiBand_2nd_level_uniform_name.c_str()))
+                            {
+                                uniform->set(_tmpI);
+                                uniform2nd->set(_tmpJ);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -512,18 +536,29 @@ VirtualProgram* createProgramForImageBinding( const ImageLayer* imageLayer )
                 = imageLayer->getTileSource()->getOptions().colorRamp()->channelOptimizationTechnique()
                     .getOrUse(IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND);
 
-        delcarationCode += "    uniform lowp int osgearthutil_u_channelRamp_; \n";
+        delcarationCode += "    uniform lowp int " + _multiBand_uniform_name + "; \n";
+        if (imageLayer->getTileSource()->getOptions().colorRamp()->nbBandsPerChannel() == 2u)
+            delcarationCode += "    uniform lowp int " + _multiBand_2nd_level_uniform_name + "; \n";
         delcarationCode += technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND ?
                     "    uniform sampler2D image_tex; \n" : "    uniform lowp usampler2D image_tex; \n";
         delcarationCode += imageLayer->getTileSource()->getOptions().colorRamp()->rampDeclCode();
 
         bodyCode += technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND ? "    float " : "    lowp uint ";
-        bodyCode += "value = texture(image_tex, imageBinding_texcoord)[osgearthutil_u_channelRamp_]; \n";
+        bodyCode += "value = texture(image_tex, imageBinding_texcoord)[" + _multiBand_uniform_name + "]; \n";
+
+        if (imageLayer->getTileSource()->getOptions().colorRamp()->nbBandsPerChannel() == 2u)
+        {
+            if (imageLayer->getTileSource()->getOptions().colorRamp()->useDiscard())
+                bodyCode += "    if (value == 0u) { discard; return; } \n";
+
+            bodyCode += "    if (" + _multiBand_2nd_level_uniform_name + " == 0) value = value - (value/10u)*10u; \n";
+            bodyCode += "    else if (" + _multiBand_2nd_level_uniform_name + " == 1) value = value / 10u; \n";
+        }
         bodyCode += imageLayer->getTileSource()->getOptions().colorRamp()->rampBodyCode("value");
     }
 
     osgEarth::replaceIn(imageFSupdated, "__DECLARATION_CODE__", delcarationCode);
-    osgEarth::replaceIn(imageFSupdated, "__BODY_CODE__", bodyCode);
+    osgEarth::replaceIn(imageFSupdated, "__BODY_CODE__", bodyCode + "}");
 
     program->setFunction("oe_ImageBinding_VS", imageVS, ShaderComp::LOCATION_VERTEX_MODEL);
     program->setFunction("oe_ImageBinding_FS", imageFSupdated, ShaderComp::LOCATION_FRAGMENT_COLORING);
@@ -545,10 +580,14 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
     osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageLayer->getProfile()->getSRS()->getEllipsoid();
     _sphereForOverlay = buildPartialEllipsoidGeometry(ellipsoidModel.get(), imageLayer->getProfile()->getLatLongExtent().originalBounds());
 
+    // case multiple bands coded into one color channel
+    int maxBandsPerTile = imageLayer->getTileSource()->getOptions().colorRamp().isSet() ?
+                imageLayer->getTileSource()->getOptions().colorRamp()->nbBandsPerChannel() * 4 : 4;
+
     GroupMultiBands* groupMultiBands = new GroupMultiBands();
     unsigned defaultBand = _options.imageBand().getOrUse(0);
     TileKey keyTmp(key);
-    keyTmp.setupNextAvailableBands(bandNumber);
+    keyTmp.setupNextAvailableBands(bandNumber, maxBandsPerTile);
     while (keyTmp.hasBandsDefined())
     {
         unsigned int minBand, maxBand;
@@ -559,25 +598,48 @@ void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageL
 
         groupMultiBands->addChild( pagedNode );
 
-        osg::ref_ptr<BandsInformation> bandsInfo = new BandsInformation(keyTmp);
-        int channel = bandsInfo->getChannelForBand(defaultBand);
+        osg::ref_ptr<BandsInformation> bandsInfo = new BandsInformation(keyTmp, maxBandsPerTile);
         pagedNode->setUserData( bandsInfo );
 
         osg::Uniform* uniform = new osg::Uniform(osg::Uniform::INT, _multiBand_uniform_name.c_str());
         pagedNode->getOrCreateStateSet()->addUniform(uniform, osg::StateAttribute::OVERRIDE);
 
-        if ( channel == -1 )
+        if (maxBandsPerTile == 4)
         {
-            uniform->set(0);
-            pagedNode->setNodeMask(0);
+            int channel = bandsInfo->getUniformValForBand_1int(defaultBand);
+            if ( channel == -1 )
+            {
+                uniform->set(0);
+                pagedNode->setNodeMask(0);
+            }
+            else
+            {
+                uniform->set(channel);
+                pagedNode->setNodeMask(~0);
+            }
         }
-        else
+        else if (maxBandsPerTile == 8)
         {
-            uniform->set(channel);
-            pagedNode->setNodeMask(~0);
+            osg::Uniform* uniform2nd = new osg::Uniform(osg::Uniform::INT, _multiBand_2nd_level_uniform_name.c_str());
+            pagedNode->getOrCreateStateSet()->addUniform(uniform2nd, osg::StateAttribute::OVERRIDE);
+            int indexI = -1;
+            int indexJ = -1;
+            bandsInfo->getUniformValForBand_2int(defaultBand, indexI, indexJ);
+            if ( indexI == -1 || indexJ == -1 )
+            {
+                uniform->set(0);
+                uniform2nd->set(0);
+                pagedNode->setNodeMask(0);
+            }
+            else
+            {
+                uniform->set(indexI);
+                uniform2nd->set(indexJ);
+                pagedNode->setNodeMask(~0);
+            }
         }
 
-        keyTmp.setupNextAvailableBands(bandNumber);
+        keyTmp.setupNextAvailableBands(bandNumber, maxBandsPerTile);
     }
 
     // setup the shader
@@ -604,7 +666,6 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
         osg::Group* bandsGroup = new osg::Group();
 
         osg::Texture2D* tex = new osg::Texture2D( image.getImage() );
-        //tex->setBorderColor( osg::Vec4d(1., 0., 0., 1.) );
         tex->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE );
         tex->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE );
         tex->setResizeNonPowerOfTwoHint(false);
@@ -616,9 +677,6 @@ osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const 
 
         bandsGroup->getOrCreateStateSet()->setTextureAttributeAndModes(0, tex, osg::StateAttribute::ON);
         bandsGroup->getOrCreateStateSet()->addUniform( new osg::Uniform("image_tex", 0) );
-
-//        VirtualProgram* program = createProgramForImageBinding(imageLayer);
-//        bandsGroup->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
 
         bandsGroup->addChild(_sphereForOverlay.get());
         return bandsGroup;

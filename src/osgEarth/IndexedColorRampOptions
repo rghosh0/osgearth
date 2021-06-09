@@ -143,6 +143,7 @@ namespace osgEarth
         {
             Config conf( "multiband_color_ramp" );
             conf.set( "ramps_as_uniform", _optRampsAsUniform );
+            conf.set( "dont_use_discard", _optDontUseDiscard );
             conf.set( "channel_optim_technique", "one_float_per_band",
                       _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND );
             conf.set( "channel_optim_technique", "one_indexed_int_per_band",
@@ -157,6 +158,7 @@ namespace osgEarth
         void fromConfig(const Config &conf)
         {
             conf.get( "ramps_as_uniform", _optRampsAsUniform );
+            conf.get( "dont_use_discard", _optDontUseDiscard );
             conf.get( "channel_optim_technique", "one_float_per_band",
                       _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND );
             conf.get( "channel_optim_technique", "one_indexed_int_per_band",
@@ -164,14 +166,24 @@ namespace osgEarth
             conf.get( "channel_optim_technique", "one_indexed_int_per_two_bands",
                       _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS );
             _nbBandsPerChannel = _channelOptimizationTechnique == ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS ? 2 : 1;
+
             ConfigSet children = conf.children("ramp");
             for (ConfigSet::const_iterator i = children.begin(); i != children.end(); ++i)
+            {
                 _ramps.push_back(RampOptions(*i));
+            }
+            if (_ramps.size() > 0 && (! _ramps[0]._optColor.isSet() || !_ramps[0]._optColor.isSetTo(osg::Vec4f(0.f, 0.f, 0.f, 0.f))))
+            {
+                OE_WARN << "[IndexedColorRampOptions] Invalid configuration. Please start the ramp with a full transparent color.";
+                _ramps.clear();
+            }
         }
 
         const std::vector<RampOptions>& ramps() const { return _ramps; }
 
         unsigned int nbBandsPerChannel() const { return _nbBandsPerChannel; }
+
+        bool useDiscard() const { return ! _optDontUseDiscard.isSetTo(true); }
 
         const optional<ChannelOptimizationTechnique>& channelOptimizationTechnique() const { return _channelOptimizationTechnique; }
 
@@ -185,6 +197,13 @@ namespace osgEarth
                 index++;
             }
             return 0;
+        }
+
+        inline int getRampIndex(float v, float w) const
+        {
+            int indexV = getRampIndex(v);
+            int indexW = getRampIndex(w);
+            return indexV + 10*indexW;
         }
 
         // Create the GLSL declaration code for the fragment shader
@@ -243,16 +262,19 @@ namespace osgEarth
                         }
 
                         output += output.empty() ? "if " : "else if ";
-                        std::string op = floatTechnique ? operatorToString[*ramp._optOp] : " == ";
-                        std::string val = floatTechnique ? (std::to_string(*ramp._optVal) + "f") : (std::to_string(index) + "u");
+                        std::string op = operatorToString[*ramp._optOp];
+                        std::string val = std::to_string(*ramp._optVal) + "f";
                         output += "(" + rampVar + op + val + ") \n";
                     }
 
-                    output += "    color = vec4("
-                                        + std::to_string((*ramp._optColor).r()) + "f, "
-                                        + std::to_string((*ramp._optColor).g()) + "f, "
-                                        + std::to_string((*ramp._optColor).b()) + "f, "
-                                        + std::to_string((*ramp._optColor).a()) + "f); \n";
+                    if (_optDontUseDiscard.isSetTo(true) || (*ramp._optColor).a() != 0.f )
+                    {
+                        output += "    color = vec4("
+                                            + std::to_string((*ramp._optColor).r()) + "f, "
+                                            + std::to_string((*ramp._optColor).g()) + "f, "
+                                            + std::to_string((*ramp._optColor).b()) + "f, "
+                                            + std::to_string((*ramp._optColor).a()) + "f); \n";
+                    }
                     index++;
                 }
             }
@@ -260,7 +282,14 @@ namespace osgEarth
             // The texture is an indexed int type
             else
             {
-                output += "    color = " + rampColorVar + "[" + rampVar + "]; \n";
+                if (_nbBandsPerChannel == 1u)
+                {
+                    output += "    color = " + rampColorVar + "[" + rampVar + "]; \n";
+                }
+                else if (_nbBandsPerChannel == 2u)
+                {
+                    output += "    color = " + rampColorVar + "[" + rampVar + "]; \n";
+                }
             }
 
             return output;
@@ -270,6 +299,7 @@ namespace osgEarth
         std::vector<RampOptions> _ramps;
         unsigned int _nbBandsPerChannel{1}; //the number of encoded bands into one color channel
         optional<bool> _optRampsAsUniform;
+        optional<bool> _optDontUseDiscard;
         optional<ChannelOptimizationTechnique> _channelOptimizationTechnique;
         std::string rampColorVar = "rampColor";
     };

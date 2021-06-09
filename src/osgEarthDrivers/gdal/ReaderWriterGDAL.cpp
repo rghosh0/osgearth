@@ -931,7 +931,7 @@ class GDALTileSource : public TileSource
             }
         }
 
-        inline float extractFloat(unsigned char * ptr)
+        inline float extractFloat(unsigned char * ptr) const
         {
             float value =
                 gdalSampleSize == 1 ? (float)(*ptr) :
@@ -953,6 +953,122 @@ class GDALTileSource : public TileSource
         GLenum         glDataType     = GL_FLOAT;
         int            gdalSampleSize = 4;
         GLint          internalFormat = GL_R32F;
+    };
+
+    struct FillImage
+    {
+        FillImage(osg::Image* pImage, const GDALDataCoverage& pDataCoverage)
+            : image(pImage), dataCoverage(pDataCoverage)
+        {
+        }
+
+        inline void fill(const std::vector<unsigned char*>& rawData, const optional<IndexedColorRampOptions>& colorRamp)
+        {
+            IndexedColorRampOptions::ChannelOptimizationTechnique technique =
+                    colorRamp->channelOptimizationTechnique().getOrUse(IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND);
+
+            if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND)
+                fillFloat(rawData);
+            else if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_BAND)
+                fillInt(rawData, colorRamp);
+            else if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS)
+                fillInt2(rawData, colorRamp);
+
+        }
+
+        inline void fillFloat(const std::vector<unsigned char*>& rawData)
+        {
+            ImageUtils::PixelWriter write(image.get());
+            osg::Vec4 tempf;
+            unsigned char* readVal = 0;
+            float extractedVal = 0.f;
+
+            // copy from data to image.
+            for (int src_row = 0, dst_row = image->t()-1; src_row < image->t(); src_row++, dst_row--)
+            {
+                for (int src_col = 0, dst_col = 0; src_col < image->s(); ++src_col, ++dst_col)
+                {
+                    tempf.set(0.f, 0.f, 0.f, 0.f);
+                    for (unsigned int iBand=0u ; iBand<rawData.size() ; ++iBand)
+                    {
+                        readVal = &rawData[iBand][(src_col + src_row*image->s())*dataCoverage.gdalSampleSize];
+                        extractedVal = dataCoverage.extractFloat(readVal);
+                        tempf[iBand] = extractedVal;
+                    }
+
+                    write(tempf, dst_col, dst_row);
+                }
+            }
+        }
+
+        inline void fillInt(const std::vector<unsigned char*>& rawData, const optional<IndexedColorRampOptions>& colorRamp)
+        {
+            osg::Vec4ub tempub;
+            unsigned char* readVal = 0;
+            float extractedVal = 0.f;
+
+            // copy from data to image.
+            for (int src_row = 0, dst_row = image->t()-1; src_row < image->t(); src_row++, dst_row--)
+            {
+                for (int src_col = 0, dst_col = 0; src_col < image->s(); ++src_col, ++dst_col)
+                {
+                    tempub.set(0, 0, 0, 0);
+                    for (unsigned int iBand=0u ; iBand<rawData.size() ; ++iBand)
+                    {
+                        readVal = &rawData[iBand][(src_col + src_row*image->s())*dataCoverage.gdalSampleSize];
+                        extractedVal = dataCoverage.extractFloat(readVal);
+                        tempub[iBand] = static_cast<unsigned char>(colorRamp->getRampIndex(extractedVal));
+                    }
+
+                    *(image->data(dst_col, dst_row) + 0) = tempub[0];
+                    *(image->data(dst_col, dst_row) + 1) = tempub[1];
+                    *(image->data(dst_col, dst_row) + 2) = tempub[2];
+                    *(image->data(dst_col, dst_row) + 3) = tempub[3];
+                }
+            }
+        }
+
+        inline void fillInt2(const std::vector<unsigned char*>& rawData, const optional<IndexedColorRampOptions>& colorRamp)
+        {
+            osg::Vec4ub tempub;
+            unsigned char* readVal = 0;
+            unsigned char* readVal2 = 0;
+            float extractedVal = 0.f;
+            float extractedVal2 = 0.f;
+
+            // copy from data to image.
+            for (int src_row = 0, dst_row = image->t()-1; src_row < image->t(); src_row++, dst_row--)
+            {
+                for (int src_col = 0, dst_col = 0; src_col < image->s(); ++src_col, ++dst_col)
+                {
+                    tempub.set(0, 0, 0, 0);
+                    for (unsigned int iBand=0u ; iBand<rawData.size() ; iBand+=2)
+                    {
+                        readVal = &rawData[iBand][(src_col + src_row*image->s())*dataCoverage.gdalSampleSize];
+                        extractedVal = dataCoverage.extractFloat(readVal);
+                        if (iBand < rawData.size()-1)
+                        {
+                            readVal2 = &rawData[iBand+1][(src_col + src_row*image->s())*dataCoverage.gdalSampleSize];
+                            extractedVal2 = dataCoverage.extractFloat(readVal2);
+                            tempub[iBand/2] = static_cast<unsigned char>(
+                                        colorRamp->getRampIndex(extractedVal) + 10*colorRamp->getRampIndex(extractedVal2));
+                        }
+                        else
+                        {
+                            tempub[iBand/2] = static_cast<unsigned char>(colorRamp->getRampIndex(extractedVal));
+                        }
+                    }
+
+                    *(image->data(dst_col, dst_row) + 0) = tempub[0];
+                    *(image->data(dst_col, dst_row) + 1) = tempub[1];
+                    *(image->data(dst_col, dst_row) + 2) = tempub[2];
+                    *(image->data(dst_col, dst_row) + 3) = tempub[3];
+                }
+            }
+        }
+
+        osg::ref_ptr<osg::Image> image;
+        const GDALDataCoverage& dataCoverage;
     };
 
 public:
@@ -1826,45 +1942,56 @@ public:
             }
         }
 
-        // Determine the read window
-        double src_min_x, src_min_y, src_max_x, src_max_y;
-        // Get the pixel coordiantes of the intersection
-        geoToPixel( west, intersection.yMax(), src_min_x, src_min_y);
-        geoToPixel( east, intersection.yMin(), src_max_x, src_max_y);
 
-        // Convert the doubles to integers.  We floor the mins and ceil the maximums to give the widest window possible.
-        src_min_x = floor(src_min_x);
-        src_min_y = floor(src_min_y);
-        src_max_x = ceil(src_max_x);
-        src_max_y = ceil(src_max_y);
+        // Determine read and destination window
 
-        int off_x = (int)( src_min_x );
-        int off_y = (int)( src_min_y );
-        int width  = (int)(src_max_x - src_min_x);
-        int height = (int)(src_max_y - src_min_y);
-
-
+        int off_x = 0;
+        int off_y = 0;
+        int tile_offset_left = 0;
+        int tile_offset_top = 0;
         int rasterWidth = _warpedDS->GetRasterXSize();
         int rasterHeight = _warpedDS->GetRasterYSize();
-        if (off_x + width > rasterWidth || off_y + height > rasterHeight)
+        int width = rasterWidth;
+        int height = rasterHeight;
+        int target_width = rasterWidth;
+        int target_height = rasterHeight;
+
+        if (! isImageEmbededInFeature)
         {
-            OE_WARN << LC << "Read window outside of bounds of dataset.  Source Dimensions=" << rasterWidth << "x" << rasterHeight << " Read Window=" << off_x << ", " << off_y << " " << width << "x" << height << std::endl;
+            // Determine the read window
+
+            double src_min_x, src_min_y, src_max_x, src_max_y;
+            // Get the pixel coordiantes of the intersection
+            geoToPixel( west, intersection.yMax(), src_min_x, src_min_y);
+            geoToPixel( east, intersection.yMin(), src_max_x, src_max_y);
+
+            // Convert the doubles to integers.  We floor the mins and ceil the maximums to give the widest window possible.
+            src_min_x = floor(src_min_x);
+            src_min_y = floor(src_min_y);
+            src_max_x = ceil(src_max_x);
+            src_max_y = ceil(src_max_y);
+
+            off_x = (int)( src_min_x );
+            off_y = (int)( src_min_y );
+            width  = (int)(src_max_x - src_min_x);
+            height = (int)(src_max_y - src_min_y);
+
+            if (off_x + width > rasterWidth || off_y + height > rasterHeight)
+            {
+                OE_WARN << LC << "Read window outside of bounds of dataset.  Source Dimensions=" << rasterWidth << "x" << rasterHeight << " Read Window=" << off_x << ", " << off_y << " " << width << "x" << height << std::endl;
+            }
+
+            // Determine the destination window
+
+            // Compute the offsets in geo coordinates of the intersection from the TileKey
+            double offset_left = intersection.xMin() - xmin;
+            double offset_top = ymax - intersection.yMax();
+
+            target_width = (int)ceil((intersection.width() / key.getExtent().width())*(double)tileSize);
+            target_height = (int)ceil((intersection.height() / key.getExtent().height())*(double)tileSize);
+            tile_offset_left = (int)floor((offset_left / key.getExtent().width()) * (double)tileSize);
+            tile_offset_top = (int)floor((offset_top / key.getExtent().height()) * (double)tileSize);
         }
-
-        // Determine the destination window
-
-        // Compute the offsets in geo coordinates of the intersection from the TileKey
-        double offset_left = intersection.xMin() - xmin;
-        double offset_top = ymax - intersection.yMax();
-
-        int target_width = isImageEmbededInFeature ?
-                    rasterWidth : (int)ceil((intersection.width() / key.getExtent().width())*(double)tileSize);
-        int target_height = isImageEmbededInFeature ?
-                    rasterHeight : (int)ceil((intersection.height() / key.getExtent().height())*(double)tileSize);
-        int tile_offset_left = isImageEmbededInFeature ?
-                    0 : (int)floor((offset_left / key.getExtent().width()) * (double)tileSize);
-        int tile_offset_top = isImageEmbededInFeature ?
-                    0 : (int)floor((offset_top / key.getExtent().height()) * (double)tileSize);
 
         OE_DEBUG << LC << "ReadWindow " << off_x << "," << off_y << " " << width << "x" << height << std::endl;
         OE_DEBUG << LC << "DestWindow " << tile_offset_left << "," << tile_offset_top << " " << target_width << "x" << target_height << std::endl;
@@ -1974,13 +2101,7 @@ public:
             }
 
             ImageUtils::markAsUnNormalized( image.get(), true );
-//            ImageUtils::fixInternalFormat( image.get() );
             memset(image->data(), 0, image->getImageSizeInBytes());
-
-            ImageUtils::PixelWriter write(image.get());
-            osg::Vec4 tempf;
-            osg::Vec4ub tempub;
-            //GLubyte
 
             // init the coverage data structure
             std::vector<unsigned char*> rawData;
@@ -1992,52 +2113,9 @@ public:
                 readSuccess |= rasterIO(bands[i], GF_Read, off_x, off_y, width, height, rawData[i], target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
             }
 
-            std::vector<float> listValues;
             if (readSuccess)
             {
-                unsigned char* readVal = 0;
-                float extractedVal = 0.f;
-                // copy from data to image.
-                for (int src_row = 0, dst_row = tile_offset_top+target_height-1; src_row < target_height; src_row++, dst_row--)
-                {
-                    for (int src_col = 0, dst_col = tile_offset_left; src_col < target_width; ++src_col, ++dst_col)
-                    {
-                        tempf.set(0.f, 0.f, 0.f, 0.f);
-                        tempub.set(0, 0, 0, 0);
-                        for (unsigned int iBand=0u ; iBand<bands.size() ; ++iBand)
-                        {
-                            readVal = &rawData[iBand][(src_col + src_row*target_width)*dataCoverage.gdalSampleSize];
-                            extractedVal = dataCoverage.extractFloat(readVal);
-
-                            if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND)
-                            {
-                                tempf[iBand] = extractedVal;
-                            }
-                            else if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_BAND)
-                            {
-                                tempub[iBand] = static_cast<unsigned char>(_options.colorRamp()->getRampIndex(extractedVal));
-                                if (src_row > 10 && src_row < 60 && src_col > 10 && src_col < 60 && (tempub[iBand] > 0 || _options.colorRamp()->getRampIndex(extractedVal) > 0))
-                                    OE_WARN << "    JD " << (unsigned) tempub[iBand] << " " << _options.colorRamp()->getRampIndex(extractedVal) << "\n";
-                            }
-                        }
-
-                        if (isFloatImage)
-                        {
-                            write(tempf, dst_col, dst_row);
-                        }
-                        else
-                        {
-                            *(image->data(dst_col, dst_row) + 0) = tempub[0];
-                            *(image->data(dst_col, dst_row) + 1) = tempub[1];
-                            *(image->data(dst_col, dst_row) + 2) = tempub[2];
-                            *(image->data(dst_col, dst_row) + 3) = tempub[3];
-                        }
-                    }
-                }
-
-//                OE_WARN << "JD FOUND " << listValues.size() << " DISTINCT VALUES:\n";
-//                for (auto val : listValues)
-//                    OE_WARN << "    JD " << val << "\n";
+                FillImage(image.get(), dataCoverage).fill(rawData, _options.colorRamp());
             }
 
             // don't maintain those data in the GDAL cache as the output image will be stored in disk cache
