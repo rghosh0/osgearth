@@ -389,7 +389,8 @@ struct BboxTile
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
-static GDALDatasetH
+// Return a GDALDatasetH and a collection of tile extent (minY, maxY, minX, maxX)
+static std::pair<GDALDatasetH, std::vector<std::tuple<double, double, double, double>>>
 build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy)
 {
     GDAL_SCOPED_LOCK;
@@ -411,6 +412,9 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
 
     DatasetProperty* psDatasetProperties =
             (DatasetProperty*) CPLMalloc(nInputFiles*sizeof(DatasetProperty));
+
+    // collection of tile extent (minY, maxY, minX, maxX)
+    std::vector<std::tuple<double, double, double, double>> tilesExtent;
 
     for(i=0;i<nInputFiles;i++)
     {
@@ -453,6 +457,11 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
             double product_maxY = psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_Y];
             double product_minY = product_maxY +
                     GDALGetRasterYSize(hDS) * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_NS_RES];
+            double product_minX = psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_TOPLEFT_X];
+            double product_maxX = product_minX +
+                        psDatasetProperties[i].nRasterXSize * psDatasetProperties[i].adfGeoTransform[GEOTRSFRM_WE_RES];
+
+            tilesExtent.emplace_back(product_minY, product_maxY, product_minX, product_maxX);
 
             GDALGetBlockSize(GDALGetRasterBand( hDS, 1 ),
                              &psDatasetProperties[i].nBlockXSize,
@@ -730,9 +739,8 @@ build_vrt(std::vector<std::string> &files, ResolutionStrategy resolutionStrategy
 
     CPLFree(psDatasetProperties);
     CPLFree(projectionRef);
-    return hVRTDS;
+    return {hVRTDS, tilesExtent};
 }
-
 
 // This is simply the method GDALAutoCreateWarpedVRT() with the GDALSuggestedWarpOutput
 // logic replaced with something that will work properly for polar projections.
@@ -1119,7 +1127,9 @@ public:
                 {
                     //We couldn't get the VRT from the cache, so build it
                     osg::Timer_t startTime = osg::Timer::instance()->tick();
-                    _srcDS = (GDALDataset*)build_vrt(files, HIGHEST_RESOLUTION);
+                    auto result = build_vrt(files, HIGHEST_RESOLUTION);
+                    _srcDS = (GDALDataset*)result.first;
+                    _tilesExtent = result.second;
                     osg::Timer_t endTime = osg::Timer::instance()->tick();
                     OE_INFO << LC << INDENT << "Built VRT in " << osg::Timer::instance()->delta_s(startTime, endTime) << " s" << std::endl;
 
@@ -1556,6 +1566,12 @@ public:
 
         GDALRasterBand* gdalBand = _warpedDS ?_warpedDS->GetRasterBand(band) : NULL;
         return gdalBand ? gdalBand->GetMetadata() : NULL;
+    }
+
+    //! Get the tiles extent (minY, maxY, minX, maxX)
+    const std::vector<std::tuple<double, double, double, double>> &getTilesExtent () const
+    {
+        return _tilesExtent;
     }
 
     /**
@@ -2592,6 +2608,8 @@ private:
     double       _invtransform[6];
     double       _linearUnits;
 
+    // A collection of tile extent (minY, maxY, minX, maxX)
+    std::vector<std::tuple<double, double, double, double>> _tilesExtent;
     GeoExtent _extents;
     Bounds _bounds;
 
