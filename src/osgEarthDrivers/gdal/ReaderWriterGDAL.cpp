@@ -1007,6 +1007,8 @@ public:
     {
         GDAL_SCOPED_LOCK;
 
+        _tilesExtent.clear();
+
         _dbOptions = Registry::instance()->cloneOrCreateOptions( dbOptions );
         //if ( _dbOptions.valid() )
         //{
@@ -1427,6 +1429,12 @@ public:
 
 
         OE_DEBUG << LC << INDENT << "Geo extents: " << minX << ", " << minY << " -> " << maxX << ", " << maxY << std::endl;
+
+        // add the extent if it hasn't been done before
+        if(_tilesExtent.empty())
+        {
+            _tilesExtent.emplace_back(minY, maxY, minX, maxX);
+        }
 
         if ( !profile )
         {
