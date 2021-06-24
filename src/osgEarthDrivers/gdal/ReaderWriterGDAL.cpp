@@ -1715,12 +1715,6 @@ public:
         return gdalBand ? gdalBand->GetMetadata() : NULL;
     }
 
-    //! Get the tiles extent (minY, maxY, minX, maxX)
-    const std::vector<std::tuple<double, double, double, double>> &getTilesExtent () const
-    {
-        return _tilesExtent;
-    }
-
     /**
     * Finds a raster band based on color interpretation
     */
@@ -2698,8 +2692,6 @@ private:
     double       _invtransform[6];
     double       _linearUnits;
 
-    // A collection of tile extent (minY, maxY, minX, maxX)
-    std::vector<std::tuple<double, double, double, double>> _tilesExtent;
     GeoExtent _extents;
     Bounds _bounds;
 

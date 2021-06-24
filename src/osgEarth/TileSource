@@ -252,7 +252,7 @@ namespace osgEarth
         virtual char** getBandAllMetaData ( int /**band**/ ) const  { return NULL; }
 
         //! Get the tiles extent (minY, maxY, minX, maxX)
-        virtual const std::vector<std::tuple<double, double, double, double>> &getTilesExtent () const  { return {}; }
+        const std::vector<std::tuple<double, double, double, double>> &getTilesExtent () const  { return _tilesExtent; }
 
         /**
          * Creates an image for the given TileKey. The TileKey's profile must match
@@ -408,6 +408,11 @@ namespace osgEarth
 
         //! Compat - do not override
         unsigned getTileSize() const { return getPixelsPerTile(); }
+
+    protected:
+
+        // The collection of tile extent (minY, maxY, minX, maxX)
+        std::vector<std::tuple<double, double, double, double>> _tilesExtent;
 
     private:
 
