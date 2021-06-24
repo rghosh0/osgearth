@@ -131,7 +131,7 @@ namespace osgEarth
 
         osg::ref_ptr<ImageLayer>           _imageLayer;
         osg::observer_ptr<const Map>       _map;
-        const RasterToModelSourceOptions         _options;
+        const RasterToModelSourceOptions   _options;
         osg::ref_ptr<osgDB::Options>       _readOptions;
     };
 

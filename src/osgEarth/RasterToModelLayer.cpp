@@ -125,29 +125,7 @@ RasterToModelLayer::open()
             _modelSource->setName( this->getName() );
 
             const Status& modelStatus = _modelSource->open( _readOptions.get() );
-            if (modelStatus.isOK())
-            {
-                // the mask, if there is one:
-                if ( !_maskSource.valid() && options().mask().isSet() )
-                {
-                    OE_INFO << LC << "...initializing mask for layer " << getName() << std::endl;
-
-                    _maskSource = MaskSourceFactory::create( options().mask().get() );
-                    if ( _maskSource.valid() )
-                    {
-                        const Status& maskStatus = _maskSource->open(_readOptions.get());
-                        if (maskStatus.isError())
-                        {
-                            setStatus(maskStatus);
-                        }
-                    }
-                    else
-                    {
-                        setStatus(Status::Error(Status::ServiceUnavailable, Stringify() << "Cannot find mask driver \"" << options().mask()->getDriver() << "\""));
-                    }
-                }
-            }
-            else
+            if (! modelStatus.isOK())
             {
                 // propagate the model source's error status
                 setStatus(modelStatus);
