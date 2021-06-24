@@ -26,6 +26,7 @@
 #include <osgEarth/ImageUtils>
 #include <osgEarth/URI>
 #include <osgEarth/HeightFieldUtils>
+#include <osgEarth/Progress>
 
 #include <osgDB/FileNameUtils>
 #include <osgDB/FileUtils>
@@ -929,10 +930,14 @@ class GDALTileSource : public TileSource
                 gdalSampleSize = 4;
                 internalFormat = GL_R32F;
             }
+
+            int success;
+            float value = band->GetNoDataValue(&success);
+            if (success) bandNoData = value;
         }
 
         // get the data value from a given pointer in the data
-        inline float extractFloat(unsigned char * ptr) const
+        float extractFloat(unsigned char * ptr) const
         {
             float value =
                 gdalSampleSize == 1 ? (float)(*ptr) :
@@ -941,22 +946,35 @@ class GDALTileSource : public TileSource
                 gdalSampleSize == 8 ? (float)*(double*)ptr :
                 NO_DATA_VALUE;
 
-            if ( obsTileSource.valid() && obsRasterBand
-                 && ! obsTileSource->isValidValue_noLock(value, obsRasterBand) )
-                return NO_DATA_VALUE;
-            else
+            if ( obsTileSource.valid() && obsRasterBand )
+            {
+                //Check to see if the value is equal to the bands specified no data
+                if (bandNoData == value) return NO_DATA_VALUE;
+                //Check to see if the value is equal to the user specified nodata value
+                if (obsTileSource->getNoDataValue() == value) return NO_DATA_VALUE;
+
+                //Check to see if the user specified a custom min/max
+                if (value < obsTileSource->getMinValidValue()) return NO_DATA_VALUE;
+                if (value > obsTileSource->getMaxValidValue()) return NO_DATA_VALUE;
+
                 return value;
+            }
+            else
+            {
+                return value;
+            }
         }
 
         osg::observer_ptr<GDALTileSource> obsTileSource;
         GDALRasterBand* obsRasterBand = nullptr;
+        float          bandNoData     = -32767.0f;
         GDALDataType   gdalDataType   = GDT_Float32;
         GLenum         glDataType     = GL_FLOAT;
         int            gdalSampleSize = 4;
         GLint          internalFormat = GL_R32F;
     };
 
-    // Inner class for filling an image from provided bands
+    // Inner class for filling an image from provided bands with a given compression technique
     struct FillImage
     {
         FillImage(osg::Image* pImage, const GDALDataCoverage& pDataCoverage)
@@ -972,11 +990,16 @@ class GDALTileSource : public TileSource
 
             if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND)
                 fillFloat(rawData);
-            else if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_BAND)
-                fillInt(rawData, colorRamp);
-            else if (technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS)
-                fillInt2(rawData, colorRamp);
+        }
 
+        // actually fill the image one band by one band (only for integer techniques)
+        inline void fill(unsigned char* rawData, const optional<IndexedColorRampOptions>& colorRamp, unsigned int offset)
+        {
+            IndexedColorRampOptions::ChannelOptimizationTechnique technique =
+                    colorRamp->channelOptimizationTechnique().getOrUse(IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND);
+
+            if (technique != IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND)
+                fillIntX(rawData, colorRamp, offset);
         }
 
     private:
@@ -1038,43 +1061,31 @@ class GDALTileSource : public TileSource
 
         // fill image / Case the image is containing a int which stores two indexes in a color ramp
         // the max size of the int is 255
-        // the last digit contains the first band, the second digit the second band
-        // example : 037 means 7 for band i and 3 for band i+1
-        inline void fillInt2(const std::vector<unsigned char*>& rawData, const optional<IndexedColorRampOptions>& colorRamp)
+        // the indexes can be stored in base 10 (2 ints) or in base 6 (3 ints)
+        inline void fillIntX(unsigned char* rawData, const optional<IndexedColorRampOptions>& colorRamp, unsigned int offset)
         {
-            osg::Vec4ub tempub;
             unsigned char* readVal = 0;
-            unsigned char* readVal2 = 0;
             float extractedVal = 0.f;
-            float extractedVal2 = 0.f;
+            unsigned int nbBandsPerChannel = colorRamp->nbBandsPerChannel();
+            unsigned int channel = offset / nbBandsPerChannel;
+            unsigned int base = nbBandsPerChannel == 3u ? 6u : 10u;
+            unsigned int shift = pow(base, offset - channel*nbBandsPerChannel);
+            unsigned int pixelSizeInBytes = image->getPixelSizeInBits() / 8u;
+            unsigned int rowStepInBytes = image->getRowStepInBytes();
 
             // copy from data to image.
             for (int src_row = 0, dst_row = image->t()-1; src_row < image->t(); src_row++, dst_row--)
             {
                 for (int src_col = 0, dst_col = 0; src_col < image->s(); ++src_col, ++dst_col)
                 {
-                    tempub.set(0, 0, 0, 0);
-                    for (unsigned int iBand=0u ; iBand<rawData.size() ; iBand+=2)
-                    {
-                        readVal = &rawData[iBand][(src_col + src_row*image->s())*dataCoverage.gdalSampleSize];
-                        extractedVal = dataCoverage.extractFloat(readVal);
-                        if (iBand < rawData.size()-1)
-                        {
-                            readVal2 = &rawData[iBand+1][(src_col + src_row*image->s())*dataCoverage.gdalSampleSize];
-                            extractedVal2 = dataCoverage.extractFloat(readVal2);
-                            tempub[iBand/2] = static_cast<unsigned char>(
-                                        colorRamp->getRampIndex(extractedVal) + 10*colorRamp->getRampIndex(extractedVal2));
-                        }
-                        else
-                        {
-                            tempub[iBand/2] = static_cast<unsigned char>(colorRamp->getRampIndex(extractedVal));
-                        }
-                    }
+                    readVal = &rawData[(src_col + src_row*image->s())*dataCoverage.gdalSampleSize];
+                    extractedVal = dataCoverage.extractFloat(readVal);
 
-                    *(image->data(dst_col, dst_row) + 0) = tempub[0];
-                    *(image->data(dst_col, dst_row) + 1) = tempub[1];
-                    *(image->data(dst_col, dst_row) + 2) = tempub[2];
-                    *(image->data(dst_col, dst_row) + 3) = tempub[3];
+                    // optimized write - see Image code in osg source
+                    // using Image::data(unsigned int column, unsigned int row) is too slow because of recurrent call
+                    // to getPixelSizeInBits(), getRowStepInBytes() and getImageSizeInBytes()
+                    *(image->data() + dst_col*pixelSizeInBytes + dst_row*rowStepInBytes + channel)
+                            += static_cast<unsigned char>(colorRamp->getRampIndex(extractedVal)) * shift;
                 }
             }
         }
@@ -1894,8 +1905,7 @@ public:
         return (err == CE_None);
     }
 
-    osg::Image* createImage( const TileKey&        key,
-                             ProgressCallback*     progress)
+    osg::Image* createImage( const TileKey& key, ProgressCallback* progress )
     {
         if (key.getLevelOfDetail() > _maxDataLevel)
         {
@@ -1905,6 +1915,11 @@ public:
         }
 
         GDAL_SCOPED_LOCK;
+
+        if (progress && progress->isCanceled())
+        {
+            return NULL;
+        }
 
         int tileSize = getPixelsPerTile(); //_options.tileSize().value();
 
@@ -2094,6 +2109,7 @@ public:
 
             // get the data types and assume it is the same for all bands
             GDALDataCoverage dataCoverage(bands[0], this);
+            bool readSuccess = true;
 
             // Create an un-normalized image to hold coverage values
             IndexedColorRampOptions::ChannelOptimizationTechnique technique =
@@ -2123,27 +2139,44 @@ public:
             ImageUtils::markAsUnNormalized( image.get(), true );
             memset(image->data(), 0, image->getImageSizeInBytes());
 
-            // init the coverage data structure
-            std::vector<unsigned char*> rawData;
-            bool readSuccess = true;
-            for (unsigned int i=0 ; i<bands.size() ; ++i)
+            // for float image read first all bands and then fill image
+            if (isFloatImage)
             {
-                rawData.push_back(new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize]);
-                readSuccess |= rasterIO(bands[i], GF_Read, off_x, off_y, width, height, rawData[i], target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
+                std::vector<unsigned char*> rawData;
+                for (unsigned int i=0 ; i<bands.size() ; ++i)
+                {
+                    rawData.push_back(new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize]);
+                    readSuccess |= rasterIO(bands[i], GF_Read, off_x, off_y, width, height, rawData[i], target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
+                }
+
+                // then fill the image from the raster bands
+                if (readSuccess)
+                {
+                    FillImage(image.get(), dataCoverage).fill(rawData, _options.colorRamp());
+                }
+
+                // don't maintain those data in the GDAL cache as the output image will be stored in disk cache
+                for (auto& band : bands)
+                    band->FlushCache();
+                // clear memory of the raw data
+                for (auto& data : rawData)
+                    delete []data;
             }
 
-            // then fill the image from the raster bands
-            if (readSuccess)
+            // for int image we read one band by one band to avoid a too important memory peak (one image can hold up to 12 bands)
+            else
             {
-                FillImage(image.get(), dataCoverage).fill(rawData, _options.colorRamp());
+                unsigned char* rawData = new unsigned char[target_width * target_height * dataCoverage.gdalSampleSize];
+                FillImage fillUtil(image.get(), dataCoverage);
+                for (unsigned int i=0 ; i<bands.size() ; ++i)
+                {
+                    readSuccess |= rasterIO(bands[i], GF_Read, off_x, off_y, width, height, rawData, target_width, target_height, dataCoverage.gdalDataType, 0, 0, INTERP_NEAREST);
+                    fillUtil.fill(rawData, _options.colorRamp(), i);
+                    bands[i]->FlushCache();
+                }
+                // clear memory of the raw data
+                delete []rawData;
             }
-
-            // don't maintain those data in the GDAL cache as the output image will be stored in disk cache
-            for (auto& band : bands)
-                band->FlushCache();
-            // clear memory of the raw data
-            for (auto& data : rawData)
-                delete []data;
         } // image embeded into feature
 
         else if (bandRed && bandGreen && bandBlue)

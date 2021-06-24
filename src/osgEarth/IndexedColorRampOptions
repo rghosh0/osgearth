@@ -42,7 +42,8 @@ namespace osgEarth
         {
             ONE_FLOAT_PER_BAND, //each color channel will encode one band real value as a float
             ONE_INDEXED_INT_PER_BAND, //each color channel will encode the index in the color ramp for a given band
-            ONE_INDEXED_INT_PER_TWO_BANDS //each color channel will encode the indexes in the color ramp for two given bands
+            ONE_INDEXED_INT_PER_TWO_BANDS, //each color channel will encode the indexes in the color ramp for two given bands
+            ONE_INDEXED_INT_PER_THREE_BANDS //each color channel will encode the indexes in the color ramp for three given bands
         };
 
         enum OperatorRamp
@@ -150,6 +151,8 @@ namespace osgEarth
                       _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_BAND );
             conf.set( "channel_optim_technique", "one_indexed_int_per_two_bands",
                       _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS );
+            conf.set( "channel_optim_technique", "one_indexed_int_per_three_bands",
+                      _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_THREE_BANDS );
             for (const auto& ramp : _ramps)
                 conf.add(ramp.getConfig());
             return conf;
@@ -165,7 +168,13 @@ namespace osgEarth
                       _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_BAND );
             conf.get( "channel_optim_technique", "one_indexed_int_per_two_bands",
                       _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS );
-            _nbBandsPerChannel = _channelOptimizationTechnique == ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS ? 2 : 1;
+            conf.get( "channel_optim_technique", "one_indexed_int_per_three_bands",
+                      _channelOptimizationTechnique, ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_THREE_BANDS );
+            _nbBandsPerChannel = 1;
+            if (_channelOptimizationTechnique == ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_TWO_BANDS)
+                _nbBandsPerChannel = 2;
+            else if (_channelOptimizationTechnique == ChannelOptimizationTechnique::ONE_INDEXED_INT_PER_THREE_BANDS)
+                _nbBandsPerChannel = 3;
 
             ConfigSet children = conf.children("ramp");
             for (ConfigSet::const_iterator i = children.begin(); i != children.end(); ++i)
@@ -275,6 +284,10 @@ namespace osgEarth
                                             + std::to_string((*ramp._optColor).b()) + "f, "
                                             + std::to_string((*ramp._optColor).a()) + "f); \n";
                     }
+                    else
+                    {
+                        output += "    discard; \n";
+                    }
                     index++;
                 }
             }
@@ -282,14 +295,7 @@ namespace osgEarth
             // The texture is an indexed int type
             else
             {
-                if (_nbBandsPerChannel == 1u)
-                {
-                    output += "    color = " + rampColorVar + "[" + rampVar + "]; \n";
-                }
-                else if (_nbBandsPerChannel == 2u)
-                {
-                    output += "    color = " + rampColorVar + "[" + rampVar + "]; \n";
-                }
+                output += "    color = " + rampColorVar + "[" + rampVar + "]; \n";
             }
 
             return output;

@@ -1,0 +1,141 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
+ * http://osgearth.org
+ *
+ * osgEarth is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+
+#ifndef OSGEARTH_RASTER_TO_MODEL_SOURCE_H
+#define OSGEARTH_RASTER_TO_MODEL_SOURCE_H 1
+
+#include <osgEarth/ModelSource>
+#include <osgEarth/ImageLayer>
+
+namespace osgEarth
+{
+    using namespace osgEarth;
+    
+    class OSGEARTH_EXPORT RasterToModelSourceOptions : public ModelSourceOptions
+    {
+    public: //properties
+
+        /** config of the embeded Image Layer **/
+        optional<ImageLayerOptions>& imageOptions() { return _imageOptions; }
+        const optional<ImageLayerOptions>& imageOptions() const { return _imageOptions; }
+
+        /** the band number to display **/
+        optional<int>& imageBand() { return _imageBand; }
+        const optional<int>& imageBand() const { return _imageBand; }
+
+        /** whether to load the whole scenegraph immediately as **/
+        optional<bool>& loadAllAtOnce() { return _loadAllAtOnce; }
+        const optional<bool>& loadAllAtOnce() const { return _loadAllAtOnce; }
+
+        /** whether to use the drape technique for rendering this feature **/
+        optional<bool>& draped() { return _draped; }
+        const optional<bool>& draped() const { return _draped; }
+
+        /** whether to desactivate or activate the depth test **/
+        optional<bool>& depthTest() { return _depthTest; }
+        const optional<bool>& depthTest() const { return _depthTest; }
+
+        /** whether to desactivate or activate the backface culling **/
+        optional<bool>& backfaceCulling() { return _backfaceCulling; }
+        const optional<bool>& backfaceCulling() const { return _backfaceCulling; }
+
+        /** Whether to activate alpha blending */
+        optional<bool>& alphaBlending() { return _alphaBlending; }
+        const optional<bool>& alphaBlending() const { return _alphaBlending; }
+
+    public:
+        RasterToModelSourceOptions(const ConfigOptions& co =ConfigOptions());
+        virtual ~RasterToModelSourceOptions() { }
+
+        virtual Config getConfig() const;
+
+    protected:
+        virtual void mergeConfig( const Config& conf ) {
+            ModelSourceOptions::mergeConfig( conf );
+            fromConfig( conf );
+        }
+
+    private:
+        void fromConfig( const Config& conf );
+
+        optional<ImageLayerOptions>    _imageOptions;
+        optional<int>                  _imageBand;
+        optional<bool>                 _loadAllAtOnce;
+        optional<bool>                 _draped;
+        optional<bool>                 _depthTest;
+        optional<bool>                 _backfaceCulling;
+        optional<bool>                 _alphaBlending;
+    };
+
+
+    /**
+     * A ModelSource that renders a multiband raster data in a globe model.
+     * Draping is possible and thus the layer can be mixed with other draped model layers.
+     */
+    class OSGEARTH_EXPORT RasterToModelSource : public ModelSource
+    {
+    public:
+        /**
+         * Constructs a new RasterToModel source with the provided options.
+         */
+        RasterToModelSource( const ModelSourceOptions& options );
+
+        /**
+         * Sets a new read options.
+         */
+        void setReadOptions( const osgDB::Options* readOptions );
+
+    protected: // ModelSource
+
+        virtual Status initialize(const osgDB::Options* readOptions) override;
+
+        virtual osg::Node* createNodeImplementation(const Map* map, ProgressCallback* progress) override;
+
+    public: // properties:
+
+        /** The optional embeded ImageLayer. */
+        ImageLayer* getImageLayer() { return _imageLayer.get(); }
+
+        /** The options with which this source was created */
+        virtual const RasterToModelSourceOptions& getRasterToModelOptions() const { return _options; }
+
+    public: 
+
+        // META_Object specialization:
+        virtual osg::Object* cloneType() const { return 0; } // cloneType() not appropriate
+        virtual osg::Object* clone(const osg::CopyOp&) const { return 0; } // clone() not appropriate
+        virtual bool isSameKindAs(const osg::Object* obj) const { return dynamic_cast<const RasterToModelSource*>(obj)!=NULL; }
+        virtual const char* className() const { return "RasterToModelSource"; }
+        virtual const char* libraryName() const { return "osgEarth"; }
+
+    protected:
+
+        /** DTOR is protected to prevent this object from being allocated on the stack */
+        virtual ~RasterToModelSource() { }
+
+        osg::ref_ptr<ImageLayer>           _imageLayer;
+        osg::observer_ptr<const Map>       _map;
+        const RasterToModelSourceOptions         _options;
+        osg::ref_ptr<osgDB::Options>       _readOptions;
+    };
+
+} // namespace osgEarth
+
+#endif // OSGEARTH_RASTER_TO_MODEL_SOURCE_H
+
