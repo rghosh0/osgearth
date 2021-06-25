@@ -87,7 +87,7 @@ namespace osgEarth
         /**
          * Access the underlying raster source.
          */
-        ModelSource* getRasterToModelSource() const { return static_cast<RasterToModelSource*>(_modelSource.get()); }
+        RasterToModelSource* getRasterToModelSource() const { return static_cast<RasterToModelSource*>(_modelSource.get()); }
 
     public: // Layer
 
@@ -113,6 +113,8 @@ namespace osgEarth
         virtual ~RasterToModelLayer();
 
         void fireCallback(RasterToModelLayerCallback::MethodPtr method);
+
+        bool _isFullyLoaded{false};
     };
 }
 

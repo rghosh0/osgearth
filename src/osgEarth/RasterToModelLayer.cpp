@@ -79,8 +79,11 @@ struct RasterToModelLayer::LoadingInProgressCB : public SceneGraphCallback
             return;
 
         OE_WARN << "....JD STOP LOADING\n";
+        OE_WARN << "....Apply visibility " << _layer->getVisible() << "\n";
 
-        node->setNodeMask( _layer->getVisible() ? ~0 : 0);
+        _layer->_isFullyLoaded = true;
+        //node->setNodeMask( _layer->getVisible() ? ~0 : 0);
+        _layer->setVisible(_layer->getVisible());
 
         // notify listeners that this layer is now fully loaded
         _layer->fireCallback(&RasterToModelLayerCallback::onInitializationFinished);
@@ -155,13 +158,13 @@ RasterToModelLayer::addedToMap(const Map* map)
 void
 RasterToModelLayer::setVisible(bool value)
 {
-    if (! options().sourceOptions().get().loadAllAtOnce().isSetTo(true))
-        ModelLayer::setVisible(value);
+    if (! options().sourceOptions().get().loadAllAtOnce().isSetTo(true) || _isFullyLoaded)
+        VisibleLayer::setVisible(value);
 
     // in case we want to load everything at once we cannot hide the node
     // because we want the pagedLOD to be triggered
     else
-        options().visible() = value;
+        VisibleLayer::options().visible() = value;
 }
 
 void

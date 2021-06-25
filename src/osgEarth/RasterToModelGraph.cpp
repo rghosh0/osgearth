@@ -310,7 +310,7 @@ namespace {
                         {
                             uniform->set(bandsInfo->getUniformValForBand_1int(band));
                         }
-                        else if ( bandsInfo->_maxBandsPerChannel == 2u )
+                        else if ( bandsInfo->_maxBandsPerChannel >= 2u )
                         {
                             bandsInfo->getUniformValForBand_2int(band, _tmpI, _tmpJ);
                             if (osg::Uniform* uniform2nd = group->getStateSet()->getUniform(_multiBand_2nd_level_uniform_name.c_str()))
@@ -765,8 +765,10 @@ osg::Node *RasterToModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY
     if ( lod != 0u )
     {
         OE_WARN << LC << "Request for a LOD different from 0 is not allowed when embeding an image layer." << std::endl;
-        return new osg::Node();
+        return new osg::Group();
     }
+
+    OE_WARN << "JD START LOAD " << minBand << " -> " << maxBand << "\n";
 
     osg::Group *result = nullptr;
     bool isRootLoad    = false;
@@ -804,6 +806,8 @@ osg::Node *RasterToModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY
         // RemoveEmptyGroupsVisitor::run( result );
     }
 
+    OE_WARN << "JD END LOAD " << minBand << " -> " << maxBand << " isRootLoad=" << isRootLoad << "\n";
+
     // Done - run the pre-merge operations.
     if (! _options.loadAllAtOnce().isSetTo(true) || isRootLoad)
         runPreMergeOperations(result);
@@ -820,6 +824,8 @@ void RasterToModelGraph::runPreMergeOperations(osg::Node *node)
         node->getOrCreateStateSet()->setRenderBinDetails(
             _options.renderOrder().value(), "DepthSortedBin", osg::StateSet::PROTECTED_RENDERBIN_DETAILS );
     }
+
+    OE_WARN << "JD runPreMergeOperations \n";
 
     if (_sgCallbacks.valid())
         _sgCallbacks->firePreMergeNode(node);
