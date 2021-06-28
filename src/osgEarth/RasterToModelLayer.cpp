@@ -78,11 +78,9 @@ struct RasterToModelLayer::LoadingInProgressCB : public SceneGraphCallback
         if (node == _layer.get()->getNode())
             return;
 
-        OE_WARN << "....JD STOP LOADING\n";
-        OE_WARN << "....Apply visibility " << _layer->getVisible() << "\n";
-
         _layer->_isFullyLoaded = true;
-        //node->setNodeMask( _layer->getVisible() ? ~0 : 0);
+
+        // refresh the visibility of the layer
         _layer->setVisible(_layer->getVisible());
 
         // notify listeners that this layer is now fully loaded
@@ -149,10 +147,7 @@ RasterToModelLayer::addedToMap(const Map* map)
     ModelLayer::addedToMap(map);
 
     if (options().sourceOptions().get().loadAllAtOnce().isSetTo(true))
-    {
         getSceneGraphCallbacks()->add( new LoadingInProgressCB(this) );
-        OE_WARN << "JD START LOADING...\n";
-    }
 }
 
 void

@@ -64,7 +64,7 @@ osg::Group *createPagedNode(const osg::BoundingSphered &bs,
                             const std::string &uri, float minRange,
                             float maxRange,
                             SceneGraphCallbacks *sgCallbacks,
-                            osgDB::FileLocationCallback *flc,
+                            osgDB::FileLocationCallback */*flc*/,
                             const osgDB::Options *readOptions,
                             RasterToModelGraph *rtmg)
 {
@@ -77,7 +77,8 @@ osg::Group *createPagedNode(const osg::BoundingSphered &bs,
 
     // force onto the high-latency thread pool.
     osgDB::Options *options = Registry::instance()->cloneOrCreateOptions(readOptions);
-    options->setFileLocationCallback(flc);
+    // comes from FeatureModelGraph. Seems not necessary
+    //options->setFileLocationCallback(flc);
     p->setDatabaseOptions(options);
     // so we can find the FMG instance in the pseudoloader.
     OptionsData<RasterToModelGraph>::set(options, USER_OBJECT_NAME, rtmg);
@@ -537,8 +538,6 @@ osg::Group* RasterToModelGraph::createRoot( const TileKey& key )
             node = createPagedNode( _rootBs, uri, 0.0f, _rootMaxRange, _sgCallbacks.get(),
                                     _defaultFileLocationCallback.get(), getDBOptions(), this );
 
-        OE_WARN << "JD Build raster " << keyTmp.full_str() << "\n";
-
         groupMultiBands->addChild( node );
 
         osg::ref_ptr<BandsInformation> bandsInfo = new BandsInformation(keyTmp, maxBandsPerTile);
@@ -768,8 +767,6 @@ osg::Node *RasterToModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY
         return new osg::Group();
     }
 
-    OE_WARN << "JD START LOAD " << minBand << " -> " << maxBand << "\n";
-
     osg::Group *result = nullptr;
     bool isRootLoad    = false;
     osg::Group *geometry = nullptr;
@@ -806,8 +803,6 @@ osg::Node *RasterToModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY
         // RemoveEmptyGroupsVisitor::run( result );
     }
 
-    OE_WARN << "JD END LOAD " << minBand << " -> " << maxBand << " isRootLoad=" << isRootLoad << "\n";
-
     // Done - run the pre-merge operations.
     if (! _options.loadAllAtOnce().isSetTo(true) || isRootLoad)
         runPreMergeOperations(result);
@@ -825,10 +820,10 @@ void RasterToModelGraph::runPreMergeOperations(osg::Node *node)
             _options.renderOrder().value(), "DepthSortedBin", osg::StateSet::PROTECTED_RENDERBIN_DETAILS );
     }
 
-    OE_WARN << "JD runPreMergeOperations \n";
-
-    if (_sgCallbacks.valid())
+    if ( _sgCallbacks.valid() )
+    {
         _sgCallbacks->firePreMergeNode(node);
+    }
 }
 
 void RasterToModelGraph::runPostMergeOperations(osg::Node *node)
