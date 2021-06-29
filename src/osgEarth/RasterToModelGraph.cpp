@@ -483,7 +483,7 @@ VirtualProgram* createProgramForImageBinding( const TileSource* source )
             {
                 bodyCode += "    if (" + _multiBand_2nd_level_uniform_name + " == 0) value = value - (value/6u)*6u; \n";
                 bodyCode += "    else if (" + _multiBand_2nd_level_uniform_name + " == 2) value = value / 36u; \n";
-                bodyCode += "    else if (" + _multiBand_2nd_level_uniform_name + " == 1) value = (value - (value / 36u)) / 6u; \n";
+                bodyCode += "    else if (" + _multiBand_2nd_level_uniform_name + " == 1) value = (value - (value / 36u) * 36u) / 6u; \n";
             }
         }
         bodyCode += source->getOptions().colorRamp()->rampBodyCode("value");
@@ -600,6 +600,11 @@ osg::Group* RasterToModelGraph::createRoot( const TileKey& key )
 
     OE_DEBUG << LC << "Setup " << groupMultiBands->getNumChildren() << " " << (loadAllAtOnce ? "pagedLODs" : "nodes")
              << " for managing " << bandNumber << " raster bands for layer " << *_imageLayer->options().name() << std::endl;
+
+    // if we built all the images then we can close the datasets
+    // (it frees some memory used by GDAL)
+    if (loadAllAtOnce)
+        _imageLayer->getTileSource()->close();
 
     return groupMultiBands;
 }

@@ -1105,7 +1105,7 @@ public:
     {
     }
 
-    virtual ~GDALTileSource()
+    void closeDataset()
     {
         GDAL_SCOPED_LOCK;
 
@@ -1141,6 +1141,16 @@ public:
         }
     }
 
+    void close() override
+    {
+        closeDataset();
+    }
+
+    virtual ~GDALTileSource()
+    {
+        // cannot call the virtual method close() from the virtual destructor
+        closeDataset();
+    }
 
     Status initialize( const osgDB::Options* dbOptions )
     {
@@ -1899,7 +1909,7 @@ public:
         return (err == CE_None);
     }
 
-    osg::Image* createImage( const TileKey& key, ProgressCallback* progress )
+    osg::Image* createImage( const TileKey& key, ProgressCallback* progress ) override
     {
         if (key.getLevelOfDetail() > _maxDataLevel)
         {
@@ -2121,8 +2131,8 @@ public:
                 image->setInternalTextureFormat( GL_RGBA16F_ARB );
             }
 
-            // case inr image -> the image stores an int which is directly the index of the ramp
-            // each color channel is storing ether one specific band or two bands
+            // case int image -> the image stores an int which is directly the index of the ramp
+            // each color channel is storing ether one specific band or two or three bands
             // this method improves memory footprint
             else
             {
