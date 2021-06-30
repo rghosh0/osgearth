@@ -1,4 +1,4 @@
-﻿/* -*-c++-*- */
+/* -*-c++-*- */
 /* osgEarth - Geospatial SDK for OpenSceneGraph
 * Copyright 2019 Pelican Mapping
 * http://osgearth.org
@@ -1139,6 +1139,9 @@ public:
                 GDALClose(_srcDS);
             }
         }
+        
+        _srcDS = NULL;
+        _warpedDS = NULL;
     }
 
     void close() override
@@ -1688,8 +1691,9 @@ public:
                 if (gdalBand)
                 {
                     char** rawMetaData = gdalBand->GetMetadata();
-                    for (int j = 0; rawMetaData[j] != nullptr; j++)
-                        metaData.push_back(rawMetaData[j]);
+                    if (rawMetaData)
+                        for (int j = 0; rawMetaData[j] != nullptr; j++)
+                            metaData.push_back(rawMetaData[j]);
                 }
             }
         }
@@ -2675,8 +2679,8 @@ public:
 
 private:
 
-    GDALDataset* _srcDS;
-    GDALDataset* _warpedDS;
+    GDALDataset* _srcDS{NULL};
+    GDALDataset* _warpedDS{NULL};
     double       _geotransform[6];
     double       _invtransform[6];
     double       _linearUnits;
