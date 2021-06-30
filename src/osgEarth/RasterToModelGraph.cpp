@@ -503,9 +503,8 @@ VirtualProgram* createProgramForImageBinding( const TileSource* source )
 osg::Group* RasterToModelGraph::createRoot( const TileKey& key )
 {
     // expected pre conditions
-    int bandNumber = 0;
-    if (! _imageLayer->getTileSource()->getBandsNumber(bandNumber)
-            || ! _imageLayer->getProfile()->getSRS() || ! _imageLayer->getProfile()->getSRS()->getEllipsoid()
+    unsigned int bandNumber = _imageLayer->getTileSource()->getBandsNumber();
+    if ( bandNumber <= 0 || ! _imageLayer->getProfile()->getSRS() || ! _imageLayer->getProfile()->getSRS()->getEllipsoid()
             || key.hasBandsDefined() )
         return nullptr;
 

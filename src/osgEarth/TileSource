@@ -173,6 +173,10 @@ namespace osgEarth
         mutable LRUCache<TileKey, bool> _tiles; // using as a set (value unused)
     };
 
+    // Meta data are a map with 'attribute' -> 'value'
+    typedef std::vector< std::string > MetaData;
+    static const MetaData emptyMetaData;
+
     /**
      * A TileSource is an object that can create image and/or heightfield tiles. Driver
      * plugins are responsible for creating and returning a TileSource that the Map
@@ -246,13 +250,10 @@ namespace osgEarth
         virtual std::string getAttribution() const { return ""; }
 
         //! Get the number of bands
-        virtual bool getBandsNumber ( int& /**bandsNumber**/ ) const { return false; }
-
-        //! Get one meta band for one band
-        virtual std::string getBandMetaData ( int /**band**/, const std::string& /**attribute**/ ) const  { return ""; }
+        virtual unsigned int getBandsNumber() const { return _bandsNumber; }
 
         //! Get the metadata for a given band
-        virtual char** getBandAllMetaData ( int /**band**/ ) const  { return NULL; }
+        virtual const MetaData& getBandAllMetaData ( int band ) const;
 
         //! Get the tiles extent (minY, maxY, minX, maxX)
         const std::vector<std::tuple<double, double, double, double>>& getTilesExtent () const  { return _tilesExtent; }
@@ -416,6 +417,12 @@ namespace osgEarth
 
         // The collection of tile extent (minY, maxY, minX, maxX)
         std::vector<std::tuple<double, double, double, double>> _tilesExtent;
+
+        // All meta data by band
+        std::map<int, MetaData> _metaData;
+
+        // The number of bands into this source
+        unsigned int _bandsNumber{0};
 
     private:
 

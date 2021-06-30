@@ -181,7 +181,7 @@ struct BandProperty
         metaDataString = metaDataStringLocal.c_str();
     }
 
-    bool isSameBand(BandProperty& bandProp2) const
+    bool isSameBand(const BandProperty& bandProp2) const
     {
         return metaDataString == bandProp2.metaDataString;
     }
@@ -1642,7 +1642,7 @@ public:
         // A VRT will create a potentially very large virtual dataset from sparse datasets, so using the extents from the underlying files
         // will allow osgEarth to only create tiles where there is actually data.
         DataExtentList dataExtents;
-        if (strcmp(_warpedDS->GetDriver()->GetDescription(), "VRT") == 0)
+        if (_warpedDS && strcmp(_warpedDS->GetDriver()->GetDescription(), "VRT") == 0)
         {
             char **papszFileList = _warpedDS->GetFileList();
             if (papszFileList != NULL)
@@ -1677,6 +1677,22 @@ public:
             getDataExtents().insert(getDataExtents().end(), dataExtents.begin(), dataExtents.end());
         }
 
+        // Fill the meta data
+        if (_warpedDS)
+        {
+            _bandsNumber = _warpedDS->GetRasterCount();
+            for (unsigned int band = 1 ; band <= _bandsNumber ; ++band)
+            {
+                GDALRasterBand* gdalBand = _warpedDS->GetRasterBand(band);
+                MetaData& metaData = _metaData[band];
+                if (gdalBand)
+                {
+                    char** rawMetaData = gdalBand->GetMetadata();
+                    for (int j = 0; rawMetaData[j] != nullptr; j++)
+                        metaData.push_back(rawMetaData[j]);
+                }
+            }
+        }
 
         // Get the linear units of the SRS for scaling elevation values
         _linearUnits = OSRGetLinearUnits((OGRSpatialReferenceH)srs->getHandle(), 0);
@@ -1686,43 +1702,6 @@ public:
         OE_DEBUG << LC << INDENT << "Set Profile to " << (profile ? profile->toString() : "NULL") <<  std::endl;
 
         return STATUS_OK;
-    }
-
-    //! Get the number of bands
-    bool getBandsNumber ( int& bandsNumber ) const
-    {
-        GDAL_SCOPED_LOCK;
-
-        if ( _warpedDS )
-        {
-            bandsNumber = _warpedDS->GetRasterCount();
-            return true;
-        }
-
-        return false;
-    }
-
-    //! Get the number of bands
-    std::string getBandMetaData ( int band, const std::string& attribute ) const
-    {
-        GDAL_SCOPED_LOCK;
-
-        GDALRasterBand* gdalBand = _warpedDS->GetRasterBand(band);
-        if ( gdalBand )
-        {
-            const char* out = gdalBand->GetMetadataItem( attribute.c_str() );
-            return out ? out : "";
-        }
-        return "";
-    }
-
-    //! Get the metadata for a given band
-    char** getBandAllMetaData ( int band ) const
-    {
-        GDAL_SCOPED_LOCK;
-
-        GDALRasterBand* gdalBand = _warpedDS ?_warpedDS->GetRasterBand(band) : NULL;
-        return gdalBand ? gdalBand->GetMetadata() : NULL;
     }
 
     /**

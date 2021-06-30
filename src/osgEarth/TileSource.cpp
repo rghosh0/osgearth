@@ -191,6 +191,8 @@ const TileSource::Mode TileSource::MODE_READ   = 0x01;
 const TileSource::Mode TileSource::MODE_WRITE  = 0x02;
 const TileSource::Mode TileSource::MODE_CREATE = 0x04;
 
+const MetaData emptyMetaData;
+
 
 TileSource::TileSource(const TileSourceOptions& options) :
 _options( options ),
@@ -459,6 +461,17 @@ TileSource::getBlacklist() const
 {
     return _blacklist.get();
 }
+
+const MetaData&
+TileSource::getBandAllMetaData ( int band ) const
+{
+    auto metaDataItr = _metaData.find(band);
+    if ( metaDataItr != _metaData.end() )
+        return metaDataItr->second;
+
+    return emptyMetaData;
+}
+
 
 //------------------------------------------------------------------------
 

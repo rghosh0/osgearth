@@ -568,10 +568,10 @@ VirtualProgram* createProgramForImageBinding( const ImageLayer* imageLayer )
 void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageLayer, const TileKey& key)
 {
     // expected pre conditions
-    int bandNumber = 0;
-    if (! imageLayer->getTileSource() || ! imageLayer->getTileSource()->getBandsNumber(bandNumber)
-            || ! imageLayer->getProfile() || ! imageLayer->getProfile()->getSRS() || ! imageLayer->getProfile()->getSRS()->getEllipsoid()
-            || key.hasBandsDefined() )
+    // expected pre conditions
+    unsigned int bandNumber = imageLayer->getTileSource()->getBandsNumber();
+    if ( bandNumber <= 0 || ! imageLayer->getProfile() || ! imageLayer->getProfile()->getSRS()
+         || ! imageLayer->getProfile()->getSRS()->getEllipsoid() || key.hasBandsDefined() )
         return;
 
     // build the sphere section which will be used to drape the image
