@@ -1,0 +1,96 @@
+/* --*-c++-*-- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
+ * http://osgearth.org
+ *
+ * osgEarth is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+
+#ifndef OSGEARTH_RASTER_TO_MODEL_GRAPH_H
+#define OSGEARTH_RASTER_TO_MODEL_GRAPH_H 1
+
+#include <osgEarth/RasterToModelSource>
+#include <osgEarth/NodeUtils>
+#include <osgEarth/ThreadingUtils>
+#include <osgEarth/SceneGraphCallback>
+#include <osgDB/Callbacks>
+#include <osg/Node>
+#include <set>
+
+namespace osgEarth 
+{
+    /**
+     * A scene graph which renders raster data on a globe model
+     * This graph ca be draped and then ordered with others draped model layers
+     */
+    class OSGEARTH_EXPORT RasterToModelGraph : public osg::Group
+    {
+    public:
+        /**
+         * Constructs a new model graph.
+         */
+        RasterToModelGraph(
+            const RasterToModelSourceOptions& options,
+            const osgDB::Options*             dbOptions,
+            SceneGraphCallbacks*              callbacks,
+            ImageLayer*                       imageLayer);
+
+        /**
+         * Loads and returns a subnode. Used internally for paging.
+         */
+        osg::Node* load(unsigned lod, unsigned tileX, unsigned tileY,
+            unsigned minBand=0, unsigned maxBand=0);
+
+        // Traces for profiling purpose, will be written only on destruction of the FMG
+        void addProfilingLogs(const std::string& trace);
+
+    protected:
+
+        virtual ~RasterToModelGraph();
+
+        osg::BoundingSphered getBoundInWorldCoords(const GeoExtent &extent) const;
+        osg::Node* setupPaging();
+
+        /** The I/O options for operations within this graph */
+        const osgDB::Options* getDBOptions() const;
+
+        osg::Group* createRoot(const TileKey& key );
+        osg::Group* bindGeomWithImage( const TileKey& key, ProgressCallback* progress );
+
+    private:
+
+        void ctor();
+
+    private:
+        RasterToModelSourceOptions         _options;
+        osg::ref_ptr<SceneGraphCallbacks>  _sgCallbacks;
+        GeoExtent                          _usableMapExtent;
+        osg::ref_ptr<osgDB::FileLocationCallback> _defaultFileLocationCallback;
+        OpenThreads::Mutex                 _profilingLogsMutex;
+        std::vector<std::string>           _profilingLogs;
+
+        osg::ref_ptr<const osgDB::Options> _dbOptions;
+
+        osg::BoundingSphered               _rootBs;
+        float                              _rootMaxRange;
+        osg::ref_ptr<osg::Geode>           _sphereForOverlay;
+        osg::ref_ptr<ImageLayer>           _imageLayer;
+
+        void runPreMergeOperations(osg::Node* node);
+        void runPostMergeOperations(osg::Node* node);
+    };
+
+} // namespace osgEarth
+
+#endif // OSGEARTH_RASTER_TO_MODEL_GRAPH_H

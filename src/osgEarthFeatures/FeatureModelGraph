@@ -87,7 +87,7 @@ namespace osgEarth { namespace Features
         osg::Node* load(unsigned lod, unsigned tileX, unsigned tileY,
             const std::string& uri,
             const osgDB::Options* readOptions,
-            unsigned r=0, unsigned g=0, unsigned b=0, unsigned a=0);
+            unsigned minBand=0, unsigned maxBand=0);
 
         /**
          * Set a scene graph callback host for this FMG

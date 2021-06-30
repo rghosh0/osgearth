@@ -809,11 +809,11 @@ Profile::getIntersectingTiles(const TileKey& key, std::vector<TileKey>& out_inte
         // copy the bands number if necessary
         if ( key.hasBandsDefined() )
         {
-            unsigned int r, g, b, a;
-            r = g = b = a = 0u;
-            key.getTileRGBA(r, g, b, a);
+            unsigned int bmin, bmax;
+            bmin = bmax = 0u;
+            key.getTileBands(bmin, bmax);
             for ( auto& outKey : out_intersectingKeys )
-                outKey.setBands( r, g, b, a );
+                outKey.setBands( bmin, bmax );
         }
 
         OE_DEBUG << LC << "GIT, key="<< key.str() << ", localLOD=" << localLOD

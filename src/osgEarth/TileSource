@@ -35,7 +35,7 @@
 #include <osgEarth/MemCache>
 #include <osgEarth/Status>
 #include <osgEarth/Containers>
-#include <osgEarth/ImageCompositionOptions>
+#include <osgEarth/IndexedColorRampOptions>
 
 #include <osg/Referenced>
 #include <osg/Object>
@@ -83,9 +83,9 @@ namespace osgEarth
         optional<std::string>& osgOptionString() { return _osgOptionString; }
         const optional<std::string>& osgOptionString() const { return _osgOptionString; }
 
-        /** The "imageComposition" allows to define the bands to use for composing the color channels. */
-        optional<ImageCompositionOptions>& imageComposition() { return _imageComp; }
-        const optional<ImageCompositionOptions>& imageComposition() const { return _imageComp; }
+        /** The "IndexedColorRampOptions" allows to define the technique to use for composing the color channels. */
+        optional<IndexedColorRampOptions>& colorRamp() { return _colorRamp; }
+        const optional<IndexedColorRampOptions>& colorRamp() const { return _colorRamp; }
 
     public:
         TileSourceOptions( const ConfigOptions& options =ConfigOptions() );
@@ -108,7 +108,7 @@ namespace osgEarth
         optional<bool>           _bilinearReprojection;
         optional<bool>           _coverage;
         optional<std::string>    _osgOptionString;
-        optional<ImageCompositionOptions> _imageComp;
+        optional<IndexedColorRampOptions> _colorRamp;
     };
 }
 OSGEARTH_SPECIALIZE_CONFIG(osgEarth::TileSourceOptions);
@@ -173,6 +173,10 @@ namespace osgEarth
         mutable LRUCache<TileKey, bool> _tiles; // using as a set (value unused)
     };
 
+    // Meta data are a map with 'attribute' -> 'value'
+    typedef std::vector< std::string > MetaData;
+    static const MetaData emptyMetaData;
+
     /**
      * A TileSource is an object that can create image and/or heightfield tiles. Driver
      * plugins are responsible for creating and returning a TileSource that the Map
@@ -219,6 +223,9 @@ namespace osgEarth
         //! Gets the status of this tile source.
         const Status& getStatus() const { return _status; }
 
+        //! Free the open resources
+        virtual void close() {};
+
         //! Gets the number of pixels per tile for this TileSource.
         virtual int getPixelsPerTile() const;
         virtual void setPixelsPerTile(unsigned size);
@@ -243,16 +250,13 @@ namespace osgEarth
         virtual std::string getAttribution() const { return ""; }
 
         //! Get the number of bands
-        virtual bool getBandsNumber ( int& /**bandsNumber**/ ) const { return false; }
-
-        //! Get one meta band for one band
-        virtual std::string getBandMetaData ( int /**band**/, const std::string& /**attribute**/ ) const  { return ""; }
+        virtual unsigned int getBandsNumber() const { return _bandsNumber; }
 
         //! Get the metadata for a given band
-        virtual char** getBandAllMetaData ( int /**band**/ ) const  { return NULL; }
+        virtual const MetaData& getBandAllMetaData ( int band ) const;
 
         //! Get the tiles extent (minY, maxY, minX, maxX)
-        virtual const std::vector<std::tuple<double, double, double, double>> &getTilesExtent () const  { return {}; }
+        const std::vector<std::tuple<double, double, double, double>>& getTilesExtent () const  { return _tilesExtent; }
 
         /**
          * Creates an image for the given TileKey. The TileKey's profile must match
@@ -408,6 +412,17 @@ namespace osgEarth
 
         //! Compat - do not override
         unsigned getTileSize() const { return getPixelsPerTile(); }
+
+    protected:
+
+        // The collection of tile extent (minY, maxY, minX, maxX)
+        std::vector<std::tuple<double, double, double, double>> _tilesExtent;
+
+        // All meta data by band
+        std::map<int, MetaData> _metaData;
+
+        // The number of bands into this source
+        unsigned int _bandsNumber{0};
 
     private:
 

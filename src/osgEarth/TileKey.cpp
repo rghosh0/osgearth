@@ -47,7 +47,7 @@ TileKey::TileKey(unsigned int lod, unsigned int tile_x, unsigned int tile_y, con
         _extent = GeoExtent( _profile->getSRS(), xmin, ymin, xmax, ymax );
 
         _key = Stringify() << _lod << "/" << _x << "/" << _y;
-        setBands( 0, 0, 0, 0);
+        setBands( 0, 0 );
     }
     else
     {
@@ -63,10 +63,8 @@ _keyFull( rhs._keyFull ),
 _lod(rhs._lod),
 _x(rhs._x),
 _y(rhs._y),
-_rBand(rhs._rBand),
-_gBand(rhs._gBand),
-_bBand(rhs._bBand),
-_aBand(rhs._aBand),
+_firstBand(rhs._firstBand),
+_lastBand(rhs._lastBand),
 _profile( rhs._profile.get() ),
 _extent( rhs._extent )
 {
@@ -75,15 +73,13 @@ _extent( rhs._extent )
 
 
 void
-TileKey::setBands( unsigned int rBand, unsigned int gBand, unsigned int bBand, unsigned int aBand )
+TileKey::setBands(unsigned int firstBand, unsigned int lastBand)
 {
-    _rBand = rBand;
-    _gBand = gBand;
-    _bBand = bBand;
-    _aBand = aBand;
+    _firstBand = firstBand;
+    _lastBand = lastBand;
 
     _keyFull = Stringify() << _lod << "/" << _x << "/" << _y << "/"
-                       << _rBand << "/" << _gBand << "/" << _bBand << "/" << _aBand;
+                       << _firstBand << "/" << _lastBand;
 }
 
 const Profile*
@@ -101,16 +97,11 @@ TileKey::getTileXY(unsigned int& out_tile_x,
 }
 
 void
-TileKey::getTileRGBA(
-    unsigned int& out_tile_r_band,
-    unsigned int& out_tile_g_band,
-    unsigned int& out_tile_b_band,
-    unsigned int& out_tile_a_band) const
+TileKey::getTileBands(unsigned int& out_tile_first_band,
+                      unsigned int& out_tile_last_band) const
 {
-    out_tile_r_band = _rBand;
-    out_tile_g_band = _gBand;
-    out_tile_b_band = _bBand;
-    out_tile_a_band = _aBand;
+    out_tile_first_band = _firstBand;
+    out_tile_last_band = _lastBand;
 }
 
 unsigned
@@ -163,23 +154,20 @@ TileKey::createChildKey( unsigned int quadrant ) const
 }
 
 void
-TileKey::setupNextAvailableBands( int nbBands )
+TileKey::setupNextAvailableBands( unsigned int nbBands, unsigned int maxBandsPerTile )
 {
-    // check if last band is used
-    unsigned int uNbBands = static_cast<unsigned int>(nbBands);
-    if ( _rBand == uNbBands || _gBand == uNbBands || _bBand == uNbBands || _aBand == uNbBands)
+    // check if last band of the tile is also the last band of the raster
+    if ( _lastBand == nbBands )
     {
-        setBands( 0, 0, 0, 0);
+        setBands( 0, 0 );
     }
 
-    // band 'a' is considered the last used band
+    // setup the next bands
     else
     {
-        unsigned int rBand = _aBand < uNbBands ? _aBand+1 : 0;
-        unsigned int gBand = rBand < uNbBands && rBand != 0 ? rBand+1 : 0;
-        unsigned int bBand = gBand < uNbBands && gBand != 0 ? gBand+1 : 0;
-        unsigned int aBand = bBand < uNbBands && bBand != 0 ? bBand+1 : 0;
-        setBands( rBand, gBand, bBand, aBand);
+        unsigned int firstBand = _lastBand+1;
+        unsigned int lastBand = osg::minimum(firstBand+maxBandsPerTile-1, nbBands);
+        setBands( firstBand, lastBand );
     }
 }
 

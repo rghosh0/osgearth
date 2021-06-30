@@ -1,0 +1,121 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
+ * http://osgearth.org
+ *
+ * osgEarth is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+
+#ifndef OSGEARTH_RASTER_TO_MODEL_LAYER_H
+#define OSGEARTH_RASTER_TO_MODEL_LAYER_H 1
+
+#include <osgEarth/ModelLayer>
+#include <osgEarth/RasterToModelSource>
+
+namespace osgEarth
+{
+
+    /**
+     * Configuration options for a RasterToModelLayer.
+     */
+    class OSGEARTH_EXPORT RasterToModelLayerOptions : public ModelLayerOptions
+    {
+    public:
+        //! Construct a new, empty options structure
+        RasterToModelLayerOptions();
+
+        /** Construct or deserialize new RasterToModel Layer options. */
+        RasterToModelLayerOptions(const ConfigOptions& options);
+
+        /**
+         * Options for the underlying model source.
+         */
+        optional<RasterToModelSourceOptions>& sourceOptions() { return _sourceOptions; }
+        const optional<RasterToModelSourceOptions>& sourceOptions() const { return _sourceOptions; }
+
+    public:
+        virtual Config getConfig() const;
+        virtual void mergeConfig( const Config& conf );
+
+    private:
+        void fromConfig( const Config& conf );
+        void setDefaults();
+
+        optional<RasterToModelSourceOptions> _sourceOptions;
+    };
+
+
+    struct RasterToModelLayerCallback : public ModelLayerCallback
+    {
+        //! Called when a model layer is fully loaded
+        virtual void onInitializationFinished(class RasterToModelLayer* layer) { }
+
+        typedef void (RasterToModelLayerCallback::*MethodPtr)(class RasterToModelLayer* layer);
+    };
+
+
+    /**
+     * ModelLayer which is able to render a raster layer as if it is a model layer
+     * That allows draping it in the globe and changing its render order
+     */
+    class OSGEARTH_EXPORT RasterToModelLayer : public ModelLayer
+    {
+    public:
+        META_Layer(osgEarth, RasterToModelLayer, RasterToModelLayerOptions, raster_to_model);
+
+        /**
+         * Blank RasterToModelLayer. Use options() to setup before calling open.
+         */
+        RasterToModelLayer();
+
+        /**
+         * Constructs a new model layer.
+         */
+        RasterToModelLayer(const RasterToModelLayerOptions& options);
+
+        /**
+         * Access the underlying raster source.
+         */
+        RasterToModelSource* getRasterToModelSource() const { return static_cast<RasterToModelSource*>(_modelSource.get()); }
+
+    public: // Layer
+
+        //! Open the layer and return its status
+        virtual const Status& open() override;
+
+        //! Called when this layer is added to a Map
+        virtual void addedToMap(const Map*) override;
+
+        /** Whether to draw this layer. */
+        virtual void setVisible(bool value) override;
+
+    //------------------------------------------------------------------------
+
+    protected:
+        // callback to catch the end of the loading process
+        struct LoadingInProgressCB;
+
+    //------------------------------------------------------------------------
+
+    protected:
+
+        virtual ~RasterToModelLayer();
+
+        void fireCallback(RasterToModelLayerCallback::MethodPtr method);
+
+        bool _isFullyLoaded{false};
+    };
+}
+
+#endif // OSGEARTH_RASTER_TO_MODEL_LAYER_H

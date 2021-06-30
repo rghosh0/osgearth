@@ -122,7 +122,7 @@ SET(LIB_PUBLIC_HEADERS
     Horizon
     HorizonClipPlane
     HTTPClient
-    ImageCompositionOptions
+    IndexedColorRampOptions
     ImageLayer
     ImageMosaic
     ImageToHeightFieldConverter
@@ -226,6 +226,9 @@ SET(LIB_PUBLIC_HEADERS
 	
     MPScreenSpaceLayout
     MPScreenSpaceLayoutSG
+    RasterToModelLayer
+    RasterToModelSource
+    RasterToModelGraph
 )
 
 
@@ -397,6 +400,9 @@ set(TARGET_SRC
 	
     MPScreenSpaceLayout.cpp
     MPScreenSpaceLayoutSG.cpp
+    RasterToModelLayer.cpp
+    RasterToModelSource.cpp
+    RasterToModelGraph.cpp
 	
     ${SHADERS_CPP} )
 

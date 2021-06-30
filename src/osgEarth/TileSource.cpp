@@ -155,7 +155,7 @@ TileSourceOptions::getConfig() const
     conf.set( "coverage", _coverage );
     conf.set( "osg_option_string", _osgOptionString );
     conf.set( "profile", _profileOptions );
-    conf.set( "image_composition", _imageComp );
+    conf.set( "multiband_color_ramp", _colorRamp );
     return conf;
 }
 
@@ -177,7 +177,7 @@ TileSourceOptions::fromConfig( const Config& conf )
     conf.get( "coverage", _coverage );
     conf.get( "osg_option_string", _osgOptionString );
     conf.get( "profile", _profileOptions );
-    conf.get( "image_composition", _imageComp );
+    conf.get( "multiband_color_ramp", _colorRamp );
 }
 
 
@@ -190,6 +190,8 @@ const char* TileSource::INTERFACE_NAME = "osgEarth::TileSource";
 const TileSource::Mode TileSource::MODE_READ   = 0x01;
 const TileSource::Mode TileSource::MODE_WRITE  = 0x02;
 const TileSource::Mode TileSource::MODE_CREATE = 0x04;
+
+const MetaData emptyMetaData;
 
 
 TileSource::TileSource(const TileSourceOptions& options) :
@@ -459,6 +461,17 @@ TileSource::getBlacklist() const
 {
     return _blacklist.get();
 }
+
+const MetaData&
+TileSource::getBandAllMetaData ( int band ) const
+{
+    auto metaDataItr = _metaData.find(band);
+    if ( metaDataItr != _metaData.end() )
+        return metaDataItr->second;
+
+    return emptyMetaData;
+}
+
 
 //------------------------------------------------------------------------
 
