@@ -25,8 +25,6 @@
 #include <osgEarth/MapInfo>
 #include <osgEarth/Map>
 #include <osgEarth/URI>
-#include <osgEarth/ImageLayer>
-
 
 namespace osgEarth {
     class StateSetCache;
@@ -99,14 +97,6 @@ namespace osgEarth { namespace Features
         /** Gets the current feature source */
         FeatureSource* getFeatureSource() const;
 
-        /**
-         * Set an image layer associated to this feature source
-         */
-        void setImageLayer(ImageLayer* il);
-
-        /** Gets the current image layer */
-        ImageLayer* getImageLayer() const;
-
         /** The I/O options for operations within this session */
         const osgDB::Options* getDBOptions() const;
 
@@ -140,7 +130,6 @@ namespace osgEarth { namespace Features
         osg::ref_ptr<FeatureSource>        _featureSource;
         osg::ref_ptr<StateSetCache>        _stateSetCache;
         osg::ref_ptr<ResourceCache>        _resourceCache;
-        osg::ref_ptr<ImageLayer>           _imageLayer;
         std::string                        _name;
 
         // hidden - support for META_Object

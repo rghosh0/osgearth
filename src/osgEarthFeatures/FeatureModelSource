@@ -125,12 +125,6 @@ namespace osgEarth { namespace Features
         optional<FeatureSourceOptions>& featureOptions() { return _featureOptions; }
         const optional<FeatureSourceOptions>& featureOptions() const { return _featureOptions; }
 
-        optional<ImageLayerOptions>& imageOptions() { return _imageOptions; }
-        const optional<ImageLayerOptions>& imageOptions() const { return _imageOptions; }
-
-        optional<int>& imageBand() { return _imageBand; }
-        const optional<int>& imageBand() const { return _imageBand; }
-
     public:
         /** A live feature source instance to use. Note, this does not serialize. */
         osg::ref_ptr<FeatureSource>& featureSource() { return _featureSource; }
@@ -153,9 +147,7 @@ namespace osgEarth { namespace Features
         void fromConfig( const Config& conf );
 
         optional<FeatureSourceOptions> _featureOptions;
-        optional<ImageLayerOptions>    _imageOptions;
         osg::ref_ptr<FeatureSource>    _featureSource;
-        optional<int>                  _imageBand;
     };
 
 
@@ -251,9 +243,6 @@ namespace osgEarth { namespace Features
         /** The underlying feature source. */
         FeatureSource* getFeatureSource() { return _features.get(); }
 
-        /** The optional embeded ImageLayer. */
-        ImageLayer* getImageLayer() { return _imageLayer.get(); }
-
         /** The options with which this source was created */
         virtual const FeatureModelSourceOptions& getFeatureModelOptions() const { return _options; }
 
@@ -272,7 +261,6 @@ namespace osgEarth { namespace Features
         virtual ~FeatureModelSource() { }
 
         osg::ref_ptr<FeatureSource>        _features;
-        osg::ref_ptr<ImageLayer>           _imageLayer;
         osg::observer_ptr<const Map>       _map;
         const FeatureModelSourceOptions    _options;
         osg::ref_ptr<FeatureNodeFactory>   _factory;

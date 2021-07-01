@@ -33,7 +33,6 @@
 #include <osgEarth/Registry>
 #include <osgEarth/ThreadingUtils>
 #include <osgEarth/Utils>
-#include <osgEarth/MultiBandsInterface>
 
 #include <osg/CullFace>
 #include <osg/Depth>
@@ -77,11 +76,9 @@ struct HighLatencyFileLocationCallback : public osgDB::FileLocationCallback {
 // pseudo-loader for paging in feature tiles for a FeatureModelGraph.
 
 namespace {
-static std::string s_makeURI(unsigned lod, unsigned x, unsigned y, unsigned minBand=0, unsigned maxBand=0) {
+static std::string s_makeURI(unsigned lod, unsigned x, unsigned y) {
     std::stringstream buf;
-    std::string rgbaKey = "";
-    if (minBand != 0) rgbaKey = Stringify() << "_b_" << minBand << "_" << maxBand;
-    buf << lod << "_" << x << "_" << y << rgbaKey  << ".osgearth_pseudo_fmg";
+    buf << lod << "_" << x << "_" << y << ".osgearth_pseudo_fmg";
     std::string str;
     str = buf.str();
     return str;
@@ -93,8 +90,7 @@ osg::Group *createPagedNode(const osg::BoundingSphered &bs,
                             SceneGraphCallbacks *sgCallbacks,
                             osgDB::FileLocationCallback *flc,
                             const osgDB::Options *readOptions,
-                            FeatureModelGraph *fmg)
-{
+                            FeatureModelGraph *fmg) {
 #ifdef USE_PROXY_NODE
 
     osg::ProxyNode *p = new osg::ProxyNode();
@@ -117,10 +113,13 @@ osg::Group *createPagedNode(const osg::BoundingSphered &bs,
 
     osg::PagedLOD *p;
 
-    if (sgCallbacks)
-        p = new PagedLODWithSceneGraphCallbacks(sgCallbacks);
-    else
+    if (sgCallbacks) {
+        PagedLODWithSceneGraphCallbacks *plod =
+                new PagedLODWithSceneGraphCallbacks(sgCallbacks);
+        p = plod;
+    } else {
         p = new osg::PagedLOD();
+    }
 
     p->setCenter(bs.center());
     p->setRadius(bs.radius());
@@ -128,14 +127,15 @@ osg::Group *createPagedNode(const osg::BoundingSphered &bs,
     p->setRange(0, minRange, maxRange);
     p->setPriorityOffset(0, layout.priorityOffset().get());
     p->setPriorityScale(0, layout.priorityScale().get());
-    if (layout.minExpiryTime().isSet())
-    {
-        float value = layout.minExpiryTime() >= 0.0f ? layout.minExpiryTime().get() : FLT_MAX;
+    if (layout.minExpiryTime().isSet()) {
+        float value =
+                layout.minExpiryTime() >= 0.0f ? layout.minExpiryTime().get() : FLT_MAX;
         p->setMinimumExpiryTime(0, value);
     }
 
     // force onto the high-latency thread pool.
-    osgDB::Options *options = Registry::instance()->cloneOrCreateOptions(readOptions);
+    osgDB::Options *options =
+            Registry::instance()->cloneOrCreateOptions(readOptions);
     options->setFileLocationCallback(flc);
     p->setDatabaseOptions(options);
     // so we can find the FMG instance in the pseudoloader.
@@ -159,23 +159,21 @@ struct osgEarthFeatureModelPseudoLoader : public osgDB::ReaderWriter {
         return "osgEarth Feature Model Pseudo-Loader";
     }
 
-    ReadResult readNode(const std::string &uri, const osgDB::Options *readOptions) const
-    {
+    ReadResult readNode(const std::string &uri,
+                        const osgDB::Options *readOptions) const {
         if (!acceptsExtension(osgDB::getLowerCaseFileExtension(uri)))
             return ReadResult::FILE_NOT_HANDLED;
 
         // UID uid;
-        unsigned lod, x, y, minb, maxb;
-        lod = x = y = minb = maxb = 0;
-        if ( uri.find("_b") != std::string::npos )
-            sscanf(uri.c_str(), "%d_%d_%d_b_%d_%d.%*s", &lod, &x, &y, &minb, &maxb);
-        else
-            sscanf(uri.c_str(), "%d_%d_%d.%*s", &lod, &x, &y);
+        unsigned lod, x, y;
+        sscanf(uri.c_str(), "%d_%d_%d.%*s", &lod, &x, &y);
 
         osg::ref_ptr<FeatureModelGraph> graph;
-        if (!OptionsData<FeatureModelGraph>::lock(readOptions, USER_OBJECT_NAME,  graph))
-        {
-            OE_WARN << LC << "Internal error - no FeatureModelGraph object in OptionsData\n";
+        if (!OptionsData<FeatureModelGraph>::lock(readOptions, USER_OBJECT_NAME,
+                                                  graph)) {
+            OE_WARN
+                    << LC
+                    << "Internal error - no FeatureModelGraph object in OptionsData\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
@@ -188,7 +186,7 @@ struct osgEarthFeatureModelPseudoLoader : public osgDB::ReaderWriter {
         }
 
         // actually load the tile
-        osg::Node *node = graph->load(lod, x, y, uri, readOptions, minb, maxb);
+        osg::Node *node = graph->load(lod, x, y, uri, readOptions);
 
         // provide some performance info
         if ( osgEarth::isNotifyEnabled( osg::DEBUG_INFO ) )
@@ -204,6 +202,7 @@ struct osgEarthFeatureModelPseudoLoader : public osgDB::ReaderWriter {
                                      "\t" << uri << "\t" << t_end <<
                                      "\t" << t << "\t" << searchGeom._results.size() );
         }
+
         return ReadResult(node);
     }
 };
@@ -233,464 +232,6 @@ struct SetupFading : public SceneGraphCallback {
     }
 };
 } // namespace
-
-
-//---------------------------------------------------------------------------
-
-namespace {
-
-    // use this util method to trace the scenegraph starting from 'node'
-    void traceNode(const osg::Node& node, const std::string tab = "")
-    {
-        OE_WARN << tab << "[" << node.className() << "/" << node.getName() << "]" << "\n";
-        OE_WARN << tab << " |visible " << node.getNodeMask() << "\n";
-        OE_WARN << tab << " |refCount " << node.referenceCount() << "\n";
-        if (node.asGeometry())
-            OE_WARN << tab << " |numVertices " << node.asGeometry()->getVertexArray()->getNumElements() << "\n";
-        if (node.getStateSet())
-        {
-            for (auto uni : node.getStateSet()->getUniformList())
-                OE_WARN << tab << " |uniform " << uni.first << "\n";
-            const osg::Texture2D* tex = dynamic_cast<const osg::Texture2D*>( node.getStateSet()->getTextureAttribute(0, osg::StateAttribute::TEXTURE) );
-            if ( tex )
-            {
-                const osg::Image* image = tex->getImage();
-                if ( image )
-                {
-                    OE_WARN << tab << " |texture image with " << image->referenceCount() << " refCount\n";
-                }
-            }
-        }
-        if (node.asGroup() != nullptr)
-        {
-            OE_WARN << tab << " |numChildren " << node.asGroup()->getNumChildren() << "\n";
-            for (unsigned int i = 0; i < node.asGroup()->getNumChildren(); ++i)
-                traceNode(*node.asGroup()->getChild(i), tab + "    ");
-        }
-    }
-
-
-    // sphere geometry when the feature layer embeds raster images
-    static osg::ref_ptr<const Profile> sphereProfile;
-    static osg::ref_ptr<osg::Geode> _ellipsoidGeom;
-
-    // the uniform to change the selected band for multiband rasters
-    const std::string _multiBand_uniform_name = "oe_u_channelRamp";
-    const std::string _multiBand_2nd_level_uniform_name = "oe_u_channelRamp_2nd_level";
-
-    // vertex shader for feature layer which embeds raster images
-    const char* imageVS =
-        "#version " GLSL_VERSION_STR "\n"
-        GLSL_DEFAULT_PRECISION_FLOAT "\n"
-
-        "out vec2 imageBinding_texcoord; \n"
-
-        "void oe_ImageBinding_VS(inout vec4 vertex) { \n"
-        "    imageBinding_texcoord = gl_MultiTexCoord0.st; \n"
-        "} \n";
-
-    // fragment shader for feature layer which embeds raster images
-    const char* imageFS =
-        "#version " GLSL_VERSION_STR "\n"
-        GLSL_DEFAULT_PRECISION_FLOAT "\n"
-
-        "in vec2 imageBinding_texcoord; \n"
-        "__DECLARATION_CODE__"
-
-        "void oe_ImageBinding_FS(inout vec4 color) { \n"
-        "__BODY_CODE__"
-        " \n "
-        "    //uncomment to debug texture coordinates \n"
-        "    //color = vec4(imageBinding_texcoord.st, 0., 1.); \n"
-        "} \n";
-
-    // stores information about the bands range that a given texture will handle and associated utils method
-    struct BandsInformation : public osg::Referenced
-    {
-        BandsInformation( const TileKey& tileKey, unsigned int maxBandsPerTile = 4 ) :
-            _maxBandsPerTile(maxBandsPerTile)
-        {
-            tileKey.getTileBands(_minBand, _maxBand);
-            _maxBandsPerChannel = maxBandsPerTile / 4;
-        }
-
-        bool isBandInRange(unsigned int band) const
-        {
-            return band >= _minBand && band <= _maxBand;
-        }
-
-        // determine the color channel to use for a given band
-        // use this method if the image holds one band per color channel
-        int getUniformValForBand_1int(unsigned int band) const
-        {
-            int channel = band - _minBand;
-
-            if (channel < 0 || channel >= static_cast<int>(_maxBandsPerTile))
-                return -1;
-
-            return channel / _maxBandsPerChannel;
-        }
-
-        // determine the color channel (i) and the offset (j) to use for a given band
-        // use this method if the image holds two bands per color channel
-        // in that case : the last digit encodes the band i and the previous one the band i+1
-        // example : 051 means band i is 1 and band i+1 is 5
-        void getUniformValForBand_2int(unsigned int band, int& i, int& j) const
-        {
-            int index = band - _minBand;
-
-            if (index < 0 || index >= static_cast<int>(_maxBandsPerTile))
-            {
-                i = -1;
-                j = -1;
-            }
-
-            else
-            {
-                i = index / _maxBandsPerChannel;
-                j = index - i * _maxBandsPerChannel;
-            }
-        }
-
-        unsigned int _minBand;
-        unsigned int _maxBand;
-        unsigned int _maxBandsPerTile;
-        unsigned int _maxBandsPerChannel;
-    };
-
-    // Node holding one raster texture which may encode multiple rasters bands
-    struct GroupMultiBands : public osg::Group, public MultiBandsInterface
-    {
-        explicit GroupMultiBands(unsigned band = 0) : Group(), MultiBandsInterface (band) {}
-
-        // request to make visible a given band
-        virtual void setBand(unsigned band) override
-        {
-            if (band == _band)
-                return;
-
-            for (unsigned i = 0 ; i < getNumChildren() ; i++)
-            {
-                osg::Group* group = getChild(i)->asGroup();
-                osg::ref_ptr<BandsInformation> bandsInfo = static_cast<BandsInformation*>(group->getUserData());
-                bool isValid = bandsInfo.valid() && bandsInfo->isBandInRange(band);
-                group->setNodeMask( isValid ? ~0 : 0 );
-
-                if ( isValid && group->getStateSet() )
-                {
-                    osg::Uniform* uniform = group->getStateSet()->getUniform(_multiBand_uniform_name.c_str());
-                    if ( uniform )
-                    {
-                        if ( bandsInfo->_maxBandsPerChannel == 1u )
-                        {
-                            uniform->set(bandsInfo->getUniformValForBand_1int(band));
-                        }
-                        else if ( bandsInfo->_maxBandsPerChannel == 2u )
-                        {
-                            bandsInfo->getUniformValForBand_2int(band, _tmpI, _tmpJ);
-                            if (osg::Uniform* uniform2nd = group->getStateSet()->getUniform(_multiBand_2nd_level_uniform_name.c_str()))
-                            {
-                                uniform->set(_tmpI);
-                                uniform2nd->set(_tmpJ);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // \todo manage the memory of grib bands in a better way
-                    //group->removeChildren(0, group->getNumChildren());
-                }
-            }
-            _band = band;
-        }
-    };
-
-    // use this struct to animate the bands (for test only)
-    struct BandsAnimation : public osg::NodeCallback
-    {
-        osg::observer_ptr<osg::Group> _fmg;
-
-        BandsAnimation(osg::Group* fmg) : _fmg(fmg) {}
-
-        void operator()(osg::Node* node, osg::NodeVisitor* nv)
-        {
-            if (nv->getFrameStamp()->getFrameNumber() % 30 == 0)
-            {
-                static unsigned band = 1;
-                GroupMultiBands* root = static_cast<GroupMultiBands*>( node );
-                root->setBand(band);
-                band++;
-                if (band == 14) band = 1;
-
-                //traceNode( *(_fmg->getParent(0)->getParent(0)) );
-            }
-        }
-    };
-
-
-    // build a part of sphere for a given extent
-    osg::Geode* buildPartialEllipsoidGeometry(const osg::EllipsoidModel* ellipsoid, const osgEarth::Bounds& imageBounds)
-    {
-        double outerRadius = ellipsoid->getRadiusEquator();
-        double hae = outerRadius - ellipsoid->getRadiusPolar();
-
-        osg::Geometry* geom = new osg::Geometry();
-        geom->setUseVertexBufferObjects(true);
-
-        osgEarth::Bounds shapeBounds(imageBounds);
-        if (shapeBounds.yMin() < -90.) shapeBounds.yMin() = -90.;
-        if (shapeBounds.yMax() > 90.)  shapeBounds.yMax() =  90.;
-        const double segmentSizeRefInDegree = 1.; // reference resolution of the sphere
-        int latSegments = static_cast<int>(ceil(shapeBounds.height() / segmentSizeRefInDegree));
-        int lonSegments = static_cast<int>(ceil(shapeBounds.width() / segmentSizeRefInDegree));
-        int arraySize = ( (latSegments+1) * (lonSegments+1) );
-        const double segmentSizeLat = shapeBounds.height() / latSegments;
-        const double segmentSizeLong = shapeBounds.width() / lonSegments;
-        const double scaleY = shapeBounds.height() / imageBounds.height();
-        const double shiftY = (shapeBounds.yMin() - imageBounds.yMin()) / imageBounds.height();
-
-        OE_DEBUG << "[FeatureModelGraph] Build partial sphere for image overlay. Extent " << imageBounds.toString() << ". "
-                 << "Resolution " << (lonSegments+1) << "*" << (latSegments+1) << ". scaleY:" << scaleY << ". shiftY:" << shiftY << std::endl;
-
-        osg::Vec3Array* verts = new osg::Vec3Array();
-        verts->reserve( arraySize );
-
-        osg::Vec2Array* texCoords  = new osg::Vec2Array();
-        texCoords->reserve( arraySize );
-        geom->setTexCoordArray( 0, texCoords );
-
-        osg::Vec3Array* normals = new osg::Vec3Array(osg::Array::BIND_PER_VERTEX);
-        normals->reserve( arraySize );
-        geom->setNormalArray( normals );
-
-        osg::DrawElementsUShort* el = new osg::DrawElementsUShort( GL_TRIANGLES );
-        el->reserve( arraySize * 6 );
-
-        for( int y = 0; y <= latSegments; ++y )
-        {
-            double lat = shapeBounds.yMin() + segmentSizeLat * (double)y;
-            for( int x = 0; x <= lonSegments; ++x )
-            {
-                double lon = shapeBounds.xMin() + segmentSizeLong * (double)x;
-                double gx, gy, gz;
-                ellipsoid->convertLatLongHeightToXYZ( osg::DegreesToRadians(lat), osg::DegreesToRadians(lon), hae, gx, gy, gz );
-                verts->push_back( osg::Vec3(gx, gy, gz) );
-
-                double s = ((double) x) / lonSegments;
-                double t = shiftY + (((double) y) / latSegments) * scaleY;
-                texCoords->push_back( osg::Vec2(s, t ) );
-
-                osg::Vec3d normal(gx, gy, gz);
-                normal.normalize();
-                normals->push_back( osg::Vec3f(normal) );
-
-                if ( y < latSegments && x < lonSegments )
-                {
-                    int x_plus_1 = x+1;
-                    int y_plus_1 = y+1;
-                    el->push_back( y*(lonSegments+1) + x );
-                    el->push_back( y*(lonSegments+1) + x_plus_1 );
-                    el->push_back( y_plus_1*(lonSegments+1) + x );
-
-                    el->push_back( y*(lonSegments+1) + x_plus_1 );
-                    el->push_back( y_plus_1*(lonSegments+1) + x_plus_1 );
-                    el->push_back( y_plus_1*(lonSegments+1) + x );
-                }
-            }
-        }
-
-        geom->setVertexArray( verts );
-        geom->addPrimitiveSet( el );
-
-        osg::Geode* geode = new osg::Geode();
-        geode->addDrawable(geom);
-
-        return geode;
-    }
-}
-
-// build a new program which will handle the binding of a given texture with the sphere
-VirtualProgram* createProgramForImageBinding( const ImageLayer* imageLayer )
-{
-    VirtualProgram* program = new VirtualProgram();
-
-    // build the body of the shader code
-    std::string imageFSupdated = imageFS;
-    std::string bodyCode = "";
-    std::string delcarationCode = "";
-
-    // case no color ramp. just display texture value
-    if (! imageLayer->getTileSource()->getOptions().colorRamp().isSet())
-    {
-        bodyCode += "    color = texture(image_tex, imageBinding_texcoord); \n";
-    }
-
-    // case a color ramp is defined
-    else
-    {
-        IndexedColorRampOptions::ChannelOptimizationTechnique technique
-                = imageLayer->getTileSource()->getOptions().colorRamp()->channelOptimizationTechnique()
-                    .getOrUse(IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND);
-
-        delcarationCode += "    uniform lowp int " + _multiBand_uniform_name + "; \n";
-        if (imageLayer->getTileSource()->getOptions().colorRamp()->nbBandsPerChannel() == 2u)
-            delcarationCode += "    uniform lowp int " + _multiBand_2nd_level_uniform_name + "; \n";
-        delcarationCode += technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND ?
-                    "    uniform sampler2D image_tex; \n" : "    uniform lowp usampler2D image_tex; \n";
-        delcarationCode += imageLayer->getTileSource()->getOptions().colorRamp()->rampDeclCode();
-
-        bodyCode += technique == IndexedColorRampOptions::ChannelOptimizationTechnique::ONE_FLOAT_PER_BAND ? "    float " : "    lowp uint ";
-        bodyCode += "value = texture(image_tex, imageBinding_texcoord)[" + _multiBand_uniform_name + "]; \n";
-
-        if (imageLayer->getTileSource()->getOptions().colorRamp()->nbBandsPerChannel() == 2u)
-        {
-            if (imageLayer->getTileSource()->getOptions().colorRamp()->useDiscard())
-                bodyCode += "    if (value == 0u) { discard; return; } \n";
-
-            bodyCode += "    if (" + _multiBand_2nd_level_uniform_name + " == 0) value = value - (value/10u)*10u; \n";
-            bodyCode += "    else if (" + _multiBand_2nd_level_uniform_name + " == 1) value = value / 10u; \n";
-        }
-        bodyCode += imageLayer->getTileSource()->getOptions().colorRamp()->rampBodyCode("value");
-    }
-
-    osgEarth::replaceIn(imageFSupdated, "__DECLARATION_CODE__", delcarationCode);
-    osgEarth::replaceIn(imageFSupdated, "__BODY_CODE__", bodyCode + "}");
-
-    program->setFunction("oe_ImageBinding_VS", imageVS, ShaderComp::LOCATION_VERTEX_MODEL);
-    program->setFunction("oe_ImageBinding_FS", imageFSupdated, ShaderComp::LOCATION_FRAGMENT_COLORING);
-
-    return program;
-}
-
-
-// setup the root scenegraph for layers which embeds raster images
-void FeatureModelGraph::setupRootSGForImage(osg::Group* root, ImageLayer* imageLayer, const TileKey& key)
-{
-    // expected pre conditions
-    // expected pre conditions
-    unsigned int bandNumber = imageLayer->getTileSource()->getBandsNumber();
-    if ( bandNumber <= 0 || ! imageLayer->getProfile() || ! imageLayer->getProfile()->getSRS()
-         || ! imageLayer->getProfile()->getSRS()->getEllipsoid() || key.hasBandsDefined() )
-        return;
-
-    // build the sphere section which will be used to drape the image
-    osg::ref_ptr<const osg::EllipsoidModel> ellipsoidModel = imageLayer->getProfile()->getSRS()->getEllipsoid();
-    _sphereForOverlay = buildPartialEllipsoidGeometry(ellipsoidModel.get(), imageLayer->getProfile()->getLatLongExtent().originalBounds());
-
-    // case multiple bands coded into one color channel
-    int maxBandsPerTile = imageLayer->getTileSource()->getOptions().colorRamp().isSet() ?
-                imageLayer->getTileSource()->getOptions().colorRamp()->nbBandsPerChannel() * 4 : 4;
-
-    // then build one pagedLOD per possible texture (each texture holds many bands defined in 'maxBandsPerTile')
-    GroupMultiBands* groupMultiBands = new GroupMultiBands();
-    unsigned defaultBand = _options.imageBand().getOrUse(0);
-    TileKey keyTmp(key);
-    keyTmp.setupNextAvailableBands(bandNumber, maxBandsPerTile);
-    while (keyTmp.hasBandsDefined())
-    {
-        unsigned int minBand, maxBand;
-        keyTmp.getTileBands(minBand, maxBand);
-        std::string uri = s_makeURI(keyTmp.getLOD(), keyTmp.getTileX(), keyTmp.getTileY(), minBand, maxBand);
-        osg::Node* pagedNode = createPagedNode( _rootBs, uri, 0.0f, _rootMaxRange, _options.layout().get(), _sgCallbacks.get(),
-                    _defaultFileLocationCallback.get(), getSession()->getDBOptions(), this );
-
-        groupMultiBands->addChild( pagedNode );
-
-        osg::ref_ptr<BandsInformation> bandsInfo = new BandsInformation(keyTmp, maxBandsPerTile);
-        pagedNode->setUserData( bandsInfo );
-
-        // this uniform holds the color channel to use to access a given band
-        osg::Uniform* uniform = new osg::Uniform(osg::Uniform::INT, _multiBand_uniform_name.c_str());
-        pagedNode->getOrCreateStateSet()->addUniform(uniform, osg::StateAttribute::OVERRIDE);
-
-        // case the texture holds one band per color channel
-        // then only one uniform is used to define the color channel to use
-        if (maxBandsPerTile == 4)
-        {
-            int channel = bandsInfo->getUniformValForBand_1int(defaultBand);
-            if ( channel == -1 )
-            {
-                uniform->set(0);
-                pagedNode->setNodeMask(0);
-            }
-            else
-            {
-                uniform->set(channel);
-                pagedNode->setNodeMask(~0);
-            }
-        }
-
-        // case the texture holds two bands per color channel
-        // then a second uniform is necessary to define the offset to use in the given color channel
-        else if (maxBandsPerTile == 8)
-        {
-            osg::Uniform* uniform2nd = new osg::Uniform(osg::Uniform::INT, _multiBand_2nd_level_uniform_name.c_str());
-            pagedNode->getOrCreateStateSet()->addUniform(uniform2nd, osg::StateAttribute::OVERRIDE);
-            int indexI = -1;
-            int indexJ = -1;
-            bandsInfo->getUniformValForBand_2int(defaultBand, indexI, indexJ);
-            if ( indexI == -1 || indexJ == -1 )
-            {
-                uniform->set(0);
-                uniform2nd->set(0);
-                pagedNode->setNodeMask(0);
-            }
-            else
-            {
-                uniform->set(indexI);
-                uniform2nd->set(indexJ);
-                pagedNode->setNodeMask(~0);
-            }
-        }
-
-        // go to the next available bands
-        keyTmp.setupNextAvailableBands(bandNumber, maxBandsPerTile);
-    }
-
-    // setup the shader
-    VirtualProgram* program = createProgramForImageBinding(imageLayer);
-    groupMultiBands->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
-
-    // test the animation of bands
-    //groupMultiBands->addUpdateCallback( new BandsAnimation(this) );
-
-    root->addChild( groupMultiBands );
-    OE_DEBUG << LC << "Setup " << groupMultiBands->getNumChildren() << " pagedLODs for managing "
-            << bandNumber << " raster bands for layer " << *imageLayer->options().name() << std::endl;
-}
-
-// setup the image as a texture and bind it the to sphere
-osg::Group* FeatureModelGraph::bindGeomWithImage( ImageLayer* imageLayer, const TileKey& key, ProgressCallback* progress )
-{
-    if (! _session || ! imageLayer || ! imageLayer->getProfile() || ! imageLayer->getTileSource())
-        return nullptr;
-
-    GeoImage image = imageLayer->createImage(key, progress);
-    if (image.valid())
-    {
-        osg::Group* bandsGroup = new osg::Group();
-
-        osg::Texture2D* tex = new osg::Texture2D( image.getImage() );
-        tex->setWrap( osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE );
-        tex->setWrap( osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE );
-        tex->setResizeNonPowerOfTwoHint(false);
-        tex->setFilter( osg::Texture::MAG_FILTER, imageLayer->options().magFilter().getOrUse(osg::Texture::NEAREST) );
-        tex->setFilter( osg::Texture::MIN_FILTER, imageLayer->options().minFilter().getOrUse(osg::Texture::NEAREST) );
-        tex->setUnRefImageDataAfterApply(true);
-        tex->setMaxAnisotropy( 1.f );
-        tex->setInternalFormatMode( osg::Texture::USE_IMAGE_DATA_FORMAT );
-
-        bandsGroup->getOrCreateStateSet()->setTextureAttributeAndModes(0, tex, osg::StateAttribute::ON);
-        bandsGroup->getOrCreateStateSet()->addUniform( new osg::Uniform("image_tex", 0) );
-
-        bandsGroup->addChild(_sphereForOverlay.get());
-        return bandsGroup;
-    }
-
-    return nullptr;
-}
-
 
 //---------------------------------------------------------------------------
 
@@ -1011,37 +552,38 @@ FeatureModelGraph::getBoundInWorldCoords(const GeoExtent &extent) const {
 #endif
 }
 
-osg::Node *FeatureModelGraph::setupPaging()
-{
+osg::Node *FeatureModelGraph::setupPaging() {
     // calculate the bounds of the full data extent:
-    _rootBs = getBoundInWorldCoords(_usableMapExtent);
+    osg::BoundingSphered bs = getBoundInWorldCoords(_usableMapExtent);
 
-    const FeatureProfile *featureProfile = _session->getFeatureSource()->getFeatureProfile();
+    const FeatureProfile *featureProfile =
+            _session->getFeatureSource()->getFeatureProfile();
 
     optional<float> maxRangeOverride;
 
-    if (_options.layout()->maxRange().isSet() || _options.maxRange().isSet() || _options.layout()->getNumLevels() == 0)
-    {
-        // select the max range either from the Layout or from the model layer options.
+    if (_options.layout()->maxRange().isSet() || _options.maxRange().isSet()) {
+        // select the max range either from the Layout or from the model layer
+        // options.
         float userMaxRange = FLT_MAX;
         if (_options.layout()->maxRange().isSet())
             userMaxRange = *_options.layout()->maxRange();
         if (_options.maxRange().isSet())
             userMaxRange = osg::minimum(userMaxRange, *_options.maxRange());
 
-        if (!featureProfile->getTiled())
-        {
-            // user set a max_range, but we'd not tiled. Just override the top level plod.
+        if (!featureProfile->getTiled()) {
+            // user set a max_range, but we'd not tiled. Just override the top level
+            // plod.
             maxRangeOverride = userMaxRange;
         }
     }
 
     // calculate the max range for the top-level PLOD:
-    // TODO: a user-specified maxRange is actually an altitude, so this is not strictly correct anymore!
-    _rootMaxRange =
+    // TODO: a user-specified maxRange is actually an altitude, so this is not
+    //       strictly correct anymore!
+    float maxRange =
             maxRangeOverride.isSet()
             ? *maxRangeOverride
-            : _rootBs.radius() * _options.layout()->tileSizeFactor().value();
+            : bs.radius() * _options.layout()->tileSizeFactor().value();
 
     // build the URI for the top-level paged LOD:
     std::string uri = s_makeURI(0, 0, 0);
@@ -1049,15 +591,11 @@ osg::Node *FeatureModelGraph::setupPaging()
     // bulid the top level node:
     osg::Node *topNode;
 
-    // build a PagedLOD if requested and if we are not embeding an image layer
-    // in the case of image layer, the pagedlod will be only created under the root node
-    if (options().layout()->paged() == true && ! getSession()->getImageLayer())
-    {
-        topNode = createPagedNode(_rootBs, uri, 0.0f, _rootMaxRange, _options.layout().get(), _sgCallbacks.get(),
+    if (options().layout()->paged() == true) {
+        topNode = createPagedNode(
+                    bs, uri, 0.0f, maxRange, _options.layout().get(), _sgCallbacks.get(),
                     _defaultFileLocationCallback.get(), getSession()->getDBOptions(), this);
-    }
-    else
-    {
+    } else {
         topNode = load(0, 0, 0, uri, getSession()->getDBOptions());
     }
 
@@ -1070,28 +608,23 @@ osg::Node *FeatureModelGraph::setupPaging()
  */
 osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
                                    const std::string &uri,
-                                   const osgDB::Options *readOptions,
-                                   unsigned minBand, unsigned maxBand)
-{
-    bool isMultiBand = minBand != 0;
-    std::string rgba = "";
-    if (isMultiBand) rgba = Stringify() << " b_" << minBand << "_" << maxBand;
-    OE_TEST << LC << "load " << lod << "_" << tileX << "_" << tileY << rgba << std::endl;
+                                   const osgDB::Options *readOptions) {
+    OE_TEST << LC << "load " << lod << "_" << tileX << "_" << tileY << std::endl;
 
     osg::Group *result = 0L;
 
-    if (_useTiledSource)
-    {
+    if (_useTiledSource) {
         // A "tiled" source has a pre-generted tile hierarchy, but no range
         // information. We will calcluate the LOD ranges here, as a function of the
         // tile radius and the "tile size factor" ... see below.
         osg::Group *geometry = 0L;
-        const FeatureProfile *featureProfile = _session->getFeatureSource()->getFeatureProfile();
+        const FeatureProfile *featureProfile =
+                _session->getFeatureSource()->getFeatureProfile();
 
-        if ((int)lod >= featureProfile->getFirstLevel())
-        {
+        if ((int)lod >= featureProfile->getFirstLevel()) {
             // The extent of this tile:
-            GeoExtent tileExtent = s_getTileExtent(lod, tileX, tileY, _usableFeatureExtent);
+            GeoExtent tileExtent =
+                    s_getTileExtent(lod, tileX, tileY, _usableFeatureExtent);
 
             // Calculate the bounds of this new tile:
             osg::BoundingSphered tileBound = getBoundInWorldCoords(tileExtent);
@@ -1118,42 +651,8 @@ osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
             int invertedTileY = h - tileY - 1;
 
             TileKey key(lod, tileX, invertedTileY, featureProfile->getProfile());
-            key.setBands(minBand, maxBand);
 
-            // Specific case where an image layer serves as input
-            if ( _session->getImageLayer() )
-            {
-                if ( lod != 0u )
-                {
-                    OE_WARN << LC << "Request for a LOD different from 0 is not allowed when embeding an image layer." << std::endl;
-                }
-
-                else if ( _session->getImageLayer()->getProfile() && _session->getImageLayer()->getProfile()->getSRS()
-                          && _session->styles() && _session->styles()->getDefaultStyle() )
-                {
-                    // case build of the top root node
-                    if (! key.hasBandsDefined() )
-                    {
-                        geometry = _factory->getOrCreateStyleGroup(*_session->styles()->getDefaultStyle(), _session.get());
-                        applyRenderSymbology(*_session->styles()->getDefaultStyle(), geometry);
-                        setupRootSGForImage( geometry, _session->getImageLayer(), key );
-                    }
-                    // case build of one image to bind on the sphere
-                    else
-                    {
-                        geometry = bindGeomWithImage( _session->getImageLayer(), key, nullptr );
-                        if ( ! geometry )
-                            OE_WARN << LC << "Error while binding image layer with geometry for key " << key.full_str() << std::endl;
-                    }
-                }
-            }
-
-            // build the geometry for this tile
-            else
-            {
-                geometry = buildTile(level, tileExtent, &key, readOptions);
-            }
-
+            geometry = buildTile(level, tileExtent, &key, readOptions);
             result = geometry;
         }
 
@@ -1167,13 +666,13 @@ osg::Node *FeatureModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY,
                 // only build sub-pagedlods if we are expecting subtiles at some point:
                 if (geometry != 0L || (int)lod < featureProfile->getFirstLevel()) {
                     buildSubTilePagedLODs(lod, tileX, tileY, group.get(), readOptions);
-                    if (geometry) group->addChild(geometry);
+                    group->addChild(geometry);
                 }
 
                 result = group.release();
             }
         }
-    } // end _useTiledSource
+    }
 
     else if (!_options.layout().isSet() ||
              _options.layout()->getNumLevels() == 0) {
@@ -1318,7 +817,7 @@ void FeatureModelGraph::buildSubTilePagedLODs(
 
                     PagedLODwithVisibilityAltitude *pagedChildNode =
                             dynamic_cast<PagedLODwithVisibilityAltitude *>(childNode);
-                    if (pagedChildNode && flevel->maxVisibilityAltitude().isSet())
+                    if (pagedChildNode)
                         pagedChildNode->setVisibilityMaxAltitude(
                                     flevel->maxVisibilityAltitude().get());
                 } else {

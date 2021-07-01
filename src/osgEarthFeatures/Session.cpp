@@ -197,15 +197,3 @@ Session::getFeatureSource() const
 { 
     return _featureSource.get(); 
 }
-
-void
-Session::setImageLayer(ImageLayer* il)
-{
-    _imageLayer = il;
-}
-
-ImageLayer*
-Session::getImageLayer() const
-{
-    return _imageLayer.get();
-}
