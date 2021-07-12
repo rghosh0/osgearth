@@ -48,9 +48,7 @@ VisibleLayerOptions::setDefaults()
     _minRange.init( 0.0 );
     _maxRange.init( FLT_MAX );
     _attenuationRange.init(0.0f);
-    _rangeMethod.init( SHADER );
     _blend.init( BLEND_INTERPOLATE );
-        
 }
 
 Config
@@ -62,8 +60,6 @@ VisibleLayerOptions::getConfig() const
     conf.set( "min_range", _minRange );
     conf.set( "max_range", _maxRange );
     conf.set( "attenuation_range", _attenuationRange );
-    conf.set( "rangeMethod", "shader", _rangeMethod, SHADER );
-    conf.set( "rangeMethod", "cull", _rangeMethod, CULL );
     conf.set( "blend", "interpolate", _blend, BLEND_INTERPOLATE );
     conf.set( "blend", "modulate", _blend, BLEND_MODULATE );
     return conf;
@@ -77,8 +73,6 @@ VisibleLayerOptions::fromConfig(const Config& conf)
     conf.get( "min_range", _minRange );
     conf.get( "max_range", _maxRange );
     conf.get( "attenuation_range", _attenuationRange );
-    conf.get( "rangeMethod", "shader", _rangeMethod, SHADER );
-    conf.get( "rangeMethod", "cull", _rangeMethod, CULL );
     conf.get( "blend", "interpolate", _blend, BLEND_INTERPOLATE );
     conf.get( "blend", "modulate", _blend, BLEND_MODULATE );
 }

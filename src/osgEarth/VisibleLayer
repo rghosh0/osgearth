@@ -34,12 +34,6 @@ namespace osgEarth
             BLEND_INTERPOLATE,
             BLEND_MODULATE
         };
-        enum 
-        RangeMethod{
-            SHADER,
-            CULL
-        };
-        
 
     public:
         VisibleLayerOptions();
@@ -67,10 +61,6 @@ namespace osgEarth
         //! Distance (m) over which to ramp min and max range blending
         optional<float>& attenuationRange() { return _attenuationRange; }
         const optional<float>& attenuationRange() const { return _attenuationRange; }
-        
-        //! The method used to hide or show the layer 
-        optional<RangeMethod>& visibleRangeMethod() { return _rangeMethod; }
-        const optional<RangeMethod>& visibleRangeMethod() const { return _rangeMethod; }
 
         //! Blending function (default = interpolate)
         optional<Blend>& blend() { return _blend; }
@@ -89,7 +79,6 @@ namespace osgEarth
         optional<float> _maxRange;
         optional<float> _attenuationRange;
         optional<Blend> _blend;
-        optional<RangeMethod> _rangeMethod;
     };
 
 
