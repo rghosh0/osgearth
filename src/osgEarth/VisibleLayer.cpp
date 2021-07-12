@@ -19,12 +19,52 @@
 #include <osgEarth/VisibleLayer>
 #include <osgEarth/VirtualProgram>
 #include <osg/BlendFunc>
+#include <osgUtil/CullVisitor>
 
 using namespace osgEarth;
 
 #define LC "[VisibleLayer] Layer \"" << getName() << "\" "
 
 //------------------------------------------------------------------------
+
+
+
+struct CameraAltitudeCallback : public Layer::TraversalCallback
+{
+    explicit CameraAltitudeCallback(VisibleLayer * layer,float minAlt,float maxAlt) : _layer(layer),_minAlt(minAlt),_maxAlt(maxAlt) {}
+
+    void operator()(osg::Node* node, osg::NodeVisitor* nv) const
+    {
+        osgUtil::CullVisitor* cullVisitor = nv->asCullVisitor();
+        
+        osg::Camera* camera =  cullVisitor->getCurrentCamera();
+        osg::Node* layerNode = _layer->getNode();
+        if (camera != nullptr && layerNode != nullptr)
+        {
+            double cameraAltitude=0;
+            camera->getUserValue("altitude", cameraAltitude);
+            
+            
+            OE_WARN<<LC<<"minVisibilityAltitude"<<cameraAltitude<<_minAlt;
+            if( cameraAltitude < _minAlt )
+            {
+                layerNode->setNodeMask(0);
+            }
+            else if(_layer->options().visible().get())
+            {
+                layerNode->setNodeMask(~0);
+            }
+            
+        }
+         
+       traverse(node, nv);
+    }
+    VisibleLayer * _layer{nullptr};
+    float _minAlt{0};
+    float _maxAlt{FLT_MAX};
+    
+};
+
 
 VisibleLayerOptions::VisibleLayerOptions() :
 LayerOptions()
@@ -48,6 +88,7 @@ VisibleLayerOptions::setDefaults()
     _minRange.init( 0.0 );
     _maxRange.init( FLT_MAX );
     _attenuationRange.init(0.0f);
+    _minVisibilityAltitude.init( 0.0 );
     _blend.init( BLEND_INTERPOLATE );
 }
 
@@ -60,6 +101,7 @@ VisibleLayerOptions::getConfig() const
     conf.set( "min_range", _minRange );
     conf.set( "max_range", _maxRange );
     conf.set( "attenuation_range", _attenuationRange );
+    conf.set( "min_visibility_altitude", _minVisibilityAltitude );
     conf.set( "blend", "interpolate", _blend, BLEND_INTERPOLATE );
     conf.set( "blend", "modulate", _blend, BLEND_MODULATE );
     return conf;
@@ -73,6 +115,7 @@ VisibleLayerOptions::fromConfig(const Config& conf)
     conf.get( "min_range", _minRange );
     conf.get( "max_range", _maxRange );
     conf.get( "attenuation_range", _attenuationRange );
+    conf.get( "min_visibility_altitude", _minVisibilityAltitude );
     conf.get( "blend", "interpolate", _blend, BLEND_INTERPOLATE );
     conf.get( "blend", "modulate", _blend, BLEND_MODULATE );
 }
@@ -117,6 +160,12 @@ VisibleLayer::open()
     if (options().minVisibleRange().isSet() || options().maxVisibleRange().isSet())
     {
         initializeMinMaxRangeOpacity();
+    }
+    
+    if (options().minVisibilityAltitude().isSet())
+    {
+        OE_WARN<<LC<<"minVisibilityAltitude"<<options().minVisibilityAltitude().get();
+        setCullCallback(new CameraAltitudeCallback(this,options().minVisibilityAltitude().get(),FLT_MAX));
     }
 
     return Layer::open();

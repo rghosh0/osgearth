@@ -61,6 +61,11 @@ namespace osgEarth
         //! Distance (m) over which to ramp min and max range blending
         optional<float>& attenuationRange() { return _attenuationRange; }
         const optional<float>& attenuationRange() const { return _attenuationRange; }
+        
+        //! camera distance to the focal point ~altitude when the layer will dissapear
+        optional<float>& minVisibilityAltitude() { return _minVisibilityAltitude; }
+        const optional<float>& minVisibilityAltitude() const { return _minVisibilityAltitude; }
+        
 
         //! Blending function (default = interpolate)
         optional<Blend>& blend() { return _blend; }
@@ -78,6 +83,7 @@ namespace osgEarth
         optional<float> _minRange;
         optional<float> _maxRange;
         optional<float> _attenuationRange;
+        optional<float> _minVisibilityAltitude;
         optional<Blend> _blend;
     };
 
