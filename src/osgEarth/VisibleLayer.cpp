@@ -44,8 +44,6 @@ struct CameraAltitudeCallback : public Layer::TraversalCallback
             double cameraAltitude=0;
             camera->getUserValue("altitude", cameraAltitude);
             
-            
-            OE_WARN<<LC<<"minVisibilityAltitude"<<cameraAltitude<<_minAlt;
             if( cameraAltitude < _minAlt )
             {
                 layerNode->setNodeMask(0);
@@ -164,7 +162,6 @@ VisibleLayer::open()
     
     if (options().minVisibilityAltitude().isSet())
     {
-        OE_WARN<<LC<<"minVisibilityAltitude"<<options().minVisibilityAltitude().get();
         setCullCallback(new CameraAltitudeCallback(this,options().minVisibilityAltitude().get(),FLT_MAX));
     }
 
