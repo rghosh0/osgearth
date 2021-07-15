@@ -18,7 +18,9 @@
  */
 #include <osgEarth/ModelLayer>
 #include <osgEarth/GLUtils>
+#include <osgEarth/Utils>
 #include <osg/Depth>
+#include <osgUtil/CullVisitor>
 
 #define LC "[ModelLayer] Layer \"" << getName() << "\" "
 
@@ -68,6 +70,8 @@ ModelLayerOptions::getConfig() const
     conf.set( "name",           _name );
     conf.set( "lighting",       _lighting );
     conf.set( "mask_min_level", _maskMinLevel );
+    conf.set( "min_visibility_altitude", _minVisibilityAltitude );
+    conf.set( "max_visibility_altitude", _maxVisibilityAltitude );
 
     // Merge the MaskSource options
     if ( mask().isSet() )
@@ -84,6 +88,8 @@ ModelLayerOptions::fromConfig( const Config& conf )
 {
     conf.get( "lighting",       _lighting );
     conf.get( "mask_min_level", _maskMinLevel );
+    conf.get( "min_visibility_altitude", _minVisibilityAltitude );
+    conf.get( "max_visibility_altitude", _maxVisibilityAltitude );
 
     if ( conf.hasValue("driver") )
         driver() = ModelSourceOptions(conf);
@@ -285,7 +291,19 @@ ModelLayer::addedToMap(const Map* map)
                     _modelSource->getOptions().renderBin().get());
             }
 
-            _root->addChild(node.get());
+            // management of the min max visibility altitude
+            osg::ref_ptr<osg::Group> attachPoint = _root.get();
+            if (options().minVisibilityAltitude().isSet() || options().maxVisibilityAltitude().isSet())
+            {
+                // we handle the min max logic by a cull callback in a new node
+                // to avoid conflicts with any callback managed at VisibleLayer::getNode() level
+                osg::Group* minMaxGroup = new osg::Group();
+                minMaxGroup->addCullCallback( new osgEarth::MinMaxRangeCullCallback(options().minVisibilityAltitude().getOrUse(0.),
+                                                                         options().maxVisibilityAltitude().getOrUse(DBL_MAX)) );
+                _root->addChild(minMaxGroup);
+                attachPoint = minMaxGroup;
+            }
+            attachPoint->addChild(node.get());
         }
     }
 }

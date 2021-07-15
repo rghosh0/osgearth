@@ -79,6 +79,17 @@ namespace osgEarth
         optional<unsigned>& maskMinLevel() { return _maskMinLevel; }
         const optional<unsigned>& maskMinLevel() const { return _maskMinLevel; }
 
+        /**
+         * Minimum camera range above which the layer hidden
+         */
+        optional<double>& minVisibilityAltitude() { return _minVisibilityAltitude; }
+        const optional<double>& minVisibilityAltitude() const { return _minVisibilityAltitude; }
+
+        /**
+         * Maximum camera range below which the layer hidden
+         */
+        optional<double>& maxVisibilityAltitude() { return _maxVisibilityAltitude; }
+        const optional<double>& maxVisibilityAltitude() const { return _maxVisibilityAltitude; }
 
     public:
         virtual Config getConfig() const;
@@ -94,6 +105,8 @@ namespace osgEarth
         optional<unsigned>           _maskMinLevel;
         optional<CachePolicy>        _cachePolicy;
         optional<std::string>        _cacheId;
+        optional<double>             _minVisibilityAltitude;
+        optional<double>             _maxVisibilityAltitude;
     };
 
     struct ModelLayerCallback : public VisibleLayerCallback

@@ -394,6 +394,27 @@ SetDataVarianceVisitor::apply(osg::Drawable& drawable)
 //-----------------------------------------------------------------------------
 
 #undef  LC
+#define LC "[MinMaxRangeCullCallback] "
+
+MinMaxRangeCullCallback::MinMaxRangeCullCallback(double minRange, double maxRange) :
+    _minCamRange(minRange), _maxCamRange(maxRange) { }
+
+void MinMaxRangeCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
+{
+    osgUtil::CullVisitor* cullVisitor = nv->asCullVisitor();
+    if (cullVisitor && cullVisitor->getCurrentCamera()->getUserValue("altitude", _curCamRange))
+    {
+        // only traverse if in the range
+        if (_curCamRange > _minCamRange && _curCamRange < _maxCamRange)
+        {
+            traverse(node, nv);
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+
+#undef  LC
 #define LC "[GeometryValidator] "
 
 namespace

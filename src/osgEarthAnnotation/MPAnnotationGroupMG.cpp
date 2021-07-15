@@ -76,7 +76,7 @@ public:
                         if (osg::maximum(ssld->_cull_bboxSymOnScreen.xMin(), vpXmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.xMax(), vpXmax) ||
                             osg::maximum(ssld->_cull_bboxSymOnScreen.yMin(), vpYmin) > osg::minimum(ssld->_cull_bboxSymOnScreen.yMax(), vpYmax) )
                         {
-                            for (auto iAnno : anno.second)
+                            for (auto& iAnno : anno.second)
                                 annoGroup->getChild(iAnno.index)->setNodeMask(0);
                             continue;
                         }
@@ -91,7 +91,7 @@ public:
                         ssld->_cull_rotationRadOnScreen = atan2(anchorToProj.y(), anchorToProj.x());
                     }
 
-                    for (auto iAnno : anno.second)
+                    for (auto& iAnno : anno.second)
                     {
                         if (iAnno.type == MPAnnotationGroupMG::BboxGroup)
                         {
@@ -105,7 +105,6 @@ public:
                         {
                             annoGroup->getChild(iAnno.index)->setNodeMask(alt < iAnno.minRange ? ( iAnno.isVisible ? nodeNoMask : 0 ) : 0);
                         }
-                        
                      }
                 }
             }

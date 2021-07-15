@@ -139,6 +139,21 @@ namespace osgEarth
     };
 
     /**
+     * Callback to cull one node when out of given altitudes.
+     */
+    class MinMaxRangeCullCallback : public osg::NodeCallback
+    {
+    public:
+        MinMaxRangeCullCallback(double minRange, double maxRange = DBL_MAX);
+        void operator()(osg::Node* node, osg::NodeVisitor* nv);
+
+    protected:
+        double _minCamRange{0.};
+        double _maxCamRange{DBL_MAX};
+        double _curCamRange{0.};
+    };
+
+    /**
      * Scans geometry and validates that it's set up properly.
      */    
     struct OSGEARTH_EXPORT GeometryValidator : public osg::NodeVisitor
