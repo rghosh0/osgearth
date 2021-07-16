@@ -1910,6 +1910,7 @@ public:
 
         int tileSize = getPixelsPerTile(); //_options.tileSize().value();
 
+
         bool isChannelBandComposition = key.hasBandsDefined() &&
                 _options.colorRamp().isSet() && ! _options.colorRamp()->ramps().empty();
         bool isCoverage = _options.coverage().isSetTo(true);
@@ -2090,7 +2091,7 @@ public:
             // at least one band must be defined
             if (bands.empty())
             {
-                OE_WARN << LC << "No bands defined for tile key " << key.full_str() << "\n";
+                OE_WARN << LC << "No bands defined for tile key " << key.str() << "\n";
                 return nullptr;
             }
 

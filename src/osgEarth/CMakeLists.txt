@@ -224,6 +224,7 @@ SET(LIB_PUBLIC_HEADERS
     VisibleLayer
     XmlUtils
 	
+    TileBandKey
     MPScreenSpaceLayout
     MPScreenSpaceLayoutSG
     RasterToModelLayer
@@ -398,6 +399,7 @@ set(TARGET_SRC
     VisibleLayer.cpp
     XmlUtils.cpp
 	
+    TileBandKey.cpp
     MPScreenSpaceLayout.cpp
     MPScreenSpaceLayoutSG.cpp
     RasterToModelLayer.cpp

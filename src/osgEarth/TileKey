@@ -38,7 +38,7 @@ namespace osgEarth
         /**
          * Constructs an invalid TileKey.
          */
-        TileKey() : _lod(0), _x(0), _y(0), _firstBand(0), _lastBand(0) { }
+        TileKey() : _lod(0), _x(0), _y(0) { }
 
         /**
          * Creates a new TileKey with the given tile xy at the specified level of detail
@@ -61,9 +61,6 @@ namespace osgEarth
         /** Copy constructor. */
         TileKey( const TileKey& rhs );
 
-        /** Set the bands for this tile key **/
-        void setBands( unsigned int firstBand, unsigned int lastBand );
-
         /** dtor */
         virtual ~TileKey() { }
 
@@ -72,7 +69,6 @@ namespace osgEarth
             return
                 valid() && rhs.valid() && 
                 _lod==rhs._lod && _x==rhs._x && _y==rhs._y && 
-                _firstBand==rhs._firstBand && _lastBand==rhs._lastBand &&
                 _profile->isHorizEquivalentTo(rhs._profile.get());
         }
 
@@ -87,11 +83,7 @@ namespace osgEarth
             if (_lod > rhs._lod) return false;
             if (_x < rhs._x) return true;
             if (_x > rhs._x) return false;
-            if (_y < rhs._y) return true;
-            if (_y > rhs._y) return false;
-            if (_firstBand < rhs._firstBand) return true;
-            if (_firstBand > rhs._firstBand) return false;
-            return _lastBand < rhs._lastBand;
+            return _y < rhs._y;
         }
 
         /**
@@ -106,12 +98,6 @@ namespace osgEarth
         const std::string& str() const { return _key; }
 
         /**
-         * Gets the full string representation of the key, formatted like:
-         * "lod_x_y_r_g_b_a"
-         */
-        const std::string& full_str() const { return _keyFull; }
-
-        /**
          * Gets the profile within which this key is interpreted.
          */
         const osgEarth::Profile* getProfile() const;
@@ -122,14 +108,21 @@ namespace osgEarth
         bool valid() const { return _profile.valid(); }
 
         /**
-         * Whether this tile key defines the bands.
-         */
-        bool hasBandsDefined() const { return _firstBand > 0; }
-
-        /**
          * Get the quadrant relative to this key's parent.
          */
         unsigned getQuadrant() const;
+
+        /**
+         * Whether this tile key defines raster bands.
+         */
+        virtual bool hasBandsDefined() const { return false; }
+
+        /**
+         * Gets the min/max bands for this tile.
+         */
+        virtual void getTileBands(
+            unsigned int& out_tile_first_band,
+            unsigned int& out_tile_last_band) const { return; }
 
     public:
         /**
@@ -137,11 +130,6 @@ namespace osgEarth
          * quadrant (0, 1, 2, or 3).
          */
         TileKey createChildKey( unsigned int quadrant ) const;
-
-        /**
-         * Shift all bands to the new available
-         */
-        void setupNextAvailableBands(unsigned int nbBands, unsigned int maxBandsPerTile = 4);
 
         /**
          * Creates and returns a key that represents the parent tile of this key.
@@ -170,7 +158,8 @@ namespace osgEarth
         /**
          * Gets the geospatial extents of the tile represented by this key.
          */
-        const GeoExtent& getExtent() const { return _extent; }
+        const GeoExtent& getExtent() const {
+            return _extent; }
 
         /**
          * Gets the extents of this key's tile, in pixels
@@ -188,13 +177,6 @@ namespace osgEarth
         void getTileXY(
             unsigned int& out_tile_x,
             unsigned int& out_tile_y) const;
-
-        /**
-         * Gets the RGBA bands for this tile.
-         */
-        void getTileBands(
-            unsigned int& out_tile_first_band,
-            unsigned int& out_tile_last_band) const;
 
         unsigned int getTileX() const { return _x; }
         unsigned int getTileY() const { return _y; }
@@ -221,12 +203,9 @@ namespace osgEarth
 
     protected:
         std::string _key;
-        std::string _keyFull;
         unsigned int _lod;
         unsigned int _x;
         unsigned int _y;
-        unsigned int _firstBand;
-        unsigned int _lastBand;
         osg::ref_ptr<const Profile> _profile;
         GeoExtent _extent;
     };

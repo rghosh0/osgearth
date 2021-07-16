@@ -24,6 +24,7 @@
 #include <osgEarth/NodeUtils>
 #include <osgEarth/ThreadingUtils>
 #include <osgEarth/SceneGraphCallback>
+#include <osgEarth/TileBandKey>
 #include <osgDB/Callbacks>
 #include <osg/Node>
 #include <set>
@@ -65,8 +66,8 @@ namespace osgEarth
         /** The I/O options for operations within this graph */
         const osgDB::Options* getDBOptions() const;
 
-        osg::Group* createRoot(const TileKey& key );
-        osg::Group* bindGeomWithImage( const TileKey& key, ProgressCallback* progress );
+        osg::Group* createRoot(const TileBandKey& key );
+        osg::Group* bindGeomWithImage( const TileBandKey& key, ProgressCallback* progress );
 
     private:
 

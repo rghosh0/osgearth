@@ -1,0 +1,125 @@
+/* -*-c++-*- */
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
+ * http://osgearth.org
+ *
+ * osgEarth is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+
+#ifndef OSGEARTH_TILE_BAND_KEY_H
+#define OSGEARTH_TILE_BAND_KEY_H 1
+
+#include <osgEarth/TileKey>
+
+namespace osgEarth
+{
+    /**
+     * A TileBandKey is a TileKey with bands information to handle multiband rasters.
+     */
+    class OSGEARTH_EXPORT TileBandKey : public TileKey
+    {
+    public:     
+        /**
+         * Constructs an invalid TileKey.
+         */
+        TileBandKey() : TileKey(), _firstBand(0), _lastBand(0) { }
+
+        /**
+         * Creates a new TileKey with the given tile xy at the specified level of detail
+         * 
+         * @param lod
+         *       The level of detail (subdivision recursion level) of the tile
+         * @param tile_x
+         *       The x index of the tile
+         * @param tile_y
+         *       The y index of the tile
+         * @param first_band
+         *       The first band handled by this tile
+         * @param last_band
+         *       The last band handled by this tile
+         * @param profile
+         *       The profile for the tile
+         */
+        TileBandKey(
+            unsigned int lod,
+            unsigned int tile_x,
+            unsigned int tile_y,
+            unsigned int first_band,
+            unsigned int last_band,
+            const Profile* profile );
+
+        /** Copy constructor. */
+        TileBandKey( const TileBandKey& rhs );
+
+        /** dtor */
+        virtual ~TileBandKey() { }
+
+        /** Compare two TileBandKey for equality. */
+        bool operator == (const TileBandKey& rhs) const {
+            return TileKey::operator==(rhs)
+                && _firstBand==rhs._firstBand && _lastBand==rhs._lastBand;
+        }
+
+        /** Compare two TileBandKey for inequality */
+        bool operator != (const TileBandKey& rhs) const {
+            return !(*this == rhs);
+        }
+
+        /** Sorts tilekeys, ignoring profiles */
+        bool operator < (const TileBandKey& rhs) const {
+            if (_lod < rhs._lod) return true;
+            if (_lod > rhs._lod) return false;
+            if (_x < rhs._x) return true;
+            if (_x > rhs._x) return false;
+            if (_y < rhs._y) return true;
+            if (_y > rhs._y) return false;
+            if (_firstBand < rhs._firstBand) return true;
+            if (_firstBand > rhs._firstBand) return false;
+            return _lastBand < rhs._lastBand;
+        }
+
+        /**
+         * Canonical invalid tile key.
+         */
+        static TileBandKey INVALID;
+
+        /**
+         * Whether this tile key defines raster bands.
+         */
+        virtual bool hasBandsDefined() const override { return _firstBand > 0; }
+
+    public:
+
+        /**
+         * Shift all bands to the new available
+         */
+        void setupNextAvailableBands(unsigned int nbBands, unsigned int maxBandsPerTile = 4);
+
+        /**
+         * Gets the min/max bands for this tile.
+         */
+        virtual void getTileBands(
+            unsigned int& out_tile_first_band,
+            unsigned int& out_tile_last_band) const override;
+
+    protected:
+
+        void makeKey();
+
+        unsigned int _firstBand;
+        unsigned int _lastBand;
+    };
+}
+
+#endif // OSGEARTH_TILE_BAND_KEY_H

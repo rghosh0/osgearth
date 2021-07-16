@@ -152,7 +152,7 @@ REGISTER_OSGPLUGIN(osgearth_pseudo_rtmg, osgEarthRasterToModelPseudoLoader);
 
 namespace {
 
-    std::string makeCacheKey(const GeoExtent &extent, const TileKey *key)
+    std::string makeCacheKey(const GeoExtent &extent, const TileBandKey *key)
     {
         if (key)
         {
@@ -233,10 +233,10 @@ namespace {
     // stores information about the bands range that a given texture will handle and associated utils method
     struct BandsInformation : public osg::Referenced
     {
-        BandsInformation( const TileKey& tileKey, unsigned int maxBandsPerTile = 4 ) :
+        BandsInformation( const TileBandKey& TileBandKey, unsigned int maxBandsPerTile = 4 ) :
             _maxBandsPerTile(maxBandsPerTile)
         {
-            tileKey.getTileBands(_minBand, _maxBand);
+            TileBandKey.getTileBands(_minBand, _maxBand);
             _maxBandsPerChannel = maxBandsPerTile / 4;
         }
 
@@ -500,7 +500,7 @@ VirtualProgram* createProgramForImageBinding( const TileSource* source )
 
 
 // setup the root scenegraph
-osg::Group* RasterToModelGraph::createRoot( const TileKey& key )
+osg::Group* RasterToModelGraph::createRoot( const TileBandKey& key )
 {
     // expected pre conditions
     unsigned int bandNumber = _imageLayer->getTileSource()->getBandsNumber();
@@ -522,7 +522,7 @@ osg::Group* RasterToModelGraph::createRoot( const TileKey& key )
     // then build one pagedLOD or grounp per possible texture (each texture holds many bands defined in 'maxBandsPerTile')
     GroupMultiBands* groupMultiBands = new GroupMultiBands();
     unsigned defaultBand = _options.imageBand().getOrUse(0);
-    TileKey keyTmp(key);
+    TileBandKey keyTmp(key);
     keyTmp.setupNextAvailableBands(bandNumber, maxBandsPerTile);
     while (keyTmp.hasBandsDefined())
     {
@@ -609,7 +609,7 @@ osg::Group* RasterToModelGraph::createRoot( const TileKey& key )
 }
 
 // setup the image as a texture and bind it the to sphere
-osg::Group* RasterToModelGraph::bindGeomWithImage(const TileKey& key, ProgressCallback* progress )
+osg::Group* RasterToModelGraph::bindGeomWithImage(const TileBandKey& key, ProgressCallback* progress )
 {
     if (! _imageLayer.valid() || ! _imageLayer->getProfile() || ! _imageLayer->getTileSource())
         return nullptr;
@@ -774,8 +774,7 @@ osg::Node *RasterToModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY
     osg::Group *result = nullptr;
     bool isRootLoad    = false;
     osg::Group *geometry = nullptr;
-    TileKey key(0, tileX, tileY, _imageLayer->getProfile());
-    key.setBands(minBand, maxBand);
+    TileBandKey key(0, tileX, tileY, minBand, maxBand, _imageLayer->getProfile());
 
     // case build of the top root node
     if (! key.hasBandsDefined() )
@@ -789,7 +788,7 @@ osg::Node *RasterToModelGraph::load(unsigned lod, unsigned tileX, unsigned tileY
     {
         geometry = bindGeomWithImage( key, nullptr );
         if ( ! geometry )
-            OE_WARN << LC << "Error while binding image layer with geometry for key " << key.full_str() << std::endl;
+            OE_WARN << LC << "Error while binding image layer with geometry for key " << key.str() << std::endl;
     }
 
     result = geometry;

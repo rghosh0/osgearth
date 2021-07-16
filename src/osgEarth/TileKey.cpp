@@ -47,39 +47,23 @@ TileKey::TileKey(unsigned int lod, unsigned int tile_x, unsigned int tile_y, con
         _extent = GeoExtent( _profile->getSRS(), xmin, ymin, xmax, ymax );
 
         _key = Stringify() << _lod << "/" << _x << "/" << _y;
-        setBands( 0, 0 );
     }
     else
     {
         _extent = GeoExtent::INVALID;
         _key = "invalid";
-        _keyFull = "invalid";
     }
 }
 
 TileKey::TileKey( const TileKey& rhs ) :
 _key( rhs._key ),
-_keyFull( rhs._keyFull ),
 _lod(rhs._lod),
 _x(rhs._x),
 _y(rhs._y),
-_firstBand(rhs._firstBand),
-_lastBand(rhs._lastBand),
 _profile( rhs._profile.get() ),
 _extent( rhs._extent )
 {
     //NOP
-}
-
-
-void
-TileKey::setBands(unsigned int firstBand, unsigned int lastBand)
-{
-    _firstBand = firstBand;
-    _lastBand = lastBand;
-
-    _keyFull = Stringify() << _lod << "/" << _x << "/" << _y << "/"
-                       << _firstBand << "/" << _lastBand;
 }
 
 const Profile*
@@ -94,14 +78,6 @@ TileKey::getTileXY(unsigned int& out_tile_x,
 {
     out_tile_x = _x;
     out_tile_y = _y;
-}
-
-void
-TileKey::getTileBands(unsigned int& out_tile_first_band,
-                      unsigned int& out_tile_last_band) const
-{
-    out_tile_first_band = _firstBand;
-    out_tile_last_band = _lastBand;
 }
 
 unsigned
@@ -153,23 +129,6 @@ TileKey::createChildKey( unsigned int quadrant ) const
     return TileKey( lod, x, y, _profile.get());
 }
 
-void
-TileKey::setupNextAvailableBands( unsigned int nbBands, unsigned int maxBandsPerTile )
-{
-    // check if last band of the tile is also the last band of the raster
-    if ( _lastBand == nbBands )
-    {
-        setBands( 0, 0 );
-    }
-
-    // setup the next bands
-    else
-    {
-        unsigned int firstBand = _lastBand+1;
-        unsigned int lastBand = osg::minimum(firstBand+maxBandsPerTile-1, nbBands);
-        setBands( firstBand, lastBand );
-    }
-}
 
 TileKey
 TileKey::createParentKey() const

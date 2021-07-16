@@ -324,7 +324,7 @@ TileSource::createImage(const TileKey&        key,
     // Try to get it from the memcache fist
     if (_memCache.valid())
     {
-        ReadResult r = _memCache->getOrCreateDefaultBin()->readImage(key.full_str(), 0L);
+        ReadResult r = _memCache->getOrCreateDefaultBin()->readImage(key.str(), 0L);
         if ( r.succeeded() )
             return r.releaseImage();
     }
@@ -346,7 +346,7 @@ TileSource::createImage(const TileKey&        key,
     // Cache to the L2 cache:
     if ( newImage.valid() && _memCache.valid() )
     {
-        _memCache->getOrCreateDefaultBin()->write(key.full_str(), newImage.get(), 0L);
+        _memCache->getOrCreateDefaultBin()->write(key.str(), newImage.get(), 0L);
     }
 
     return newImage.release();
@@ -363,7 +363,7 @@ TileSource::createHeightField(const TileKey&        key,
     // Try to get it from the memcache first:
     if (_memCache.valid())
     {
-        ReadResult r = _memCache->getOrCreateDefaultBin()->readObject(key.full_str(), 0L);
+        ReadResult r = _memCache->getOrCreateDefaultBin()->readObject(key.str(), 0L);
         if ( r.succeeded() )
         {
             return r.release<osg::HeightField>();
@@ -385,7 +385,7 @@ TileSource::createHeightField(const TileKey&        key,
 
     if ( newHF.valid() && _memCache.valid() )
     {
-        _memCache->getOrCreateDefaultBin()->write(key.full_str(), newHF.get(), 0L);
+        _memCache->getOrCreateDefaultBin()->write(key.str(), newHF.get(), 0L);
     }
 
     return newHF.release();

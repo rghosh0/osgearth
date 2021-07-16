@@ -806,16 +806,6 @@ Profile::getIntersectingTiles(const TileKey& key, std::vector<TileKey>& out_inte
         unsigned localLOD = getEquivalentLOD(key.getProfile(), key.getLOD());
         getIntersectingTiles(key.getExtent(), localLOD, out_intersectingKeys);
 
-        // copy the bands number if necessary
-        if ( key.hasBandsDefined() )
-        {
-            unsigned int bmin, bmax;
-            bmin = bmax = 0u;
-            key.getTileBands(bmin, bmax);
-            for ( auto& outKey : out_intersectingKeys )
-                outKey.setBands( bmin, bmax );
-        }
-
         OE_DEBUG << LC << "GIT, key="<< key.str() << ", localLOD=" << localLOD
             << ", resulted in " << out_intersectingKeys.size() << " tiles" << std::endl;
     }
