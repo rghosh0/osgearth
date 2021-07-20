@@ -100,10 +100,5 @@ Symbol::getConfig() const
 bool
 Symbol::match(const std::string& s, const char* reservedWord)
 {
-    if ( s.compare(reservedWord) == 0 ) return true;
-    //if ( s == reservedWord ) return true;
-    std::string temp1 = toLower(s), temp2 = toLower(reservedWord);
-    replaceIn(temp1, "_", "-");
-    replaceIn(temp2, "_", "-");
-    return temp1.compare(temp2) == 0;
+    return s.compare(reservedWord) == 0;
 }

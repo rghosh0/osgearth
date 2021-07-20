@@ -46,7 +46,12 @@ TileKey::TileKey(unsigned int lod, unsigned int tile_x, unsigned int tile_y, con
 
         _extent = GeoExtent( _profile->getSRS(), xmin, ymin, xmax, ymax );
 
-        _key = Stringify() << _lod << "/" << _x << "/" << _y;
+        // don't use Stringify(), it is too slow (following lines are optimized and tested)
+        _key = std::to_string(_lod);
+        _key += "/";
+        _key += std::to_string(_x);
+        _key += "/";
+        _key += std::to_string(_y);
     }
     else
     {

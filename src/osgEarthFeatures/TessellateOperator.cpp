@@ -24,6 +24,11 @@ using namespace osgEarth;
 using namespace osgEarth::Features;
 using namespace osgEarth::Symbology;
 
+
+namespace  {
+    osg::ref_ptr<const osgEarth::SpatialReference> srsRef = SpatialReference::get("wgs84");
+}
+
 //------------------------------------------------------------------------
 
 void 
@@ -45,8 +50,8 @@ TessellateOperator::tessellateGeo( const osg::Vec3d& p0, const osg::Vec3d& p1, u
 
     out.push_back( p0 );
 
-    GeoPoint beg(SpatialReference::get("wgs84"), p0);
-    GeoPoint end(SpatialReference::get("wgs84"), p1);
+    GeoPoint beg(srsRef.get(), p0);
+    GeoPoint end(srsRef.get(), p1);
 
     for( unsigned i=1; i<parts; ++i )
     {
@@ -93,7 +98,7 @@ TessellateOperator::TessellateOperator() :
 _numPartitions( 20 ),
 _defaultInterp( GEOINTERP_GREAT_CIRCLE )
 {
-    //nop
+    // NOP
 }
 
 void
@@ -112,7 +117,6 @@ TessellateOperator::operator()( Feature* feature, FilterContext& context ) const
     GeoInterpolation geoInterp = feature->geoInterp().isSet() ? *feature->geoInterp() : _defaultInterp;
 
     double sliceSize = 0.0;
-    int    numPartitions = _numPartitions;
 
     if ( _maxDistance.isSet() )
     {
@@ -131,7 +135,6 @@ TessellateOperator::operator()( Feature* feature, FilterContext& context ) const
         {
             unsigned slices = _numPartitions;
 
-            const osg::Vec3d& p0 = *v;
             if ( v != g->end()-1 ) // not last vert
             {
                 // calculate slice count

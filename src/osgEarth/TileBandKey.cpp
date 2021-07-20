@@ -30,8 +30,16 @@ TileBandKey TileBandKey::INVALID( 0, 0, 0, 0, 0, 0L );
 void
 TileBandKey::makeKey()
 {
-    _key = Stringify() << _lod << "/" << _x << "/" << _y << "/"
-                       << _firstBand << "/" << _lastBand;
+    // don't use Stringify(), it is too slow (following lines are optimized and tested)
+    _key = std::to_string(_lod);
+    _key += "/";
+    _key += std::to_string(_x);
+    _key += "/";
+    _key += std::to_string(_y);
+    _key += "/";
+    _key += std::to_string(_firstBand);
+    _key += "/";
+    _key += std::to_string(_lastBand);
 }
 
 TileBandKey::TileBandKey(unsigned int lod, unsigned int tile_x, unsigned int tile_y,
