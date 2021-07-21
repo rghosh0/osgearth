@@ -57,6 +57,14 @@ namespace osgEarth { namespace Features
             unsigned                 parts, 
             GeoInterpolation         interp,
             std::vector<osg::Vec3d>& out );
+        
+        static void tessellateGeo( 
+            const osg::Vec3d&        p0, 
+            const osg::Vec3d&        p1, 
+            unsigned                 parts, 
+            GeoInterpolation         interp,
+            const osgEarth::SpatialReference* srsRef,
+            std::vector<osg::Vec3d>& out );
 
     public:
         /**

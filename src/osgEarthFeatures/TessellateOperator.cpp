@@ -25,10 +25,6 @@ using namespace osgEarth::Features;
 using namespace osgEarth::Symbology;
 
 
-namespace  {
-    osg::ref_ptr<const osgEarth::SpatialReference> srsRef = SpatialReference::get("wgs84");
-}
-
 //------------------------------------------------------------------------
 
 void 
@@ -45,13 +41,19 @@ TessellateOperator::tessellateLinear( const osg::Vec3d& p0, const osg::Vec3d& p1
 void 
 TessellateOperator::tessellateGeo( const osg::Vec3d& p0, const osg::Vec3d& p1, unsigned parts, GeoInterpolation interp, Vec3dVector& out )
 {
+    tessellateGeo( p0, p1, parts, interp, SpatialReference::get("wgs84"), out );
+}
+
+void 
+TessellateOperator::tessellateGeo( const osg::Vec3d& p0, const osg::Vec3d& p1, unsigned parts, GeoInterpolation interp, const osgEarth::SpatialReference* srsRef, Vec3dVector& out )
+{
     double step = 1.0/double(parts);
     double zdelta = p1.z() - p0.z();
 
     out.push_back( p0 );
 
-    GeoPoint beg(srsRef.get(), p0);
-    GeoPoint end(srsRef.get(), p1);
+    GeoPoint beg(srsRef, p0);
+    GeoPoint end(srsRef, p1);
 
     for( unsigned i=1; i<parts; ++i )
     {
@@ -115,6 +117,7 @@ TessellateOperator::operator()( Feature* feature, FilterContext& context ) const
     Units featureUnits = feature->getSRS() ? feature->getSRS()->getUnits() : Units::METERS;
     bool isGeo = feature->getSRS() ? feature->getSRS()->isGeographic() : false;
     GeoInterpolation geoInterp = feature->geoInterp().isSet() ? *feature->geoInterp() : _defaultInterp;
+    const osgEarth::SpatialReference* srsRef = SpatialReference::get("wgs84");
 
     double sliceSize = 0.0;
 
@@ -145,7 +148,7 @@ TessellateOperator::operator()( Feature* feature, FilterContext& context ) const
                 }
 
                 if ( isGeo )
-                    tessellateGeo( *v, *(v+1), slices, geoInterp, newVerts );
+                    tessellateGeo( *v, *(v+1), slices, geoInterp, srsRef, newVerts );
                 else
                     tessellateLinear( *v, *(v+1), slices, newVerts );
             }
@@ -159,7 +162,7 @@ TessellateOperator::operator()( Feature* feature, FilterContext& context ) const
                 }
 
                 if ( isGeo )
-                    tessellateGeo( *v, *g->begin(), slices, geoInterp, newVerts );
+                    tessellateGeo( *v, *g->begin(), slices, geoInterp, srsRef, newVerts );
                 else
                     tessellateLinear( *v, *g->begin(), slices, newVerts );
             }
