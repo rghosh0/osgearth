@@ -25,6 +25,7 @@
 #include <osgEarthFeatures/BufferFilter>
 #include <osgEarthFeatures/ScaleFilter>
 #include <osgEarthFeatures/GeometryUtils>
+#include <osgEarthSymbology/GeometryFactory>
 #include "OGRFeatureOptions"
 #include "FeatureCursorOGR"
 #include <osgEarthFeatures/OgrUtils>
@@ -141,6 +142,12 @@ public:
             _options.geometryUrl().isSet() ? parseGeometryUrl(*_options.geometryUrl(), dbOptions) :
             0L;
 
+        // ...or inline circle geometry
+        if (! _geometry.valid() && _options.geometryCircle().isSet())
+        {
+            _geometry = parseCircle(*_options.geometryCircle());
+        }
+
         // If nothing was set, we're done
         if (_source.empty() && !_geometry.valid())
         {
@@ -217,6 +224,12 @@ public:
             _options.geometryConfig().isSet() ? parseGeometry( *_options.geometryConfig() ) :
             _options.geometryUrl().isSet()    ? parseGeometryUrl( *_options.geometryUrl(), dbOptions ) :
             0L;
+
+        // ...or inline circle geometry
+        if (! _geometry.valid() && _options.geometryCircle().isSet())
+        {
+            _geometry = parseCircle(*_options.geometryCircle());
+        }
 
         // If nothing was set, we're done
         if (_source.empty() && !_geometry.valid())
@@ -612,6 +625,25 @@ protected:
             Config conf( "geometry", r.getString() );
             return parseGeometry( conf );
         }
+        return 0L;
+    }
+
+    // build a circle.
+    Symbology::Geometry* parseCircle( const CircleOptions& circleOpt )
+    {
+        osg::ref_ptr<Geometry> center;
+        if (circleOpt.centerWKT().isSet())
+        {
+            center = GeometryUtils::geometryFromWKT(*circleOpt.centerWKT());
+        }
+
+        if (center.valid() && circleOpt.radius().isSet())
+        {
+            osgEarth::Symbology::GeometryFactory factory(SpatialReference::create("wgs84"));
+            unsigned int numSegments = circleOpt.numSegments().getOrUse(0u);
+            return factory.createCircle(center->getCentroid(), *circleOpt.radius(), numSegments);
+        }
+
         return 0L;
     }
 

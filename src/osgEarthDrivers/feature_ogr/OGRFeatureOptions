@@ -27,6 +27,48 @@ namespace osgEarth { namespace Drivers
     using namespace osgEarth;
     using namespace osgEarth::Features;
 
+    /**
+     * Option for defining a circle shape.
+     */
+    class CircleOptions : public ConfigOptions // NO EXPORT; header only
+    {
+    public:
+        META_ConfigOptions(osgearth_feature_ogr, CircleOptions, ConfigOptions);
+
+        /** center of the circle. */
+        optional<std::string>& centerWKT() { return _centerWKT; }
+        const optional<std::string>& centerWKT() const { return _centerWKT; }
+
+        /** radius of the circle. */
+        optional<Distance>& radius() { return _radius; }
+        const optional<Distance>& radius() const { return _radius; }
+
+        /** the number of segment to tesselate the circle. */
+        optional<unsigned int>& numSegments() { return _numSegments; }
+        const optional<unsigned int>& numSegments() const { return _numSegments; }
+
+        virtual Config getConfig() const override
+        {
+            Config conf = ConfigOptions::getConfig();
+            conf.set("center", _centerWKT);
+            conf.set("radius", _radius);
+            conf.set("num_segments", _numSegments);
+            return conf;
+        }
+
+    private:
+        void fromConfig(const Config& conf)
+        {
+            conf.get("center", _centerWKT);
+            conf.get("radius", _radius);
+            conf.get("num_segments", _numSegments);
+        }
+
+        optional<std::string>  _centerWKT;
+        optional<Distance>     _radius;
+        optional<unsigned int> _numSegments;
+    };
+
     class OGRFeatureOptions : public FeatureSourceOptions // NO EXPORT; header only
     {
     public:
@@ -47,6 +89,9 @@ namespace osgEarth { namespace Drivers
 
         optional<Config>& geometryConfig() { return _geometryConf; }
         const optional<Config>& geometryConfig() const { return _geometryConf; }
+
+        optional<CircleOptions>& geometryCircle() { return _geometryCircle; }
+        const optional<CircleOptions>& geometryCircle() const { return _geometryCircle; }
 
         optional<std::string>& geometryUrl() { return _geometryUrl; }
         const optional<std::string>& geometryUrl() const { return _geometryUrl; }
@@ -77,7 +122,11 @@ namespace osgEarth { namespace Drivers
             conf.set( "ogr_driver", _ogrDriver );
             conf.set( "build_spatial_index", _buildSpatialIndex );
             conf.set( "force_rebuild_spatial_index", _forceRebuildSpatialIndex );
-            conf.set( "geometry", _geometryConf );    
+            conf.set( "geometry", _geometryConf );
+
+            if ( geometryCircle().isSet() )
+                conf.set( "circle", geometryCircle()->getConfig() );
+
             conf.set( "geometry_url", _geometryUrl );
             conf.set( "layer", _layer );
             conf.set( "query", _query );
@@ -99,6 +148,10 @@ namespace osgEarth { namespace Drivers
             conf.get( "build_spatial_index", _buildSpatialIndex );
             conf.get( "force_rebuild_spatial_index", _forceRebuildSpatialIndex );
             conf.get( "geometry", _geometryConf );
+
+            if ( conf.hasChild("circle") )
+                geometryCircle() = CircleOptions(conf.child("circle"));
+
             conf.get( "geometry_url", _geometryUrl );
             conf.get( "layer", _layer);
             conf.get( "query", _query );
@@ -111,6 +164,7 @@ namespace osgEarth { namespace Drivers
         optional<bool>                    _buildSpatialIndex;
         optional<bool>                    _forceRebuildSpatialIndex;
         optional<Config>                  _geometryConf;
+        optional<CircleOptions>           _geometryCircle;
         optional<Config>                  _geometryProfileConf;
         optional<std::string>             _geometryUrl;
         optional<std::string>             _layer;
