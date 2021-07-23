@@ -22,6 +22,7 @@
 
 #include <osgEarth/Common>
 #include <osgEarthSymbology/InstanceSymbol>
+#include <osgEarthSymbology/Color>
 
 namespace osgEarth { namespace Symbology
 {
@@ -87,6 +88,10 @@ namespace osgEarth { namespace Symbology
         optional<double>& minRange() { return _minRange; }
         const optional<double>& minRange() const { return _minRange; }
 
+        /** Color of the icon (use only with a white icon in the atlas) */
+        optional<Color>& color() { return _color; }
+        const optional<Color>& color() const { return _color; }
+
     public: // non-serialized properties (for programmatic use only)
 
         /** Explicit image to use for 2D icon placemet */
@@ -110,6 +115,7 @@ namespace osgEarth { namespace Symbology
         optional<double>                 _occlusionCullAltitude;
         optional<float>                  _margin;
         optional<double>                 _minRange;
+        optional<Color>                  _color;
     };
 
 } } // namespace osgEarth::Symbology

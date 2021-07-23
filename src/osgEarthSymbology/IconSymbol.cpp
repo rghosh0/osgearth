@@ -38,7 +38,8 @@ _image(rhs._image),
 _occlusionCull(rhs._occlusionCull),
 _occlusionCullAltitude(rhs._occlusionCullAltitude),
 _margin(rhs._margin),
-_minRange(rhs._minRange)
+_minRange(rhs._minRange),
+_color(rhs._color)
 {
 }
 
@@ -80,6 +81,7 @@ IconSymbol::getConfig() const
     conf.setNonSerializable( "IconSymbol::image", _image.get() );
 
     conf.set( "icon-min-range", _minRange );
+    conf.set( "color", _color);
 
     return conf;
 }
@@ -106,6 +108,7 @@ IconSymbol::mergeConfig( const Config& conf )
     _image = conf.getNonSerializable<osg::Image>( "IconSymbol::image" );
 
     conf.get( "icon-min-range", _minRange );
+    conf.get( "color", _color);
 }
 
 namespace
@@ -226,5 +229,8 @@ IconSymbol::parseSLD(const Config& c, Style& style)
     }
     else if ( match(c.key(), "icon-min-range") ) {
         style.getOrCreate<IconSymbol>()->minRange() = as<double>(c.value(), defaults.minRange().get() );
+    }
+    else if ( match(c.key(), "icon-color") ) {
+        style.getOrCreate<IconSymbol>()->color() = Color(c.value());
     }
 }

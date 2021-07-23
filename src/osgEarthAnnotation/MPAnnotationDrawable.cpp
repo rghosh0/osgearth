@@ -152,6 +152,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         //    OE_WARN << LC << "The icon alignment " << iconSym->alignment().value() << " is not supported yet.\n";
 
         std::string iconTxt = iconSym->url()->eval();
+        Color iconColor = iconSym->color().getOrUse(Color::White);
 
         // check if there is a list of icons
         if ( iconTxt.find(";") != std::string::npos )
@@ -168,7 +169,7 @@ void MPAnnotationDrawable::buildGeometry(const osgEarth::Symbology::Style& style
         // Build the main centered icon
         if (! iconTxt.empty() )
         {
-            appendIcon(iconTxt, Color::White, _altIconFirstLevel);
+            appendIcon(iconTxt, iconColor, _altIconFirstLevel);
 
             if ( _v->getNumElements() > 0)
             {
