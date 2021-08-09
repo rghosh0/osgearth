@@ -405,7 +405,7 @@ void MinMaxRangeCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
     if (cullVisitor && cullVisitor->getCurrentCamera()->getUserValue("altitude", _curCamRange))
     {
         // only traverse if in the range
-        if (_curCamRange > _minCamRange && _curCamRange < _maxCamRange)
+        if (_curCamRange > _minCamRange && _curCamRange <= _maxCamRange)
         {
             traverse(node, nv);
         }
