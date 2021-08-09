@@ -3,7 +3,7 @@ import os
 
 def get_version():
     defaultFullVersion='2.10.2-0-00000'
-    defaultVersion='2.10.2_7'
+    defaultVersion='2.10.2_9'
     return (defaultFullVersion, defaultVersion)
 
 class OsgEarthConan(ConanFile):
@@ -22,9 +22,6 @@ class OsgEarthConan(ConanFile):
     exports_sources = ["CMakeLists.txt", "src*", "include*", "tests*", "CMakeModules*", "docs*", "LICENSE.txt"] #List only files necessary to build the package
     keep_imports = True #dlls copied by the imports function should stay in the install folder
     qt_install_prefix = "" #stores the Qt install directory because other deps are there too
-    #the following class variables from ConanFile may be undefined, so make sure they are empty strings in that case
-    install_folder = ""
-    source_folder = ""
     
     def requirements(self):
         self.requires.add("boost/[1.69]@conan/stable") #link with boost geometry
