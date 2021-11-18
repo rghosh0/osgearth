@@ -677,16 +677,7 @@ bool EarthManipulator::established() {
 
 void EarthManipulator::handleTileAdded(const TileKey &key, osg::Node *graph,
                                        TerrainCallbackContext &context) {
-  // Only do collision avoidance if it's enabled, we're not tethering and
-  // we're not in the middle of setting a viewpoint.
-  if (getSettings()->getTerrainAvoidanceEnabled() && !isTethering() &&
-      !isSettingViewpoint()) {
-    const GeoPoint &pt = centerMap();
-    if (key.getExtent().contains(pt.x(), pt.y())) {
-      recalculateCenterFromLookVector();
-      collisionDetect();
-    }
-  }
+  // D-33867 Avoid recalculateCenterFromLookVector to prevent abrupt zoom discontinuities
 }
 
 bool EarthManipulator::createLocalCoordFrame(
@@ -2173,9 +2164,7 @@ void EarthManipulator::recalculateCenter(const osg::CoordinateFrame &frame) {
 
 void EarthManipulator::pan(double dx, double dy) {
   if (!isTethering()) {
-    // to pan, we need a focus point on the terrain:
-    if (!recalculateCenterFromLookVector())
-      return;
+    // D-33867 Avoid recalculateCenterFromLookVector to prevent abrupt zoom discontinuities
 
     double scale = -0.3f * _distance;
 
@@ -2297,10 +2286,7 @@ void EarthManipulator::rotate(double dx, double dy) {
 }
 
 void EarthManipulator::zoom(double dx, double dy) {
-  // in normal (non-tethered mode) we need a valid zoom point.
-  if (!isTethering()) {
-    recalculateCenterFromLookVector();
-  }
+  // D-33867 Avoid recalculateCenterFromLookVector to prevent abrupt zoom discontinuities
 
   double scale = 1.0f + dy;
   setDistance(_distance * scale);
