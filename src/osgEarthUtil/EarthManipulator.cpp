@@ -677,7 +677,16 @@ bool EarthManipulator::established() {
 
 void EarthManipulator::handleTileAdded(const TileKey &key, osg::Node *graph,
                                        TerrainCallbackContext &context) {
-  // D-33867 Avoid recalculateCenterFromLookVector to prevent abrupt zoom discontinuities
+  // Only do collision avoidance if it's enabled, we're not tethering and
+  // we're not in the middle of setting a viewpoint.
+  if (getSettings()->getTerrainAvoidanceEnabled() && !isTethering() &&
+      !isSettingViewpoint()) {
+    const GeoPoint &pt = centerMap();
+    if (key.getExtent().contains(pt.x(), pt.y())) {
+      recalculateCenterFromLookVector();
+      collisionDetect();
+    }
+  }
 }
 
 bool EarthManipulator::createLocalCoordFrame(
